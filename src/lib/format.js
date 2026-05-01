@@ -26,5 +26,6 @@ export function parseRupiah(str) {
 
 export function persen(realisasi, pagu) {
   if (!pagu || pagu === 0) return 0
-  return Math.min(100, Math.round((realisasi / pagu) * 100))
+  // Use floor to avoid overstating percentages when summing parts
+  return Math.min(100, Math.floor((realisasi / pagu) * 100))
 }
