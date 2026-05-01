@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bendahara App — Final Design</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #e8e0d5;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 24px; min-height: 100vh;
+  }
+  h1 { color: #1c1c2e; font-size: 17px; margin-bottom: 4px; }
+  .sub { color: #7a7a99; font-size: 12px; margin-bottom: 20px; }
+
+  /* ── App Shell ── */
+  .app {
+    display: flex;
+    width: 100%; max-width: 1140px; height: 640px;
+    border-radius: 18px; overflow: hidden;
+    box-shadow: 0 32px 80px rgba(0,0,0,.18);
+  }
+
+  /* ─────────── SIDEBAR ─────────── */
+  .sidebar {
+    width: 210px; flex-shrink: 0;
+    background: #1c1c2e;
+    display: flex; flex-direction: column;
+    padding: 0;
+  }
+  .sidebar-brand {
+    padding: 22px 20px 18px;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+  }
+  .brand-icon {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: #e8c547; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; margin-bottom: 10px;
+  }
+  .brand-name { font-size: 13px; font-weight: 700; color: #fff; }
+  .brand-sub  { font-size: 9.5px; color: rgba(255,255,255,.4); margin-top: 2px; line-height: 1.5; }
+
+  .nav { flex: 1; padding: 12px 0; }
+  .nav-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 1.2px;
+    text-transform: uppercase; color: rgba(255,255,255,.25);
+    padding: 10px 20px 4px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 20px; font-size: 12px; color: rgba(255,255,255,.5);
+    cursor: pointer; transition: all .15s; border-left: 3px solid transparent;
+  }
+  .nav-item:hover { color: rgba(255,255,255,.85); background: rgba(255,255,255,.04); }
+  .nav-item.active {
+    color: #fff; font-weight: 600;
+    background: rgba(255,255,255,.06);
+    border-left-color: #e8c547;
+  }
+  .nav-item .ico { font-size: 14px; width: 18px; text-align: center; }
+  .nav-sub {
+    padding: 6px 20px 6px 48px;
+    font-size: 11px; color: rgba(255,255,255,.3); cursor: pointer;
+  }
+  .nav-sub:hover { color: rgba(255,255,255,.6); }
+
+  .sidebar-foot {
+    padding: 12px 20px; border-top: 1px solid rgba(255,255,255,.07);
+    font-size: 10px; color: rgba(255,255,255,.25);
+  }
+
+  /* ─────────── MAIN ─────────── */
+  .main { flex: 1; background: #f5f0eb; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Topbar */
+  .topbar {
+    background: #f5f0eb; padding: 16px 26px;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-shrink: 0;
+  }
+  .topbar-left .page-title { font-size: 18px; font-weight: 700; color: #1c1c2e; }
+  .topbar-left .page-sub   { font-size: 11px; color: #9a9ab0; margin-top: 2px; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .search-box {
+    display: flex; align-items: center; gap: 6px;
+    background: #fff; border: 1px solid #e4ddd5;
+    border-radius: 8px; padding: 7px 12px;
+    font-size: 12px; color: #9a9ab0; width: 180px;
+  }
+  .btn-add {
+    background: #1c1c2e; color: #fff; border: none;
+    padding: 8px 16px; border-radius: 9px; font-size: 12px;
+    font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;
+  }
+
+  /* Content */
+  .content { flex: 1; overflow-y: auto; padding: 0 26px 24px; }
+
+  /* ── Summary Cards ── */
+  .summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 20px; }
+
+  .scard {
+    border-radius: 16px; padding: 18px 20px;
+    position: relative; overflow: hidden; min-height: 110px;
+  }
+  .scard.yellow { background: #e8c547; }
+  .scard.purple { background: #c4b5f4; }
+  .scard.tan    { background: #d4c5a9; }
+
+  .scard-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(255,255,255,.35); border-radius: 20px;
+    padding: 3px 10px; font-size: 10px; font-weight: 700; color: #1c1c2e;
+    margin-bottom: 10px;
+  }
+  .scard-value { font-size: 22px; font-weight: 800; color: #1c1c2e; margin-bottom: 3px; }
+  .scard-label { font-size: 11px; color: rgba(28,28,46,.6); }
+  .scard-wave {
+    position: absolute; bottom: 0; right: 0; left: 0; height: 36px;
+    opacity: .18;
+  }
+
+  /* ── Content Grid ── */
+  .content-grid { display: grid; grid-template-columns: 1fr 300px; gap: 16px; }
+
+  /* ── Table Card ── */
+  .card {
+    background: #fff; border-radius: 14px;
+    border: 1px solid rgba(0,0,0,.06);
+    overflow: hidden;
+  }
+  .card-head {
+    padding: 14px 18px; display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #f0ece8;
+  }
+  .card-title { font-size: 13px; font-weight: 700; color: #1c1c2e; }
+  .card-sub   { font-size: 10.5px; color: #9a9ab0; margin-top: 1px; }
+  .btn-sm {
+    background: #f5f0eb; border: none; color: #1c1c2e;
+    padding: 5px 12px; border-radius: 7px; font-size: 11px;
+    font-weight: 600; cursor: pointer;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th {
+    padding: 9px 16px; text-align: left;
+    color: #9a9ab0; font-size: 10.5px; font-weight: 600;
+    background: #faf7f4; border-bottom: 1px solid #f0ece8;
+  }
+  tbody tr { border-bottom: 1px solid #f8f5f2; transition: background .1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #faf7f4; }
+  tbody td { padding: 10px 16px; color: #2d3748; vertical-align: middle; }
+
+  .kode { font-family: monospace; font-size: 10.5px; color: #7a7a99; }
+  .uraian { font-size: 12px; color: #1c1c2e; }
+  .amount { font-weight: 600; font-size: 12px; }
+  .amount.real { color: #1c1c2e; }
+  .amount.sisa { color: #9a9ab0; }
+
+  .progress-wrap { display: flex; align-items: center; gap: 7px; }
+  .progress-bg { flex: 1; height: 5px; background: #ede8e2; border-radius: 10px; min-width: 70px; }
+  .progress-fill { height: 5px; border-radius: 10px; }
+  .pct { font-size: 10.5px; color: #9a9ab0; width: 28px; text-align: right; }
+
+  .pill {
+    display: inline-flex; align-items: center;
+    padding: 3px 9px; border-radius: 20px;
+    font-size: 10px; font-weight: 600;
+  }
+  .pill.done   { background: #d4e8c5; color: #3a7d1e; }
+  .pill.mid    { background: #fef3c7; color: #b45309; }
+  .pill.low    { background: #fee2e2; color: #b91c1c; }
+
+  /* ── Right Panel ── */
+  .right-panel { display: flex; flex-direction: column; gap: 14px; }
+
+  /* Donut / Saldo Card */
+  .saldo-card {
+    background: #1c1c2e; border-radius: 14px;
+    padding: 18px; color: #fff;
+  }
+  .saldo-title  { font-size: 11px; color: rgba(255,255,255,.5); margin-bottom: 4px; }
+  .saldo-amount { font-size: 20px; font-weight: 800; margin-bottom: 14px; }
+
+  .donut-wrap { display: flex; justify-content: center; margin-bottom: 14px; }
+  svg.donut { width: 100px; height: 100px; }
+
+  .legend { display: flex; flex-direction: column; gap: 7px; }
+  .legend-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
+  .legend-dot-label { display: flex; align-items: center; gap: 7px; color: rgba(255,255,255,.6); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .legend-pct { font-weight: 700; color: #fff; }
+
+  /* Transaksi Terakhir */
+  .tx-card { background: #fff; border-radius: 14px; border: 1px solid rgba(0,0,0,.06); overflow: hidden; }
+  .tx-head { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0ece8; }
+  .tx-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 16px; border-bottom: 1px solid #f8f5f2; }
+  .tx-item:last-child { border-bottom: none; }
+  .tx-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; margin-right: 8px; }
+  .tx-icon.yellow { background: #fef9e7; }
+  .tx-icon.purple { background: #f3f0ff; }
+  .tx-icon.tan    { background: #f5f0e8; }
+  .tx-info { flex: 1; }
+  .tx-name { font-size: 11.5px; font-weight: 600; color: #1c1c2e; }
+  .tx-date { font-size: 10px; color: #9a9ab0; margin-top: 1px; }
+  .tx-amount { font-size: 12px; font-weight: 700; color: #b91c1c; }
+</style>
+</head>
+<body>
+<h1>Bendahara App — Final Design Preview</h1>
+<p class="sub">Warna dari referensi dashboard concept · Klik di dalam mockup untuk konfirmasi</p>
+
+<div class="app" onclick="confirm()">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">💰</div>
+      <div class="brand-name">Bendahara App</div>
+      <div class="brand-sub">UPTD BAPENDA<br>Wilayah Kab. Tasikmalaya</div>
+    </div>
+    <div class="nav">
+      <div class="nav-label">Menu Utama</div>
+      <div class="nav-item active"><span class="ico">🏠</span> Dashboard</div>
+      <div class="nav-item"><span class="ico">📥</span> Penerimaan</div>
+      <div class="nav-item"><span class="ico">📤</span> Pengeluaran</div>
+      <div class="nav-item"><span class="ico">📋</span> Anggaran / DPA</div>
+      <div class="nav-label">Laporan</div>
+      <div class="nav-item"><span class="ico">📊</span> Laporan</div>
+      <div class="nav-sub">↳ Buku Kas Umum</div>
+      <div class="nav-sub">↳ Buku Pembantu</div>
+      <div class="nav-sub">↳ Realisasi / SPJ</div>
+      <div class="nav-sub">↳ Rekap Bulanan</div>
+    </div>
+    <div class="sidebar-foot">TA 2026 · PAD Jawa Barat</div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub">Tahun Anggaran 2026 · Per 30 April 2026</div>
+      </div>
+      <div class="topbar-right">
+        <div class="search-box">🔍 Cari transaksi...</div>
+        <button class="btn-add">＋ Pengeluaran</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Summary Cards -->
+      <div class="summary">
+        <div class="scard yellow">
+          <div class="scard-tag">📦 Total Pagu</div>
+          <div class="scard-value">Rp 712,4 Jt</div>
+          <div class="scard-label">13 Sub Kegiatan · TA 2026</div>
+        </div>
+        <div class="scard purple">
+          <div class="scard-tag">✅ Realisasi</div>
+          <div class="scard-value">Rp 284,9 Jt</div>
+          <div class="scard-label">40,0% dari total pagu terserap</div>
+        </div>
+        <div class="scard tan">
+          <div class="scard-tag">⏳ Sisa Anggaran</div>
+          <div class="scard-value">Rp 427,5 Jt</div>
+          <div class="scard-label">Saldo kas bendahara aktif</div>
+        </div>
+      </div>
+
+      <!-- Content Grid -->
+      <div class="content-grid">
+
+        <!-- Tabel Realisasi -->
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Realisasi per Sub Kegiatan</div>
+              <div class="card-sub">13 sub kegiatan · klik baris untuk lihat rincian</div>
+            </div>
+            <button class="btn-sm">Export Excel</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Kode Sub Kegiatan</th>
+                <th>Uraian</th>
+                <th style="text-align:right">Pagu</th>
+                <th style="text-align:right">Realisasi</th>
+                <th>Progress</th>
+                <th style="text-align:center">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="kode">5.02.01.1.06.0001</td>
+                <td class="uraian">Penyediaan Komponen Instalasi Listrik</td>
+                <td style="text-align:right" class="amount">38.802.000</td>
+                <td style="text-align:right" class="amount real">15.120.000</td>
+                <td><div class="progress-wrap"><div class="progress-bg"><div class="progress-fill" style="width:39%;background:#e8c547"></div></div><span class="pct">39%</span></div></td>
+                <td style="text-align:center"><span class="pill mid">Berjalan</span></td>
+              </tr>
+              <tr>
+                <td class="kode">5.02.01.1.06.0002</td>
+                <td class="uraian">Penyediaan Peralatan dan Perlengkapan Kantor</td>
+                <td style="text-align:right" class="amount">104.474.000</td>
+                <td style="text-align:right" class="amount real">52.237.000</td>
+                <td><div class="progress-wrap"><div class="progress-bg"><div class="progress-fill" style="width:50%;background:#c4b5f4"></div></div><span class="pct">50%</span></div></td>
+                <td style="text-align:center"><span class="pill mid">Berjalan</span></td>
+              </tr>
+              <tr>
+                <td class="kode">5.02.01.1.06.0005</td>
+                <td class="uraian">Penyediaan Barang Cetakan dan Penggandaan</td>
+                <td style="text-align:right" class="amount">16.982.000</td>
+                <td style="text-align:right" class="amount real">16.982.000</td>
+                <td><div class="progress-wrap"><div class="progress-bg"><div class="progress-fill" style="width:100%;background:#6db56d"></div></div><span class="pct">100%</span></div></td>
+                <td style="text-align:center"><span class="pill done">Selesai</span></td>
+              </tr>
+              <tr>
+                <td class="kode">5.02.01.1.06.0009</td>
+                <td class="uraian">Penyelenggaraan Rapat Koordinasi SKPD</td>
+                <td style="text-align:right" class="amount">59.636.000</td>
+                <td style="text-align:right" class="amount real">32.800.000</td>
+                <td><div class="progress-wrap"><div class="progress-bg"><div class="progress-fill" style="width:55%;background:#c4b5f4"></div></div><span class="pct">55%</span></div></td>
+                <td style="text-align:center"><span class="pill mid">Berjalan</span></td>
+              </tr>
+              <tr>
+                <td class="kode">5.02.01.1.09.0002</td>
+                <td class="uraian">Pemeliharaan Kendaraan Dinas Operasional</td>
+                <td style="text-align:right" class="amount">85.322.000</td>
+                <td style="text-align:right" class="amount real">5.000.000</td>
+                <td><div class="progress-wrap"><div class="progress-bg"><div class="progress-fill" style="width:6%;background:#e87a7a"></div></div><span class="pct">6%</span></div></td>
+                <td style="text-align:center"><span class="pill low">Rendah</span></td>
+              </tr>
+              <tr>
+                <td class="kode">5.02.01.1.09.0010</td>
+                <td class="uraian">Pemeliharaan Gedung Kantor / Bangunan Lainnya</td>
+                <td style="text-align:right" class="amount">46.098.000</td>
+                <td style="text-align:right" class="amount real">20.000.000</td>
+                <td><div class="progress-wrap"><div class="progress-bg"><div class="progress-fill" style="width:43%;background:#e8c547"></div></div><span class="pct">43%</span></div></td>
+                <td style="text-align:center"><span class="pill mid">Berjalan</span></td>
+              </tr>
+              <tr>
+                <td colspan="6" style="text-align:center;color:#b0a898;font-size:11px;padding:10px;font-style:italic">
+                  ... 7 sub kegiatan lainnya
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+
+          <!-- Saldo / Donut -->
+          <div class="saldo-card">
+            <div class="saldo-title">Saldo Kas Bendahara</div>
+            <div class="saldo-amount">Rp 284.984.400</div>
+            <div class="donut-wrap">
+              <svg class="donut" viewBox="0 0 36 36">
+                <!-- Background circle -->
+                <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="4"/>
+                <!-- Yellow: 40% -->
+                <circle cx="18" cy="18" r="14" fill="none" stroke="#e8c547" stroke-width="4"
+                  stroke-dasharray="35.2 52.8" stroke-dashoffset="0" transform="rotate(-90 18 18)"/>
+                <!-- Purple: 30% -->
+                <circle cx="18" cy="18" r="14" fill="none" stroke="#c4b5f4" stroke-width="4"
+                  stroke-dasharray="26.4 61.6" stroke-dashoffset="-35.2" transform="rotate(-90 18 18)"/>
+                <!-- Tan: 30% -->
+                <circle cx="18" cy="18" r="14" fill="none" stroke="#d4c5a9" stroke-width="4"
+                  stroke-dasharray="26.4 61.6" stroke-dashoffset="-61.6" transform="rotate(-90 18 18)"/>
+                <text x="18" y="19.5" text-anchor="middle" font-size="5" fill="#fff" font-weight="700">40%</text>
+                <text x="18" y="23.5" text-anchor="middle" font-size="3.5" fill="rgba(255,255,255,.4)">terserap</text>
+              </svg>
+            </div>
+            <div class="legend">
+              <div class="legend-row">
+                <div class="legend-dot-label"><div class="dot" style="background:#e8c547"></div>Realisasi</div>
+                <div class="legend-pct">40%</div>
+              </div>
+              <div class="legend-row">
+                <div class="legend-dot-label"><div class="dot" style="background:#c4b5f4"></div>Sedang Berjalan</div>
+                <div class="legend-pct">30%</div>
+              </div>
+              <div class="legend-row">
+                <div class="legend-dot-label"><div class="dot" style="background:#d4c5a9"></div>Belum Direalisasi</div>
+                <div class="legend-pct">30%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Transaksi Terakhir -->
+          <div class="tx-card">
+            <div class="tx-head">
+              <div class="card-title" style="font-size:12px">Pengeluaran Terakhir</div>
+              <button class="btn-sm" style="font-size:10px">Lihat Semua</button>
+            </div>
+            <div class="tx-item">
+              <div class="tx-icon yellow">📄</div>
+              <div class="tx-info">
+                <div class="tx-name">Barang Cetakan</div>
+                <div class="tx-date">28 Apr 2026 · ...06.0005</div>
+              </div>
+              <div class="tx-amount">−10.250.000</div>
+            </div>
+            <div class="tx-item">
+              <div class="tx-icon purple">🚗</div>
+              <div class="tx-info">
+                <div class="tx-name">BBM Kendaraan Dinas</div>
+                <div class="tx-date">25 Apr 2026 · ...09.0002</div>
+              </div>
+              <div class="tx-amount">−5.000.000</div>
+            </div>
+            <div class="tx-item">
+              <div class="tx-icon tan">🏛️</div>
+              <div class="tx-info">
+                <div class="tx-name">Rapat Koordinasi</div>
+                <div class="tx-date">22 Apr 2026 · ...06.0009</div>
+              </div>
+              <div class="tx-amount">−8.500.000</div>
+            </div>
+            <div class="tx-item">
+              <div class="tx-icon yellow">💡</div>
+              <div class="tx-info">
+                <div class="tx-name">Komponen Instalasi Listrik</div>
+                <div class="tx-date">20 Apr 2026 · ...06.0001</div>
+              </div>
+              <div class="tx-amount">−15.120.000</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="sub" style="margin-top:16px">Klik di dalam mockup lalu beritahu saya di terminal apakah desain ini sudah sesuai ✓</p>
+
+<script>
+function confirm() {
+  if (window.__superpowers_recordEvent) {
+    window.__superpowers_recordEvent({ type: 'click', choice: 'final', text: 'Final design confirmed' });
+  }
+}
+</script>
+</body>
+</html>

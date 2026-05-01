@@ -1,0 +1,28 @@
+<h2>Teknologi Aplikasi Desktop</h2>
+<p class="subtitle">Pertanyaan 3: Pilih teknologi yang paling cocok untuk Anda</p>
+
+<div class="options">
+  <div class="option" data-choice="electron" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Electron + React</h3>
+      <p>Tampilan modern berbasis web (HTML/CSS/JS). Integrasi Supabase sangat mudah. Ukuran file lebih besar (~150MB), tapi fitur lengkap dan tampilan bisa sangat rapi.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tauri" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Tauri + React</h3>
+      <p>Seperti Electron tapi jauh lebih ringan (~10MB). Tampilan modern berbasis web, integrasi Supabase mudah. Butuh Rust terinstal saat development.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="python" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Python + CustomTkinter</h3>
+      <p>Aplikasi desktop klasik dengan Python. Lebih sederhana secara tampilan, tapi mudah di-maintain. Cocok jika Anda familiar dengan Python.</p>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem">Jika tidak yakin, <strong>Electron + React</strong> adalah pilihan paling umum untuk desktop + Supabase.</p>

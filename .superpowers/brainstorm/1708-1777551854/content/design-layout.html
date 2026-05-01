@@ -1,0 +1,115 @@
+<h2>Desain Aplikasi Bendahara Pengeluaran</h2>
+<p class="subtitle">Mockup layout utama — UPTD BAPENDA Kab. Tasikmalaya</p>
+
+<div class="mockup" style="max-width:900px;margin:0 auto">
+  <div class="mockup-header">Tampilan Aplikasi Desktop (Electron + React)</div>
+  <div class="mockup-body" style="padding:0;overflow:hidden;border-radius:0 0 8px 8px">
+
+    <!-- App Shell -->
+    <div style="display:flex;height:520px;font-size:13px">
+
+      <!-- Sidebar -->
+      <div style="width:200px;background:#1e3a5f;color:#fff;display:flex;flex-direction:column;flex-shrink:0">
+        <div style="padding:14px 16px;border-bottom:1px solid #2d5080;font-weight:700;font-size:14px;letter-spacing:.5px">
+          💰 Bendahara<br>
+          <span style="font-size:10px;font-weight:400;opacity:.7">UPTD BAPENDA Kab. Tasikmalaya</span>
+        </div>
+        <nav style="flex:1;padding:8px 0">
+          <div style="padding:9px 16px;background:#2d5080;color:#fff;font-weight:600;cursor:pointer">🏠 Dashboard</div>
+          <div style="padding:9px 16px;color:#cdd9e5;cursor:pointer">📥 Penerimaan</div>
+          <div style="padding:9px 16px;color:#cdd9e5;cursor:pointer">📤 Pengeluaran</div>
+          <div style="padding:9px 16px;color:#cdd9e5;cursor:pointer">📋 Anggaran / DPA</div>
+          <div style="padding:9px 16px;color:#cdd9e5;cursor:pointer;border-top:1px solid #2d5080;margin-top:8px">📊 Laporan</div>
+          <div style="padding:9px 16px;color:#cdd9e5;cursor:pointer;padding-left:28px;font-size:12px">↳ Buku Kas Umum</div>
+          <div style="padding:9px 16px;color:#cdd9e5;cursor:pointer;padding-left:28px;font-size:12px">↳ Buku Pembantu</div>
+          <div style="padding:9px 16px;color:#cdd9e5;cursor:pointer;padding-left:28px;font-size:12px">↳ Realisasi / SPJ</div>
+          <div style="padding:9px 16px;color:#cdd9e5;cursor:pointer;padding-left:28px;font-size:12px">↳ Rekap Bulanan</div>
+        </nav>
+        <div style="padding:10px 16px;border-top:1px solid #2d5080;font-size:11px;color:#8aa8c8">TA 2026</div>
+      </div>
+
+      <!-- Main Content -->
+      <div style="flex:1;background:#f4f6f9;overflow:auto;padding:18px">
+
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:#1e3a5f">Dashboard</div>
+            <div style="font-size:11px;color:#888">Tahun Anggaran 2026 · Per April 2026</div>
+          </div>
+          <button style="background:#1e3a5f;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer">+ Input Pengeluaran</button>
+        </div>
+
+        <!-- Summary Cards -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+          <div style="background:#fff;border-radius:8px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+            <div style="font-size:11px;color:#888;margin-bottom:4px">Total Pagu Anggaran</div>
+            <div style="font-size:18px;font-weight:700;color:#1e3a5f">Rp 712.461.000</div>
+            <div style="font-size:11px;color:#888">13 Sub Kegiatan</div>
+          </div>
+          <div style="background:#fff;border-radius:8px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+            <div style="font-size:11px;color:#888;margin-bottom:4px">Total Realisasi</div>
+            <div style="font-size:18px;font-weight:700;color:#2e7d32">Rp 284.984.400</div>
+            <div style="font-size:11px;color:#2e7d32">40,0% terserap</div>
+          </div>
+          <div style="background:#fff;border-radius:8px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+            <div style="font-size:11px;color:#888;margin-bottom:4px">Sisa Anggaran</div>
+            <div style="font-size:18px;font-weight:700;color:#c62828">Rp 427.476.600</div>
+            <div style="font-size:11px;color:#888">Saldo kas: Rp 284.984.400</div>
+          </div>
+        </div>
+
+        <!-- Realisasi per Sub Kegiatan -->
+        <div style="background:#fff;border-radius:8px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+          <div style="font-size:13px;font-weight:600;color:#1e3a5f;margin-bottom:10px">Realisasi per Sub Kegiatan</div>
+          <table style="width:100%;font-size:12px;border-collapse:collapse">
+            <thead>
+              <tr style="background:#f0f4f8">
+                <th style="text-align:left;padding:6px 8px;color:#555">Kode</th>
+                <th style="text-align:left;padding:6px 8px;color:#555">Sub Kegiatan</th>
+                <th style="text-align:right;padding:6px 8px;color:#555">Pagu</th>
+                <th style="text-align:right;padding:6px 8px;color:#555">Realisasi</th>
+                <th style="text-align:center;padding:6px 8px;color:#555">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-top:1px solid #eee">
+                <td style="padding:6px 8px;color:#666">5.02.01.1.06.0001</td>
+                <td style="padding:6px 8px">Penyediaan Komponen Instalasi Listrik</td>
+                <td style="padding:6px 8px;text-align:right">38.802.000</td>
+                <td style="padding:6px 8px;text-align:right;color:#2e7d32">15.000.000</td>
+                <td style="padding:6px 8px;text-align:center">
+                  <div style="background:#e8f5e9;border-radius:4px;padding:2px 6px;font-size:11px;color:#2e7d32">39%</div>
+                </td>
+              </tr>
+              <tr style="border-top:1px solid #eee;background:#fafafa">
+                <td style="padding:6px 8px;color:#666">5.02.01.1.06.0005</td>
+                <td style="padding:6px 8px">Penyediaan Barang Cetakan dan Penggandaan</td>
+                <td style="padding:6px 8px;text-align:right">16.982.000</td>
+                <td style="padding:6px 8px;text-align:right;color:#2e7d32">16.982.000</td>
+                <td style="padding:6px 8px;text-align:center">
+                  <div style="background:#e3f2fd;border-radius:4px;padding:2px 6px;font-size:11px;color:#1565c0">100%</div>
+                </td>
+              </tr>
+              <tr style="border-top:1px solid #eee">
+                <td style="padding:6px 8px;color:#666">5.02.01.1.09.0002</td>
+                <td style="padding:6px 8px">Pemeliharaan Kendaraan Dinas</td>
+                <td style="padding:6px 8px;text-align:right">85.322.000</td>
+                <td style="padding:6px 8px;text-align:right;color:#e65100">5.000.000</td>
+                <td style="padding:6px 8px;text-align:center">
+                  <div style="background:#fff3e0;border-radius:4px;padding:2px 6px;font-size:11px;color:#e65100">6%</div>
+                </td>
+              </tr>
+              <tr style="border-top:1px solid #eee;background:#fafafa">
+                <td style="padding:6px 8px;color:#666" colspan="4" style="text-align:center;color:#aaa;font-style:italic">... 10 sub kegiatan lainnya</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1rem;text-align:center">Ini adalah mockup dashboard. Apakah layout ini sesuai? Beritahu saya di terminal.</p>

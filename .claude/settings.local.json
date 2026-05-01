@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh repo *)",
+      "Bash(gh api *)",
+      "WebFetch(domain:github.com)",
+      "Bash(claude plugin *)",
+      "Bash(npx uipro-cli *)",
+      "Bash(bash *)",
+      "WebFetch(domain:pin.it)",
+      "WebFetch(domain:api.pinterest.com)",
+      "WebFetch(domain:www.pinterest.com)",
+      "Bash(npm install *)",
+      "Bash(npm show *)",
+      "Bash(where gemini *)",
+      "Bash(where gh *)",
+      "Bash(where copilot *)",
+      "Bash(gemini --version)",
+      "Bash(gh copilot *)",
+      "Bash(gh --version)",
+      "Read(//c/Users/User/AppData/Roaming/Code/User/globalStorage/github.copilot-chat/copilotCli/**)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"C:/Users/User/AppData/Roaming/Code/User/globalStorage/github.copilot-chat/copilotCli/copilot.ps1\" --version)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"C:/Users/User/AppData/Roaming/Code/User/globalStorage/github.copilot-chat/copilotCli/copilot.ps1\" --help)",
+      "Bash(where gemini.exe)",
+      "Read(//c/Users/User/AppData/Local/Programs/**)",
+      "Read(//c/Users/User/AppData/Local/Google/**)",
+      "Bash(powershell -Command \"Get-Command gemini -ErrorAction SilentlyContinue\")",
+      "PowerShell(npm list *)",
+      "Bash(npm test *)"
+    ]
+  }
+}

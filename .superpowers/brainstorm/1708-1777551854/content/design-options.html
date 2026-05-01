@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pilihan Desain UI</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #fff; padding: 24px; }
+  h1 { text-align: center; font-size: 20px; margin-bottom: 6px; color: #fff; }
+  .sub { text-align: center; color: #888; font-size: 13px; margin-bottom: 28px; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 1200px; margin: 0 auto; }
+
+  .card-wrap { cursor: pointer; border-radius: 12px; border: 2px solid transparent; transition: all .2s; overflow: hidden; }
+  .card-wrap:hover { border-color: #4f8ef7; transform: translateY(-2px); }
+  .card-wrap.selected { border-color: #4f8ef7; box-shadow: 0 0 0 4px rgba(79,142,247,.25); }
+
+  .label { text-align: center; padding: 10px; font-size: 13px; font-weight: 600; }
+
+  /* ===== DESIGN A: Dark Glassmorphism ===== */
+  .design-a { background: #0d1b2a; border-radius: 10px; overflow: hidden; height: 320px; display: flex; }
+  .da-sidebar { width: 56px; background: #111d2e; display: flex; flex-direction: column; align-items: center; padding: 14px 0; gap: 18px; }
+  .da-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,.06); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .da-icon.active { background: #4f8ef7; }
+  .da-main { flex: 1; padding: 14px; overflow: hidden; }
+  .da-header { font-size: 11px; color: #7a8fa6; margin-bottom: 12px; letter-spacing: .5px; text-transform: uppercase; }
+  .da-cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 12px; }
+  .da-card { background: rgba(255,255,255,.04); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 10px; }
+  .da-card-label { font-size: 9px; color: #7a8fa6; margin-bottom: 4px; }
+  .da-card-val { font-size: 13px; font-weight: 700; color: #fff; }
+  .da-card-sub { font-size: 9px; margin-top: 2px; }
+  .da-table-header { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr; font-size: 9px; color: #4a6278; padding: 0 6px 4px; }
+  .da-row { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr; background: rgba(255,255,255,.03); border-radius: 6px; padding: 5px 6px; margin-bottom: 4px; font-size: 9px; color: #c0cfe0; align-items: center; }
+  .da-badge { background: rgba(79,142,247,.2); color: #4f8ef7; border-radius: 4px; padding: 1px 5px; font-size: 8px; text-align: center; }
+  .da-badge.green { background: rgba(52,211,153,.15); color: #34d399; }
+  .da-badge.orange { background: rgba(251,146,60,.15); color: #fb923c; }
+  .da-btn { background: #4f8ef7; color: #fff; border: none; border-radius: 6px; padding: 5px 10px; font-size: 9px; float: right; margin-bottom: 8px; cursor: pointer; }
+
+  /* ===== DESIGN B: Clean Soft Modern ===== */
+  .design-b { background: #f8faff; border-radius: 10px; overflow: hidden; height: 320px; display: flex; color: #1a2332; }
+  .db-sidebar { width: 160px; background: #fff; border-right: 1px solid #e8edf5; display: flex; flex-direction: column; padding: 0; flex-shrink: 0; }
+  .db-logo { padding: 12px 14px; border-bottom: 1px solid #e8edf5; }
+  .db-logo-title { font-size: 11px; font-weight: 700; color: #1a2332; }
+  .db-logo-sub { font-size: 9px; color: #9aabbf; }
+  .db-nav { flex: 1; padding: 8px 0; }
+  .db-nav-item { padding: 7px 14px; font-size: 10px; color: #7a8fa6; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .db-nav-item.active { background: #eef3ff; color: #3b6ef8; font-weight: 600; border-right: 2px solid #3b6ef8; }
+  .db-main { flex: 1; padding: 14px; overflow: hidden; }
+  .db-title { font-size: 13px; font-weight: 700; color: #1a2332; margin-bottom: 2px; }
+  .db-sub { font-size: 9px; color: #9aabbf; margin-bottom: 10px; }
+  .db-cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 10px; }
+  .db-card { border-radius: 10px; padding: 10px; }
+  .db-card.blue { background: linear-gradient(135deg,#3b6ef8,#1e4dd4); color: #fff; }
+  .db-card.green { background: linear-gradient(135deg,#10b981,#059669); color: #fff; }
+  .db-card.purple { background: linear-gradient(135deg,#8b5cf6,#6d28d9); color: #fff; }
+  .db-card-label { font-size: 8px; opacity: .8; margin-bottom: 3px; }
+  .db-card-val { font-size: 12px; font-weight: 700; }
+  .db-card-sub { font-size: 8px; opacity: .75; margin-top: 2px; }
+  .db-table { background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e8edf5; }
+  .db-table-header { display: grid; grid-template-columns: 1.2fr 2fr 1fr 0.6fr; padding: 6px 8px; background: #f4f7ff; font-size: 8px; color: #7a8fa6; font-weight: 600; }
+  .db-row { display: grid; grid-template-columns: 1.2fr 2fr 1fr 0.6fr; padding: 5px 8px; font-size: 8px; color: #2d3f55; border-top: 1px solid #f0f4f9; align-items: center; }
+  .db-pill { border-radius: 20px; padding: 2px 6px; font-size: 7px; font-weight: 600; display: inline-block; }
+  .db-pill.g { background: #d1fae5; color: #059669; }
+  .db-pill.o { background: #fed7aa; color: #c2410c; }
+  .db-pill.b { background: #dbeafe; color: #1d4ed8; }
+
+  /* ===== DESIGN C: Gradient Sidebar Modern ===== */
+  .design-c { background: #fafbfc; border-radius: 10px; overflow: hidden; height: 320px; display: flex; color: #1a2332; }
+  .dc-sidebar { width: 170px; background: linear-gradient(160deg, #1a2b4a 0%, #0f3460 60%, #16213e 100%); display: flex; flex-direction: column; flex-shrink: 0; }
+  .dc-logo { padding: 14px 14px 10px; }
+  .dc-logo-icon { font-size: 18px; margin-bottom: 2px; }
+  .dc-logo-title { font-size: 11px; font-weight: 700; color: #fff; }
+  .dc-logo-sub { font-size: 8px; color: rgba(255,255,255,.45); }
+  .dc-nav { flex: 1; padding: 4px 0; }
+  .dc-section { font-size: 8px; color: rgba(255,255,255,.3); padding: 8px 14px 3px; letter-spacing: .8px; text-transform: uppercase; }
+  .dc-item { padding: 7px 14px; font-size: 10px; color: rgba(255,255,255,.6); cursor: pointer; display: flex; align-items: center; gap: 7px; border-radius: 0; }
+  .dc-item.active { background: rgba(255,255,255,.1); color: #fff; font-weight: 600; border-left: 3px solid #60a5fa; padding-left: 11px; }
+  .dc-item-sub { padding: 5px 14px 5px 34px; font-size: 9px; color: rgba(255,255,255,.45); cursor: pointer; }
+  .dc-main { flex: 1; padding: 14px; background: #f0f4fb; overflow: hidden; }
+  .dc-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .dc-title { font-size: 13px; font-weight: 700; color: #1a2332; }
+  .dc-btn { background: linear-gradient(135deg,#3b6ef8,#6d28d9); color: #fff; border: none; border-radius: 20px; padding: 5px 12px; font-size: 9px; cursor: pointer; font-weight: 600; }
+  .dc-cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 10px; }
+  .dc-card { background: #fff; border-radius: 10px; padding: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); position: relative; overflow: hidden; }
+  .dc-card::before { content:''; position:absolute; top:-10px; right:-10px; width:50px; height:50px; border-radius:50%; opacity:.08; }
+  .dc-card.a::before { background:#3b6ef8; }
+  .dc-card.b::before { background:#10b981; }
+  .dc-card.c::before { background:#f59e0b; }
+  .dc-card-icon { font-size: 16px; margin-bottom: 4px; }
+  .dc-card-label { font-size: 8px; color: #9aabbf; margin-bottom: 3px; }
+  .dc-card-val { font-size: 11px; font-weight: 700; color: #1a2332; }
+  .dc-card-bar-bg { background: #e8edf5; border-radius: 4px; height: 3px; margin-top: 6px; }
+  .dc-card-bar { height: 3px; border-radius: 4px; }
+  .dc-list { background: #fff; border-radius: 10px; padding: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+  .dc-list-title { font-size: 9px; font-weight: 700; color: #1a2332; margin-bottom: 6px; }
+  .dc-list-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #f0f4f9; }
+  .dc-list-name { font-size: 8.5px; color: #3a4f65; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dc-progress-wrap { display: flex; align-items: center; gap: 5px; }
+  .dc-progress-bg { width: 60px; height: 4px; background: #e8edf5; border-radius: 4px; }
+  .dc-progress-fill { height: 4px; border-radius: 4px; }
+  .dc-pct { font-size: 8px; color: #7a8fa6; width: 24px; text-align: right; }
+
+  /* Selection overlay */
+  .card-wrap { position: relative; }
+  .select-badge { display: none; position: absolute; top: 10px; right: 10px; background: #4f8ef7; color: #fff; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; align-items: center; justify-content: center; font-weight: 700; z-index: 10; }
+  .card-wrap.selected .select-badge { display: flex; }
+
+  .choice-hint { text-align: center; color: #555; font-size: 12px; margin-top: 20px; }
+</style>
+</head>
+<body>
+<h1>Pilih Desain UI yang Paling Anda Sukai</h1>
+<p class="sub">Klik salah satu untuk memilih — lalu beritahu saya di terminal</p>
+
+<div class="grid">
+
+  <!-- OPTION A: Dark Glassmorphism -->
+  <div class="card-wrap" onclick="selectCard(this,'A')" data-choice="A">
+    <div class="select-badge">✓</div>
+    <div class="design-a">
+      <div class="da-sidebar">
+        <div class="da-icon active">🏠</div>
+        <div class="da-icon">📥</div>
+        <div class="da-icon">📤</div>
+        <div class="da-icon">📋</div>
+        <div class="da-icon">📊</div>
+      </div>
+      <div class="da-main">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="da-header">Dashboard · TA 2026</div>
+          <button class="da-btn">+ Pengeluaran</button>
+        </div>
+        <div class="da-cards">
+          <div class="da-card">
+            <div class="da-card-label">Total Pagu</div>
+            <div class="da-card-val">712,4 Jt</div>
+            <div class="da-card-sub" style="color:#7a8fa6">13 sub kegiatan</div>
+          </div>
+          <div class="da-card">
+            <div class="da-card-label">Realisasi</div>
+            <div class="da-card-val" style="color:#34d399">284,9 Jt</div>
+            <div class="da-card-sub" style="color:#34d399">40.0% terserap</div>
+          </div>
+          <div class="da-card">
+            <div class="da-card-label">Sisa Anggaran</div>
+            <div class="da-card-val" style="color:#fb923c">427,5 Jt</div>
+            <div class="da-card-sub" style="color:#7a8fa6">Saldo kas</div>
+          </div>
+        </div>
+        <div class="da-table-header">
+          <span>Kode</span><span>Sub Kegiatan</span><span style="text-align:right">Pagu</span><span style="text-align:center">%</span>
+        </div>
+        <div class="da-row">
+          <span style="color:#4f8ef7">...1.06.0001</span><span>Komponen Instalasi Listrik</span><span style="text-align:right">38,8 Jt</span><span><div class="da-badge">39%</div></span>
+        </div>
+        <div class="da-row">
+          <span style="color:#4f8ef7">...1.06.0005</span><span>Barang Cetakan & Penggandaan</span><span style="text-align:right">16,9 Jt</span><span><div class="da-badge green">100%</div></span>
+        </div>
+        <div class="da-row">
+          <span style="color:#4f8ef7">...1.09.0002</span><span>Pemeliharaan Kendaraan Dinas</span><span style="text-align:right">85,3 Jt</span><span><div class="da-badge orange">6%</div></span>
+        </div>
+      </div>
+    </div>
+    <div class="label" style="background:#0d1b2a;color:#7a8fa6">A — Dark Modern</div>
+  </div>
+
+  <!-- OPTION B: Clean Soft Modern -->
+  <div class="card-wrap" onclick="selectCard(this,'B')" data-choice="B">
+    <div class="select-badge">✓</div>
+    <div class="design-b">
+      <div class="db-sidebar">
+        <div class="db-logo">
+          <div class="db-logo-title">💰 Bendahara</div>
+          <div class="db-logo-sub">UPTD BAPENDA Kab. Tasikmalaya</div>
+        </div>
+        <div class="db-nav">
+          <div class="db-nav-item active">🏠 Dashboard</div>
+          <div class="db-nav-item">📥 Penerimaan</div>
+          <div class="db-nav-item">📤 Pengeluaran</div>
+          <div class="db-nav-item">📋 DPA / Anggaran</div>
+          <div class="db-nav-item" style="margin-top:6px;border-top:1px solid #e8edf5;padding-top:10px">📊 Laporan</div>
+        </div>
+        <div style="padding:8px 14px;font-size:8px;color:#b0bec5;border-top:1px solid #e8edf5">TA 2026</div>
+      </div>
+      <div class="db-main">
+        <div class="db-title">Dashboard</div>
+        <div class="db-sub">Tahun Anggaran 2026 · Per April 2026</div>
+        <div class="db-cards">
+          <div class="db-card blue">
+            <div class="db-card-label">Total Pagu</div>
+            <div class="db-card-val">Rp 712,4 Jt</div>
+            <div class="db-card-sub">13 Sub Kegiatan</div>
+          </div>
+          <div class="db-card green">
+            <div class="db-card-label">Realisasi</div>
+            <div class="db-card-val">Rp 284,9 Jt</div>
+            <div class="db-card-sub">40.0% terserap</div>
+          </div>
+          <div class="db-card purple">
+            <div class="db-card-label">Sisa Anggaran</div>
+            <div class="db-card-val">Rp 427,5 Jt</div>
+            <div class="db-card-sub">Saldo kas aktif</div>
+          </div>
+        </div>
+        <div class="db-table">
+          <div class="db-table-header">
+            <span>Kode</span><span>Sub Kegiatan</span><span>Pagu</span><span>Status</span>
+          </div>
+          <div class="db-row">
+            <span style="color:#3b6ef8">...06.0001</span><span>Komponen Instalasi Listrik</span><span>38,8 Jt</span><span><div class="db-pill o">39%</div></span>
+          </div>
+          <div class="db-row">
+            <span style="color:#3b6ef8">...06.0005</span><span>Barang Cetakan & Penggandaan</span><span>16,9 Jt</span><span><div class="db-pill g">100%</div></span>
+          </div>
+          <div class="db-row">
+            <span style="color:#3b6ef8">...09.0002</span><span>Pemeliharaan Kendaraan</span><span>85,3 Jt</span><span><div class="db-pill b">6%</div></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="label" style="background:#f0f4fa;color:#3a5070">B — Clean & Soft</div>
+  </div>
+
+  <!-- OPTION C: Gradient Sidebar -->
+  <div class="card-wrap" onclick="selectCard(this,'C')" data-choice="C">
+    <div class="select-badge">✓</div>
+    <div class="design-c">
+      <div class="dc-sidebar">
+        <div class="dc-logo">
+          <div class="dc-logo-icon">💰</div>
+          <div class="dc-logo-title">Bendahara App</div>
+          <div class="dc-logo-sub">UPTD BAPENDA</div>
+        </div>
+        <div class="dc-nav">
+          <div class="dc-section">Utama</div>
+          <div class="dc-item active">🏠 Dashboard</div>
+          <div class="dc-item">📥 Penerimaan</div>
+          <div class="dc-item">📤 Pengeluaran</div>
+          <div class="dc-item">📋 Anggaran</div>
+          <div class="dc-section">Laporan</div>
+          <div class="dc-item-sub">Buku Kas Umum</div>
+          <div class="dc-item-sub">Buku Pembantu</div>
+          <div class="dc-item-sub">Realisasi / SPJ</div>
+        </div>
+      </div>
+      <div class="dc-main">
+        <div class="dc-topbar">
+          <div class="dc-title">Dashboard</div>
+          <button class="dc-btn">+ Input Pengeluaran</button>
+        </div>
+        <div class="dc-cards">
+          <div class="dc-card a">
+            <div class="dc-card-icon">📦</div>
+            <div class="dc-card-label">Total Pagu</div>
+            <div class="dc-card-val">Rp 712,4 Jt</div>
+            <div class="dc-card-bar-bg"><div class="dc-card-bar" style="width:100%;background:#3b6ef8"></div></div>
+          </div>
+          <div class="dc-card b">
+            <div class="dc-card-icon">✅</div>
+            <div class="dc-card-label">Realisasi</div>
+            <div class="dc-card-val" style="color:#059669">Rp 284,9 Jt</div>
+            <div class="dc-card-bar-bg"><div class="dc-card-bar" style="width:40%;background:#10b981"></div></div>
+          </div>
+          <div class="dc-card c">
+            <div class="dc-card-icon">⏳</div>
+            <div class="dc-card-label">Sisa Anggaran</div>
+            <div class="dc-card-val" style="color:#d97706">Rp 427,5 Jt</div>
+            <div class="dc-card-bar-bg"><div class="dc-card-bar" style="width:60%;background:#f59e0b"></div></div>
+          </div>
+        </div>
+        <div class="dc-list">
+          <div class="dc-list-title">Realisasi per Sub Kegiatan</div>
+          <div class="dc-list-row">
+            <div class="dc-list-name">Komponen Instalasi Listrik</div>
+            <div class="dc-progress-wrap">
+              <div class="dc-progress-bg"><div class="dc-progress-fill" style="width:39%;background:#3b6ef8"></div></div>
+              <div class="dc-pct">39%</div>
+            </div>
+          </div>
+          <div class="dc-list-row">
+            <div class="dc-list-name">Barang Cetakan & Penggandaan</div>
+            <div class="dc-progress-wrap">
+              <div class="dc-progress-bg"><div class="dc-progress-fill" style="width:100%;background:#10b981"></div></div>
+              <div class="dc-pct">100%</div>
+            </div>
+          </div>
+          <div class="dc-list-row">
+            <div class="dc-list-name">Pemeliharaan Kendaraan Dinas</div>
+            <div class="dc-progress-wrap">
+              <div class="dc-progress-bg"><div class="dc-progress-fill" style="width:6%;background:#f59e0b"></div></div>
+              <div class="dc-pct">6%</div>
+            </div>
+          </div>
+          <div class="dc-list-row" style="border:none">
+            <div class="dc-list-name">Rapat Koordinasi SKPD</div>
+            <div class="dc-progress-wrap">
+              <div class="dc-progress-bg"><div class="dc-progress-fill" style="width:55%;background:#8b5cf6"></div></div>
+              <div class="dc-pct">55%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="label" style="background:#eef2fb;color:#1a2b4a">C — Gradient Sidebar</div>
+  </div>
+
+</div>
+
+<p class="choice-hint">Klik desain yang Anda sukai, lalu beritahu saya pilihan Anda di terminal.</p>
+
+<script>
+function selectCard(el, choice) {
+  document.querySelectorAll('.card-wrap').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  if (window.__superpowers_recordEvent) {
+    window.__superpowers_recordEvent({ type: 'click', choice: choice, text: 'Design ' + choice });
+  }
+}
+</script>
+</body>
+</html>

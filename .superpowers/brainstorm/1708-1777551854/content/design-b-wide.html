@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design B — Clean Soft Wide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+  h1 { color: #fff; font-size: 16px; margin-bottom: 6px; }
+  .sub { color: #777; font-size: 12px; margin-bottom: 18px; }
+
+  /* ── App Shell ── */
+  .app { display: flex; width: 100%; max-width: 1100px; height: 620px; border-radius: 14px; overflow: hidden; box-shadow: 0 24px 64px rgba(0,0,0,.5); border: 1px solid #1e2a3a; }
+
+  /* ── Sidebar ── */
+  .sidebar { width: 220px; flex-shrink: 0; background: #fff; border-right: 1px solid #e4eaf3; display: flex; flex-direction: column; }
+  .sidebar-logo { padding: 18px 18px 14px; border-bottom: 1px solid #e4eaf3; }
+  .sidebar-logo-icon { font-size: 22px; }
+  .sidebar-logo-title { font-size: 13px; font-weight: 700; color: #1a2332; margin-top: 4px; }
+  .sidebar-logo-sub { font-size: 10px; color: #9aabbf; margin-top: 2px; line-height: 1.4; }
+
+  .nav { flex: 1; padding: 10px 0; overflow-y: auto; }
+  .nav-section { font-size: 9px; font-weight: 700; color: #b0bec5; letter-spacing: 1px; text-transform: uppercase; padding: 10px 18px 4px; }
+  .nav-item { display: flex; align-items: center; gap: 9px; padding: 9px 18px; font-size: 12px; color: #6b7f99; cursor: pointer; border-radius: 0; transition: all .15s; }
+  .nav-item:hover { background: #f4f7ff; color: #3b6ef8; }
+  .nav-item.active { background: #eef3ff; color: #3b6ef8; font-weight: 600; border-right: 3px solid #3b6ef8; }
+  .nav-item .icon { font-size: 14px; width: 18px; text-align: center; }
+  .nav-sub { padding: 7px 18px 7px 45px; font-size: 11px; color: #9aabbf; cursor: pointer; }
+  .nav-sub:hover { color: #3b6ef8; }
+
+  .sidebar-footer { padding: 12px 18px; border-top: 1px solid #e4eaf3; font-size: 10px; color: #b0bec5; }
+
+  /* ── Main ── */
+  .main { flex: 1; background: #f2f5fb; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Topbar */
+  .topbar { background: #fff; border-bottom: 1px solid #e4eaf3; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+  .topbar-left .page-title { font-size: 16px; font-weight: 700; color: #1a2332; }
+  .topbar-left .page-sub { font-size: 11px; color: #9aabbf; margin-top: 1px; }
+  .btn-primary { background: linear-gradient(135deg, #3b6ef8, #1e4dd4); color: #fff; border: none; padding: 8px 18px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(59,110,248,.35); }
+
+  /* Content */
+  .content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+  /* Summary Cards */
+  .summary-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+  .scard { border-radius: 12px; padding: 18px 20px; color: #fff; position: relative; overflow: hidden; }
+  .scard::after { content: ''; position: absolute; bottom: -16px; right: -16px; width: 70px; height: 70px; border-radius: 50%; background: rgba(255,255,255,.12); }
+  .scard.blue { background: linear-gradient(135deg, #3b6ef8 0%, #2055d8 100%); }
+  .scard.green { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+  .scard.purple { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }
+  .scard-label { font-size: 11px; opacity: .85; margin-bottom: 6px; }
+  .scard-value { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .scard-sub { font-size: 11px; opacity: .75; }
+
+  /* Table section */
+  .section-card { background: #fff; border-radius: 12px; border: 1px solid #e4eaf3; overflow: hidden; margin-bottom: 16px; }
+  .section-header { padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f4f9; }
+  .section-title { font-size: 13px; font-weight: 700; color: #1a2332; }
+  .section-sub { font-size: 11px; color: #9aabbf; }
+  .btn-outline { background: none; border: 1px solid #e4eaf3; color: #3b6ef8; padding: 5px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 600; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead tr { background: #f7f9fc; }
+  thead th { padding: 10px 16px; text-align: left; color: #7a8fa6; font-weight: 600; font-size: 11px; border-bottom: 1px solid #e4eaf3; }
+  tbody tr { border-bottom: 1px solid #f0f4f9; transition: background .1s; }
+  tbody tr:hover { background: #fafbff; }
+  tbody td { padding: 10px 16px; color: #2d3f55; vertical-align: middle; }
+  .kode { color: #3b6ef8; font-family: monospace; font-size: 11px; }
+  .pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+  .pill.done { background: #d1fae5; color: #059669; }
+  .pill.mid  { background: #fef3c7; color: #d97706; }
+  .pill.low  { background: #fee2e2; color: #dc2626; }
+
+  .progress-wrap { display: flex; align-items: center; gap: 8px; }
+  .progress-bg { flex: 1; height: 6px; background: #e8edf5; border-radius: 10px; min-width: 80px; }
+  .progress-fill { height: 6px; border-radius: 10px; }
+  .progress-pct { font-size: 11px; color: #7a8fa6; width: 32px; text-align: right; }
+
+  .amount { font-weight: 600; color: #1a2332; }
+  .amount.real { color: #059669; }
+  .amount.sisa { color: #dc2626; }
+</style>
+</head>
+<body>
+<h1>Design B — Clean & Soft (Versi Lebar)</h1>
+<p class="sub">Klik area mana saja untuk konfirmasi pilihan ini, lalu beritahu saya di terminal</p>
+
+<div class="app" onclick="confirmChoice()">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">💰</div>
+      <div class="sidebar-logo-title">Bendahara App</div>
+      <div class="sidebar-logo-sub">UPTD BAPENDA Wilayah<br>Kab. Tasikmalaya</div>
+    </div>
+    <div class="nav">
+      <div class="nav-section">Menu Utama</div>
+      <div class="nav-item active"><span class="icon">🏠</span> Dashboard</div>
+      <div class="nav-item"><span class="icon">📥</span> Penerimaan</div>
+      <div class="nav-item"><span class="icon">📤</span> Pengeluaran</div>
+      <div class="nav-item"><span class="icon">📋</span> Anggaran / DPA</div>
+      <div class="nav-section">Laporan</div>
+      <div class="nav-item"><span class="icon">📊</span> Semua Laporan</div>
+      <div class="nav-sub">↳ Buku Kas Umum</div>
+      <div class="nav-sub">↳ Buku Pembantu</div>
+      <div class="nav-sub">↳ Realisasi / SPJ</div>
+      <div class="nav-sub">↳ Rekap Bulanan</div>
+    </div>
+    <div class="sidebar-footer">Tahun Anggaran 2026</div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub">Tahun Anggaran 2026 · Per 30 April 2026</div>
+      </div>
+      <button class="btn-primary">＋ Input Pengeluaran</button>
+    </div>
+
+    <div class="content">
+
+      <!-- Summary Cards -->
+      <div class="summary-cards">
+        <div class="scard blue">
+          <div class="scard-label">Total Pagu Anggaran</div>
+          <div class="scard-value">Rp 712.461.000</div>
+          <div class="scard-sub">13 Sub Kegiatan · TA 2026</div>
+        </div>
+        <div class="scard green">
+          <div class="scard-label">Total Realisasi</div>
+          <div class="scard-value">Rp 284.984.400</div>
+          <div class="scard-sub">40,0% dari total pagu</div>
+        </div>
+        <div class="scard purple">
+          <div class="scard-label">Sisa Anggaran</div>
+          <div class="scard-value">Rp 427.476.600</div>
+          <div class="scard-sub">Saldo kas bendahara</div>
+        </div>
+      </div>
+
+      <!-- Realisasi Table -->
+      <div class="section-card">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Realisasi per Sub Kegiatan</div>
+            <div class="section-sub">13 sub kegiatan · Klik baris untuk lihat rincian kode rekening</div>
+          </div>
+          <button class="btn-outline">Export Excel</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Kode Sub Kegiatan</th>
+              <th>Uraian</th>
+              <th style="text-align:right">Pagu</th>
+              <th style="text-align:right">Realisasi</th>
+              <th style="text-align:right">Sisa</th>
+              <th>Progress</th>
+              <th style="text-align:center">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="kode">5.02.01.1.06.0001</td>
+              <td>Penyediaan Komponen Instalasi Listrik / Penerangan Bangunan Kantor</td>
+              <td style="text-align:right" class="amount">38.802.000</td>
+              <td style="text-align:right" class="amount real">15.120.000</td>
+              <td style="text-align:right" class="amount sisa">23.682.000</td>
+              <td><div class="progress-wrap"><div class="progress-bg"><div class="progress-fill" style="width:39%;background:#f59e0b"></div></div><span class="progress-pct">39%</span></div></td>
+              <td style="text-align:center"><span class="pill mid">Berjalan</span></td>
+            </tr>
+            <tr>
+              <td class="kode">5.02.01.1.06.0002</td>
+              <td>Penyediaan Peralatan dan Perlengkapan Kantor</td>
+              <td style="text-align:right" class="amount">104.474.000</td>
+              <td style="text-align:right" class="amount real">52.000.000</td>
+              <td style="text-align:right" class="amount sisa">52.474.000</td>
+              <td><div class="progress-wrap"><div class="progress-bg"><div class="progress-fill" style="width:50%;background:#3b6ef8"></div></div><span class="progress-pct">50%</span></div></td>
+              <td style="text-align:center"><span class="pill mid">Berjalan</span></td>
+            </tr>
+            <tr>
+              <td class="kode">5.02.01.1.06.0005</td>
+              <td>Penyediaan Barang Cetakan dan Penggandaan</td>
+              <td style="text-align:right" class="amount">16.982.000</td>
+              <td style="text-align:right" class="amount real">16.982.000</td>
+              <td style="text-align:right" class="amount" style="color:#9aabbf">0</td>
+              <td><div class="progress-wrap"><div class="progress-bg"><div class="progress-fill" style="width:100%;background:#10b981"></div></div><span class="progress-pct">100%</span></div></td>
+              <td style="text-align:center"><span class="pill done">Selesai</span></td>
+            </tr>
+            <tr>
+              <td class="kode">5.02.01.1.06.0009</td>
+              <td>Penyelenggaraan Rapat Koordinasi dan Konsultasi SKPD</td>
+              <td style="text-align:right" class="amount">59.636.000</td>
+              <td style="text-align:right" class="amount real">32.500.000</td>
+              <td style="text-align:right" class="amount sisa">27.136.000</td>
+              <td><div class="progress-wrap"><div class="progress-bg"><div class="progress-fill" style="width:55%;background:#3b6ef8"></div></div><span class="progress-pct">55%</span></div></td>
+              <td style="text-align:center"><span class="pill mid">Berjalan</span></td>
+            </tr>
+            <tr>
+              <td class="kode">5.02.01.1.09.0002</td>
+              <td>Pemeliharaan Kendaraan Dinas Operasional</td>
+              <td style="text-align:right" class="amount">85.322.000</td>
+              <td style="text-align:right" class="amount real">5.000.000</td>
+              <td style="text-align:right" class="amount sisa">80.322.000</td>
+              <td><div class="progress-wrap"><div class="progress-bg"><div class="progress-fill" style="width:6%;background:#dc2626"></div></div><span class="progress-pct">6%</span></div></td>
+              <td style="text-align:center"><span class="pill low">Rendah</span></td>
+            </tr>
+            <tr>
+              <td class="kode" colspan="7" style="text-align:center;color:#b0bec5;font-style:italic;padding:10px">
+                ... 8 sub kegiatan lainnya
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<p class="sub" style="margin-top:14px">Klik di dalam mockup untuk konfirmasi, lalu beritahu saya di terminal ✓</p>
+
+<script>
+function confirmChoice() {
+  if (window.__superpowers_recordEvent) {
+    window.__superpowers_recordEvent({ type: 'click', choice: 'B-wide', text: 'Design B Wide confirmed' });
+  }
+}
+</script>
+</body>
+</html>
