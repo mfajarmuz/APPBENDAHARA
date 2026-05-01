@@ -1,6 +1,24 @@
+-- Tabel program
+CREATE TABLE program (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  kode text UNIQUE NOT NULL,
+  nama text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Tabel kegiatan
+CREATE TABLE kegiatan (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  program_id uuid REFERENCES program(id) ON DELETE CASCADE,
+  kode text UNIQUE NOT NULL,
+  nama text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
 -- Tabel sub_kegiatan
 CREATE TABLE sub_kegiatan (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  kegiatan_id uuid REFERENCES kegiatan(id) ON DELETE CASCADE,
   kode text UNIQUE NOT NULL,
   nama text NOT NULL,
   total_pagu bigint NOT NULL,

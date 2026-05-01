@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const { createClient } = require('@supabase/supabase-js')
-require('dotenv').config()
+require('dotenv').config({ path: path.join(__dirname, '../.env') })
 
 // Initialize Supabase in main process
 const supabaseUrl = process.env.SUPABASE_URL
@@ -19,7 +19,8 @@ function createWindow() {
     },
   })
 
-  if (process.env.NODE_ENV === 'development') {
+  // Use app.isPackaged to check if running in dev or prod
+  if (!app.isPackaged) {
     win.loadURL('http://localhost:5173')
   } else {
     win.loadFile(path.join(__dirname, '../dist/index.html'))
@@ -48,10 +49,20 @@ async function handleWith(fn) {
   }
 }
 
-// IPC handlers (wrap Supabase calls with try/catch and consistent return shape)
+// IPC handlers
 ipcMain.handle('get-sub-kegiatan', async () => {
   return handleWith(async () => {
-    const { data, error } = await supabase.from('sub_kegiatan').select('*').order('kode', { ascending: true })
+    const { data, error } = await supabase
+      .from('sub_kegiatan')
+      .select(`
+        *,
+        kegiatan:kegiatan_id (
+          id, kode, nama,
+          program:program_id (id, kode, nama)
+        ),
+        kode_rekening (*)
+      `)
+      .order('kode', { ascending: true })
     if (error) throw error
     return data
   })
@@ -85,7 +96,7 @@ ipcMain.handle('add-kode-rekening', async (event, payload) => {
 
 ipcMain.handle('get-penerimaan', async () => {
   return handleWith(async () => {
-    const { data, error } = await supabase.from('penerimaan').select('*').order('tanggal', { ascending: false })
+    const { data, error } = await supabase.from('penerimaan').select('*').order('tanggal', { ascending: true })
     if (error) throw error
     return data
   })
@@ -102,8 +113,8 @@ ipcMain.handle('add-penerimaan', async (event, payload) => {
 ipcMain.handle('get-pengeluaran', async () => {
   return handleWith(async () => {
     const { data, error } = await supabase.from('pengeluaran')
-      .select(`*, sub_kegiatan(kode, nama), kode_rekening(kode, uraian), pengeluaran_rincian(*)`)
-      .order('tanggal', { ascending: false })
+      .select(`*, sub_kegiatan(*), kode_rekening(*), pengeluaran_rincian(*)`)
+      .order('tanggal', { ascending: true })
     if (error) throw error
     return data
   })
@@ -125,6 +136,22 @@ ipcMain.handle('add-pengeluaran', async (event, { pengeluaran, rincian }) => {
 ipcMain.handle('update-sub-kegiatan', async (event, { id, ...payload }) => {
   return handleWith(async () => {
     const { data, error } = await supabase.from('sub_kegiatan').update(payload).eq('id', id).select()
+    if (error) throw error
+    return data
+  })
+})
+
+ipcMain.handle('update-program', async (event, id, payload) => {
+  return handleWith(async () => {
+    const { data, error } = await supabase.from('program').update(payload).eq('id', id).select()
+    if (error) throw error
+    return data
+  })
+})
+
+ipcMain.handle('update-kegiatan', async (event, id, payload) => {
+  return handleWith(async () => {
+    const { data, error } = await supabase.from('kegiatan').update(payload).eq('id', id).select()
     if (error) throw error
     return data
   })
@@ -174,6 +201,25 @@ ipcMain.handle('delete-pengeluaran', async (event, id) => {
   return handleWith(async () => {
     const { error } = await supabase.from('pengeluaran').delete().eq('id', id)
     if (error) throw error
+    return true
+  })
+})
+
+ipcMain.handle('update-pengeluaran', async (event, id, { pengeluaran, rincian }) => {
+  return handleWith(async () => {
+    // 1. Update Header
+    const { error: pengError } = await supabase.from('pengeluaran').update(pengeluaran).eq('id', id)
+    if (pengError) throw pengError
+
+    // 2. Refresh Rincian (Delete and Re-insert)
+    const { error: delError } = await supabase.from('pengeluaran_rincian').delete().eq('pengeluaran_id', id)
+    if (delError) throw delError
+
+    if (rincian && rincian.length > 0) {
+      const rincianPayload = rincian.map((r) => ({ ...r, pengeluaran_id: id }))
+      const { error: rinError } = await supabase.from('pengeluaran_rincian').insert(rincianPayload)
+      if (rinError) throw rinError
+    }
     return true
   })
 })
