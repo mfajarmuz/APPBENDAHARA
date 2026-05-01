@@ -176,7 +176,6 @@ export default function Dashboard() {
                 {transaksiTerakhir.map((p) => (
                   <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-slate-100">
                     <div className="min-w-0">
-                      <p className="text-[11px] font-bold text-indigo-600 mb-0.5">{p.no_bukti}</p>
                       <p className="text-xs text-slate-700 font-medium truncate w-32 md:w-48">{p.keterangan || 'Belanja'}</p>
                       <p className="text-[10px] text-slate-400 font-medium">{formatTanggal(p.tanggal)}</p>
                     </div>

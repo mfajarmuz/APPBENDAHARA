@@ -51,14 +51,21 @@ export default function Laporan() {
         
         return {
           tanggal: p.tanggal,
-          uraian: `${rincianText} ${p.no_bukti}`.trim(),
-          no_bukti: p.no_bukti,
+          uraian: `${rincianText}`.trim(),
+          no_bukti: '',
           debet: 0,
           kredit: p.jumlah,
           kode_rekening: fullCode,
         }
       }),
-    ].sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal))
+    ].sort((a, b) => {
+      const dateDiff = new Date(a.tanggal) - new Date(b.tanggal)
+      if (dateDiff !== 0) return dateDiff
+      
+      const codeA = a.kode_rekening || ''
+      const codeB = b.kode_rekening || ''
+      return codeA.localeCompare(codeB)
+    })
 
     return combined
   }, [penerimaan, pengeluaran])
@@ -246,7 +253,6 @@ export default function Laporan() {
                     <thead className="bg-slate-50/50 border-b border-slate-100">
                       <tr>
                         <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tanggal</th>
-                        <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">No. Bukti</th>
                         <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Keterangan / Item</th>
                         <th className="px-5 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-widest">Jumlah</th>
                       </tr>
@@ -255,7 +261,6 @@ export default function Laporan() {
                       {g.rows.map((row, ri) => (
                         <tr key={ri} className="hover:bg-slate-50 transition-colors">
                           <td className="px-5 py-3 text-xs text-slate-500 font-medium">{formatTanggal(row.tanggal)}</td>
-                          <td className="px-5 py-3 text-xs font-bold text-slate-700">{row.no_bukti}</td>
                           <td className="px-5 py-3 text-xs text-slate-600 italic">
                             {row.pengeluaran_rincian?.length > 0 
                               ? row.pengeluaran_rincian.map(rin => rin.uraian).join(', ')

@@ -10,7 +10,6 @@ export function exportBKUExcel(rows) {
   const data = rows.map((r, i) => ({
     No: i + 1,
     Tanggal: formatTanggal(r.tanggal),
-    'No. Bukti': r.no_bukti,
     Uraian: r.uraian,
     Debet: r.debet,
     Kredit: r.kredit,

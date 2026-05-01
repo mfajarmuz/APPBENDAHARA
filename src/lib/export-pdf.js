@@ -174,16 +174,29 @@ export function exportBKUPdf(rows, monthIndex, year = 2026, totalsBulanLalu = { 
   doc.setFont('helvetica', 'normal')
   let rincianY = finalY + 10
   
+  const saldoTunai = 0
+  const saldoBank = saldo
+  const jumlahSaldo = saldoTunai + saldoBank
+
   doc.text('a. Saldo Tunai', 14, rincianY)
   doc.text(': Rp', 45, rincianY)
+  doc.text(formatRupiah(saldoTunai).replace('Rp', '').trim(), 75, rincianY, { align: 'right' })
   rincianY += 5
   
   doc.text('b. Saldo Bank', 14, rincianY)
   doc.text(': Rp', 45, rincianY)
+  doc.text(formatRupiah(saldoBank).replace('Rp', '').trim(), 75, rincianY, { align: 'right' })
+  
+  // Underline for addition
+  doc.setLineWidth(0.2)
+  doc.line(45, rincianY + 1.5, 77, rincianY + 1.5)
+  doc.text('+', 79, rincianY + 1.5)
+  
   rincianY += 5
   
   doc.text('Jumlah', 14, rincianY)
   doc.text(': Rp', 45, rincianY)
+  doc.text(formatRupiah(jumlahSaldo).replace('Rp', '').trim(), 75, rincianY, { align: 'right' })
   rincianY += 5
   
   doc.text('Kelebihan Rp,-.', 14, rincianY)
@@ -240,8 +253,8 @@ export function exportBukuPembantuPdf(groups) {
 
     // --- TABLE ---
     const head = [
-      ['No.', 'Tanggal', 'No. Bukti', 'Uraian', 'Debet', 'Kredit', 'Saldo'],
-      ['1', '2', '3', '4', '5', '6', '7']
+      ['No.', 'Tanggal', 'Uraian', 'Debet', 'Kredit', 'Saldo'],
+      ['1', '2', '3', '4', '5', '6']
     ]
 
     let currentSaldo = rek.pagu_anggaran
@@ -250,7 +263,6 @@ export function exportBukuPembantuPdf(groups) {
       return [
         i + 1,
         formatTanggal(r.tanggal),
-        r.no_bukti || '-',
         r.keterangan || 'Belanja',
         '', // Debet (usually 0 for pembantu as it's for expenditures)
         formatRupiah(r.jumlah).replace('Rp', '').trim(),
@@ -268,10 +280,9 @@ export function exportBukuPembantuPdf(groups) {
       columnStyles: {
         0: { cellWidth: 8, halign: 'center' },
         1: { cellWidth: 20, halign: 'center' },
-        2: { cellWidth: 25 },
+        3: { cellWidth: 22, halign: 'right' },
         4: { cellWidth: 22, halign: 'right' },
-        5: { cellWidth: 22, halign: 'right' },
-        6: { cellWidth: 25, halign: 'right' }
+        5: { cellWidth: 25, halign: 'right' }
       }
     })
 

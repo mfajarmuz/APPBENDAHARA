@@ -52,7 +52,7 @@ CREATE TABLE penerimaan (
 CREATE TABLE pengeluaran (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tanggal date NOT NULL,
-  no_bukti text NOT NULL,
+  no_bukti text,
   sub_kegiatan_id uuid REFERENCES sub_kegiatan(id),
   kode_rekening_id uuid REFERENCES kode_rekening(id),
   jumlah bigint NOT NULL,

@@ -12,6 +12,7 @@ import ProgressBar from '@/components/ui/ProgressBar'
 import EmptyState from '@/components/ui/EmptyState'
 import Spinner from '@/components/ui/Spinner'
 import Badge from '@/components/ui/Badge'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 const EMPTY_SK = { kode: '', nama: '', sumber_dana: 'PAD', tahun_anggaran: '2026' }
 const EMPTY_REK = { kode: '', uraian: '', pagu_anggaran: '' }
@@ -35,6 +36,9 @@ export default function Anggaran() {
 
   const [expanded, setExpanded] = useState({})
   const [saving, setSaving] = useState(false)
+
+  const [deleteSkId, setDeleteSkId] = useState(null)
+  const [deleteRekId, setDeleteRekId] = useState(null)
 
   // Modals state
   const [progModal, setProgModal] = useState(false)
@@ -231,7 +235,7 @@ export default function Anggaran() {
                                     <Pencil size={14} />
                                   </button>
                                   <button 
-                                    onClick={() => { if(confirm('Hapus Sub Kegiatan ini?')) deleteSubKegiatan(sk.id) }} 
+                                    onClick={() => setDeleteSkId(sk.id)} 
                                     className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all shadow-sm"
                                     title="Hapus Sub Kegiatan"
                                   >
@@ -274,14 +278,13 @@ export default function Anggaran() {
                                                   >
                                                     <Pencil size={12} />
                                                   </button>
-                                                  <button 
-                                                    onClick={() => { if(confirm('Hapus Rekening?')) deleteKodeRekening(rek.id) }} 
+                                                  <button
+                                                    onClick={() => setDeleteRekId(rek.id)}
                                                     className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all shadow-sm"
                                                     title="Hapus Rekening"
                                                   >
                                                     <Trash2 size={12} />
-                                                  </button>
-                                                </div>
+                                                  </button>                                                </div>
                                               </td>
                                             </tr>
                                           )
@@ -353,6 +356,31 @@ export default function Anggaran() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={!!deleteSkId}
+        onClose={() => setDeleteSkId(null)}
+        onConfirm={async () => {
+          if (deleteSkId) {
+            await deleteSubKegiatan(deleteSkId)
+            setDeleteSkId(null)
+          }
+        }}
+        message="Hapus Sub Kegiatan ini beserta seluruh rekening di dalamnya?"
+      />
+
+      <ConfirmDialog
+        open={!!deleteRekId}
+        onClose={() => setDeleteRekId(null)}
+        onConfirm={async () => {
+          if (deleteRekId) {
+            await deleteKodeRekening(deleteRekId)
+            setDeleteRekId(null)
+          }
+        }}
+        message="Hapus Rekening Belanja ini?"
+      />
+
     </div>
   )
 }

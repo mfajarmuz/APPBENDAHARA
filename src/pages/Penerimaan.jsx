@@ -11,6 +11,7 @@ import Select from '@/components/ui/Select'
 import Textarea from '@/components/ui/Textarea'
 import EmptyState from '@/components/ui/EmptyState'
 import Spinner from '@/components/ui/Spinner'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 const EMPTY_FORM = { jenis: 'SP2D', tanggal: '', no_sp2d: '', jumlah: '', keterangan: '' }
 
@@ -34,6 +35,7 @@ export default function Penerimaan() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState({})
+  const [deleteId, setDeleteId] = useState(null)
 
   useEffect(() => { fetchPenerimaan() }, [])
 
@@ -97,9 +99,10 @@ export default function Penerimaan() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Hapus penerimaan ini?')) return
-    await deletePenerimaan(id)
+  async function handleDelete() {
+    if (!deleteId) return
+    await deletePenerimaan(deleteId)
+    setDeleteId(null)
   }
 
   const totalPenerimaan = penerimaan.reduce((sum, p) => sum + (p.jumlah ?? 0), 0)
@@ -157,7 +160,7 @@ export default function Penerimaan() {
                         <Pencil size={13} />
                       </button>
                       <button
-                        onClick={() => handleDelete(item.id)}
+                        onClick={() => setDeleteId(item.id)}
                         className="p-1.5 rounded-lg text-text-secondary hover:bg-red-100 hover:text-danger transition-colors"
                       >
                         <Trash2 size={13} />
@@ -230,6 +233,13 @@ export default function Penerimaan() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleDelete}
+        message="Apakah Anda yakin ingin menghapus data penerimaan ini?"
+      />
     </div>
   )
 }

@@ -13,20 +13,15 @@ import Badge from '@/components/ui/Badge'
 import ProgressBar from '@/components/ui/ProgressBar'
 import EmptyState from '@/components/ui/EmptyState'
 import Spinner from '@/components/ui/Spinner'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 const EMPTY_FORM = {
   tanggal: new Date().toISOString().split('T')[0],
-  no_bukti: '',
   sub_kegiatan_id: '',
   kode_rekening_id: '',
   keterangan: '',
 }
 const EMPTY_RINCIAN = { uraian: '', jumlah: '' }
-
-function toRoman(month) {
-  const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
-  return roman[month - 1] || ''
-}
 
 export default function Pengeluaran() {
   const subKegiatan = useStore(s => s.subKegiatan)
@@ -47,25 +42,13 @@ export default function Pengeluaran() {
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState({})
   const [filterSk, setFilterSk] = useState('')
+  const [deleteId, setDeleteId] = useState(null)
 
   useEffect(() => {
     fetchSubKegiatan()
     fetchPengeluaran()
     fetchPenerimaan()
   }, [])
-
-  // Auto-generate No Bukti (only for NEW items)
-  useEffect(() => {
-    if (modalOpen && !editingItem) {
-      const date = new Date(form.tanggal)
-      const year = date.getFullYear()
-      const month = date.getMonth() + 1
-      const yearExits = pengeluaran.filter(p => new Date(p.tanggal).getFullYear() === year)
-      const nextSeq = String(yearExits.length + 1).padStart(2, '0')
-      const generatedNo = `${nextSeq}/BK/${toRoman(month)}/${year}`
-      setForm(f => ({ ...f, no_bukti: generatedNo }))
-    }
-  }, [modalOpen, form.tanggal, pengeluaran, editingItem])
 
   const selectedSk = useMemo(
     () => subKegiatan.find(sk => sk.id === form.sub_kegiatan_id) ?? null,
@@ -111,7 +94,6 @@ export default function Pengeluaran() {
     setEditingItem(item)
     setForm({
       tanggal: item.tanggal,
-      no_bukti: item.no_bukti,
       sub_kegiatan_id: item.sub_kegiatan_id,
       kode_rekening_id: item.kode_rekening_id,
       keterangan: item.keterangan || '',
@@ -162,10 +144,14 @@ export default function Pengeluaran() {
     setSaving(true)
     setErrors({})
 
+    // Generate a background no_bukti to satisfy DB constraint
+    const d = new Date(form.tanggal)
+    const bgNoBukti = `BPP-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}-${Date.now()}`
+
     const payload = {
       pengeluaran: {
         tanggal: form.tanggal,
-        no_bukti: form.no_bukti,
+        no_bukti: bgNoBukti,
         sub_kegiatan_id: form.sub_kegiatan_id,
         kode_rekening_id: form.kode_rekening_id,
         jumlah: amount,
@@ -210,9 +196,10 @@ export default function Pengeluaran() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Hapus pengeluaran ini?')) return
-    await deletePengeluaran(id)
+  async function handleDelete() {
+    if (!deleteId) return
+    await deletePengeluaran(deleteId)
+    setDeleteId(null)
   }
 
   const filtered = filterSk
@@ -288,7 +275,7 @@ export default function Pengeluaran() {
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-xs text-slate-800 font-medium leading-relaxed">
-                          Dibayar {rincianText} pada kegiatan {parentName} {item.no_bukti}
+                          Dibayar {rincianText} pada kegiatan {parentName}
                         </p>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -304,7 +291,7 @@ export default function Pengeluaran() {
                             <Pencil size={15} />
                           </button>
                           <button
-                            onClick={() => handleDelete(item.id)}
+                            onClick={() => setDeleteId(item.id)}
                             className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 rounded-xl shadow-sm transition-all"
                             title="Hapus Data"
                           >
@@ -336,12 +323,6 @@ export default function Pengeluaran() {
                 value={form.tanggal}
                 onChange={e => setForm(f => ({ ...f, tanggal: e.target.value }))}
                 required
-              />
-              <Input
-                label="No. Bukti"
-                value={form.no_bukti}
-                readOnly
-                className="bg-slate-50 font-bold text-indigo-600"
               />
               <Select
                 label="Sub Kegiatan"
@@ -434,6 +415,13 @@ export default function Pengeluaran() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleDelete}
+        message="Apakah Anda yakin ingin menghapus data pengeluaran ini?"
+      />
     </div>
   )
 }

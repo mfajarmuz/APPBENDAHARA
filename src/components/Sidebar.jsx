@@ -17,10 +17,10 @@ const navItems = [
   { to: '/settings', icon: SettingsIcon, label: 'Pengaturan' },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }) {
   return (
     <aside
-      className="sidebar-scroll flex flex-col overflow-y-auto bg-slate-900 border-r border-slate-800"
+      className="sidebar-scroll flex flex-col h-full overflow-y-auto bg-slate-900 border-r border-slate-800"
       style={{ width: 220, minWidth: 220 }}
     >
       {/* Logo / Nama Unit */}
@@ -45,6 +45,7 @@ export default function Sidebar() {
           <NavLink
             key={to}
             to={to}
+            onClick={onClose}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
                 isActive

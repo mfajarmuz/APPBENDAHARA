@@ -20,7 +20,7 @@ describe('exportBKUExcel', () => {
   afterEach(() => { vi.resetAllMocks() })
 
   it('writes file and returns filename', () => {
-    const res = exportBKUExcel([{ tanggal: '2026-01-01', no_bukti: 'A', uraian: 'u', debet: 1000, kredit: 0 }])
+    const res = exportBKUExcel([{ tanggal: '2026-01-01', uraian: 'u', debet: 1000, kredit: 0 }])
     expect(XLSX.writeFile).toHaveBeenCalled()
     expect(res).toBe('BKU.xlsx')
   })
