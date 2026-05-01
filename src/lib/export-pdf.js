@@ -148,17 +148,31 @@ export function exportBKUPdf(rows, monthIndex, year = 2026, totalsBulanLalu = { 
   let finalY = doc.lastAutoTable.finalY + 5
 
   // Closing Statement
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(10)
+  doc.setFontSize(8)
   
   const dayName = new Date(year, monthIndex + 1, 0).toLocaleDateString('id-ID', { weekday: 'long' })
-  const closingText = `Pada hari ${dayName} tanggal ${terbilang(lastDay)} bulan ${monthName} tahun terbilang ${terbilang(year)}, oleh kami Buku Kas Umum ditutup.`
   
-  // To avoid text being too long for one line, we can split it or just rely on normal text
-  const splitText = doc.splitTextToSize(closingText, 180)
-  doc.text(splitText, 14, finalY + 5)
+  const parts = [
+    { text: 'Pada hari ', bold: false },
+    { text: dayName, bold: true },
+    { text: ' tanggal ', bold: false },
+    { text: terbilang(lastDay), bold: true },
+    { text: ' bulan ', bold: false },
+    { text: monthName, bold: true },
+    { text: ' tahun ', bold: false },
+    { text: terbilang(year), bold: true },
+    { text: ', oleh kami Buku Kas Umum ditutup.', bold: false }
+  ]
+  
+  let currentX = 14
+  parts.forEach(p => {
+    doc.setFont('helvetica', p.bold ? 'bold' : 'normal')
+    doc.text(p.text, currentX, finalY + 5)
+    currentX += doc.getTextWidth(p.text)
+  })
 
-  let rincianY = finalY + 5 + (splitText.length * 5)
+  doc.setFont('helvetica', 'normal')
+  let rincianY = finalY + 10
   
   doc.text('a. Saldo Tunai', 14, rincianY)
   doc.text(': Rp', 45, rincianY)
