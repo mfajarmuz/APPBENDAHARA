@@ -7,11 +7,12 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.js'],
-    exclude: ['superpowers/**'],
+    exclude: ['superpowers/**','node_modules/**'],
     globals: true,
   },
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
 })
+
 
