@@ -1,24 +1,25 @@
 // src/pages/Laporan.jsx
 import { useEffect, useState, useMemo } from 'react'
 import { FileText, Download } from 'lucide-react'
-import { useAppStore } from '@/store/useAppStore'
+import { useStore } from '@/store/useStore'
 import { formatRupiah, formatTanggal } from '@/lib/format'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
 import Spinner from '@/components/ui/Spinner'
 import { exportBKUPdf, exportBukuPembantuPdf, exportRealisasiPdf, exportRekapBulananPdf } from '@/lib/export-pdf'
+import { exportBKUExcel, exportRealisasiExcel } from '@/lib/export-excel'
 
 const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 
 export default function Laporan() {
-  const subKegiatan = useAppStore(s => s.subKegiatan)
-  const penerimaan = useAppStore(s => s.penerimaan)
-  const pengeluaran = useAppStore(s => s.pengeluaran)
-  const loading = useAppStore(s => s.loading)
-  const fetchSubKegiatan = useAppStore(s => s.fetchSubKegiatan)
-  const fetchPenerimaan = useAppStore(s => s.fetchPenerimaan)
-  const fetchPengeluaran = useAppStore(s => s.fetchPengeluaran)
+  const subKegiatan = useStore(s => s.subKegiatan)
+  const penerimaan = useStore(s => s.penerimaan)
+  const pengeluaran = useStore(s => s.pengeluaran)
+  const isLoading = useStore(s => s.isLoading)
+  const fetchSubKegiatan = useStore(s => s.fetchSubKegiatan)
+  const fetchPenerimaan = useStore(s => s.fetchPenerimaan)
+  const fetchPengeluaran = useStore(s => s.fetchPengeluaran)
 
   const [tab, setTab] = useState('bku')
   const [filterBulan, setFilterBulan] = useState(new Date().getMonth())
@@ -29,23 +30,37 @@ export default function Laporan() {
     fetchPengeluaran()
   }, [])
 
-  // BKU Data
+  // BKU Data Transformation
   const bkuRows = useMemo(() => {
     const combined = [
       ...penerimaan.map(p => ({
         tanggal: p.tanggal,
-        uraian: p.keterangan || `Penerimaan SP2D ${p.no_sp2d || ''}`,
+        uraian: `Diterima Penerimaan SP2D ${p.no_sp2d || ''} ${p.keterangan || ''}`.trim(),
         no_bukti: p.no_sp2d,
         debet: p.jumlah,
         kredit: 0,
+        kode_rekening: '',
       })),
-      ...pengeluaran.map(p => ({
-        tanggal: p.tanggal,
-        uraian: p.keterangan || `Pengeluaran ${p.no_bukti}`,
-        no_bukti: p.no_bukti,
-        debet: 0,
-        kredit: p.jumlah,
-      })),
+      ...pengeluaran.map(p => {
+        // Construct full code: SK.Rek
+        const fullCode = p.sub_kegiatan && p.kode_rekening 
+          ? `${p.sub_kegiatan.kode}.${p.kode_rekening.kode}`
+          : ''
+          
+        // Combine all rincian text
+        const rincianText = p.pengeluaran_rincian?.length > 0
+          ? p.pengeluaran_rincian.map(r => r.uraian).join(', ')
+          : p.keterangan || ''
+
+        return {
+          tanggal: p.tanggal,
+          uraian: `Dibayar ${rincianText} pada kegiatan ${p.sub_kegiatan?.nama || ''} ${p.no_bukti}`.trim(),
+          no_bukti: p.no_bukti,
+          debet: 0,
+          kredit: p.jumlah,
+          kode_rekening: fullCode,
+        }
+      }),
     ].sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal))
 
     return combined
@@ -75,7 +90,7 @@ export default function Laporan() {
   }, [penerimaan, pengeluaran])
 
   function handleExportPdf() {
-    if (tab === 'bku') exportBKUPdf(filteredBku)
+    if (tab === 'bku') exportBKUPdf(filteredBku, filterBulan)
     else if (tab === 'pembantu') {
       const groups = subKegiatan.flatMap(sk => 
         (sk.kode_rekening ?? []).map(rek => ({
@@ -89,7 +104,13 @@ export default function Laporan() {
     else if (tab === 'rekap') exportRekapBulananPdf(rekapBulanan)
   }
 
-  if (loading && subKegiatan.length === 0) return <div className="flex justify-center py-16"><Spinner /></div>
+  function handleExportExcel() {
+    if (tab === 'bku') exportBKUExcel(filteredBku)
+    else if (tab === 'lra') exportRealisasiExcel(subKegiatan, realisasiPerRek)
+    else alert('Export Excel hanya tersedia untuk BKU dan LRA')
+  }
+
+  if (isLoading && subKegiatan.length === 0) return <div className="flex justify-center py-16"><Spinner /></div>
 
   return (
     <div className="space-y-5">
@@ -129,6 +150,9 @@ export default function Laporan() {
         <div className="flex items-center gap-2">
           <Button variant="secondary" onClick={handleExportPdf}>
             <Download size={15} /> Export PDF
+          </Button>
+          <Button variant="secondary" onClick={handleExportExcel}>
+            <Download size={15} /> Export Excel
           </Button>
         </div>
       </div>

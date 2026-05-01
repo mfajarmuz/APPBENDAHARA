@@ -1,7 +1,7 @@
 // src/pages/Penerimaan.jsx
 import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
-import { useAppStore } from '@/store/useAppStore'
+import { useStore } from '@/store/useStore'
 import { formatRupiah, formatTanggal } from '@/lib/format'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -13,12 +13,12 @@ import Spinner from '@/components/ui/Spinner'
 const EMPTY_FORM = { tanggal: '', no_sp2d: '', jumlah: '', keterangan: '' }
 
 export default function Penerimaan() {
-  const penerimaan = useAppStore(s => s.penerimaan)
-  const loading = useAppStore(s => s.loading)
-  const fetchPenerimaan = useAppStore(s => s.fetchPenerimaan)
-  const createPenerimaan = useAppStore(s => s.createPenerimaan)
-  const updatePenerimaan = useAppStore(s => s.updatePenerimaan)
-  const deletePenerimaan = useAppStore(s => s.deletePenerimaan)
+  const penerimaan = useStore(s => s.penerimaan)
+  const isLoading = useStore(s => s.isLoading)
+  const fetchPenerimaan = useStore(s => s.fetchPenerimaan)
+  const addPenerimaan = useStore(s => s.addPenerimaan)
+  const updatePenerimaan = useStore(s => s.updatePenerimaan)
+  const deletePenerimaan = useStore(s => s.deletePenerimaan)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null) // null = new, object = edit
@@ -69,7 +69,7 @@ export default function Penerimaan() {
       if (editing) {
         await updatePenerimaan({ id: editing.id, ...payload })
       } else {
-        await createPenerimaan(payload)
+        await addPenerimaan(payload)
       }
       setModalOpen(false)
     } catch (err) {
@@ -103,7 +103,7 @@ export default function Penerimaan() {
 
       {/* Table */}
       <Card className="p-0 overflow-hidden">
-        {loading && penerimaan.length === 0 ? (
+        {isLoading && penerimaan.length === 0 ? (
           <div className="flex justify-center py-16"><Spinner /></div>
         ) : penerimaan.length === 0 ? (
           <EmptyState message="Belum ada penerimaan SP2D" />

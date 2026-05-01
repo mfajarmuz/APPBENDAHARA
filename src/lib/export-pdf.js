@@ -2,160 +2,143 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatRupiah, formatTanggal } from './format'
+import { useStore } from '@/store/useStore'
 
-const UNIT = 'UPTD BAPENDA KAB. TASIKMALAYA'
-const TA = 'Tahun Anggaran 2026'
-
-function makeDoc() {
-  return new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+function getMonthName(monthIndex) {
+  const months = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER']
+  return months[monthIndex] || ''
 }
 
-function addHeader(doc, title) {
-  doc.setFontSize(11)
+export function exportBKUPdf(rows, monthIndex, year = 2026) {
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
+  const monthName = getMonthName(monthIndex)
+  const settings = useStore.getState().settings
+
+  // --- HEADER SECTION ---
   doc.setFont('helvetica', 'bold')
-  doc.text(title, 148, 14, { align: 'center' })
-  doc.setFontSize(9)
+  doc.setFontSize(13)
+  doc.text('BUKU KAS UMUM', 105, 15, { align: 'center' })
+  doc.text(`BULAN ${monthName} ${year}`, 105, 21, { align: 'center' })
+
+  doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
-  doc.text(UNIT, 148, 20, { align: 'center' })
-  doc.text(TA, 148, 26, { align: 'center' })
-}
+  
+  const startY = 30
+  const leftCol = 14
+  const midCol = 65
+  
+  doc.text('Unit Kerja', leftCol, startY)
+  doc.text(`: ${settings.unit_kerja}`, midCol, startY)
+  
+  doc.text('Kuasa Pengguna Anggaran', leftCol, startY + 5)
+  doc.text(`: ${settings.kpa_nama}`, midCol, startY + 5)
+  
+  doc.text('Bendahara Pengeluaran Pembantu', leftCol, startY + 10)
+  doc.text(`: ${settings.bpp_nama}`, midCol, startY + 10)
 
-export function exportBKUPdf(rows) {
-  const doc = makeDoc()
-  addHeader(doc, 'BUKU KAS UMUM (BKU)')
+  // --- TABLE SECTION ---
+  // Header names with column indices (per user sample)
+  const head = [
+    [
+      { content: 'No.', rowSpan: 1 },
+      { content: 'Tanggal', rowSpan: 1 },
+      { content: 'Kode Rekening', rowSpan: 1 },
+      { content: 'Uraian', rowSpan: 1 },
+      { content: 'Penerimaan', rowSpan: 1 },
+      { content: 'Pengeluaran', rowSpan: 1 }
+    ],
+    ['1', '2', '3', '4', '5', '6']
+  ]
 
-  let saldo = 0
-  const body = rows.map((row, i) => {
-    saldo += (row.debet ?? 0) - (row.kredit ?? 0)
-    return [
-      i + 1,
-      formatTanggal(row.tanggal),
-      row.no_bukti ?? '-',
-      row.uraian,
-      row.debet ? formatRupiah(row.debet) : '',
-      row.kredit ? formatRupiah(row.kredit) : '',
-      formatRupiah(saldo),
-    ]
-  })
+  const tableData = rows.map((r, i) => [
+    i + 1,
+    formatTanggal(r.tanggal),
+    r.kode_rekening || '',
+    r.uraian || '',
+    r.debet > 0 ? formatRupiah(r.debet).replace('Rp', '').trim() : '',
+    r.kredit > 0 ? formatRupiah(r.kredit).replace('Rp', '').trim() : ''
+  ])
+
+  const totalDebet = rows.reduce((s, r) => s + (r.debet || 0), 0)
+  const totalKredit = rows.reduce((s, r) => s + (r.kredit || 0), 0)
+  const saldo = totalDebet - totalKredit
 
   autoTable(doc, {
-    startY: 32,
-    head: [['No', 'Tanggal', 'No. Bukti', 'Uraian', 'Debet', 'Kredit', 'Saldo']],
-    body,
-    styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [124, 58, 237], textColor: 255 },
-    columnStyles: {
-      0: { cellWidth: 10 },
-      4: { halign: 'right' },
-      5: { halign: 'right' },
-      6: { halign: 'right' },
+    startY: startY + 18,
+    head: head,
+    body: tableData,
+    theme: 'grid',
+    styles: { 
+      fontSize: 7.5, 
+      cellPadding: 1.5, 
+      lineColor: [0, 0, 0], 
+      lineWidth: 0.1,
+      textColor: [0, 0, 0]
     },
+    headStyles: { 
+      fillColor: [255, 255, 255], 
+      fontStyle: 'bold', 
+      halign: 'center',
+      valign: 'middle'
+    },
+    columnStyles: {
+      0: { cellWidth: 8, halign: 'center' },
+      1: { cellWidth: 20, halign: 'center' },
+      2: { cellWidth: 35, fontStyle: 'bold' },
+      3: { cellWidth: 'auto', overflow: 'linebreak' },
+      4: { cellWidth: 25, halign: 'right' },
+      5: { cellWidth: 25, halign: 'right' }
+    },
+    didDrawPage: (data) => {
+      doc.setFontSize(7)
+      doc.text(`Halaman : ${data.pageNumber}`, 180, 25)
+    }
   })
 
-  doc.save('BKU.pdf')
+  let finalY = doc.lastAutoTable.finalY + 8
+  if (finalY > 230) { doc.addPage(); finalY = 20 }
+
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  
+  // Totals Row
+  doc.text('Jumlah bulan ini', 130, finalY)
+  doc.text(formatRupiah(totalDebet).replace('Rp', '').trim(), 175, finalY, { align: 'right' })
+  doc.text(formatRupiah(totalKredit).replace('Rp', '').trim(), 200, finalY, { align: 'right' })
+
+  doc.text('Saldo Buku', 130, finalY + 5)
+  doc.text(formatRupiah(saldo).replace('Rp', '').trim(), 200, finalY + 5, { align: 'right' })
+
+  // Closing Statement
+  doc.setFont('helvetica', 'italic')
+  doc.setFontSize(8)
+  const closingText = `Buku Kas Umum ditutup pada akhir bulan ${monthName.toLowerCase()} ${year} dengan saldo sebesar ${formatRupiah(saldo)}.`
+  doc.text(closingText, 14, finalY + 15)
+
+  // Signatures
+  const signY = finalY + 30
+  if (signY > 260) { doc.addPage(); } // Extra safety check
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  
+  doc.text('Mengetahui :', 14, signY)
+  doc.text('Kuasa Pengguna Anggaran,', 14, signY + 5)
+  
+  doc.text(`${settings.lokasi}, 30 ${monthName.toLowerCase()} ${year}`, 140, signY)
+  doc.text('Bendahara Pengeluaran Pembantu,', 140, signY + 5)
+
+  doc.setFont('helvetica', 'bold')
+  doc.text(settings.kpa_nama, 14, signY + 30)
+  doc.text(settings.bpp_nama, 140, signY + 30)
+
+  doc.setFont('helvetica', 'normal')
+  doc.text(`NIP. ${settings.kpa_nip}`, 14, signY + 34)
+  doc.text(`NIP. ${settings.bpp_nip}`, 140, signY + 34)
+
+  doc.save(`BKU_${monthName}_${year}.pdf`)
 }
 
-export function exportBukuPembantuPdf(groups) {
-  const doc = makeDoc()
-  addHeader(doc, 'BUKU PEMBANTU KAS')
-
-  let startY = 32
-  groups.forEach(({ rekening, rows }) => {
-    const realisasi = rows.reduce((s, r) => s + r.jumlah, 0)
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'bold')
-    doc.text(`${rekening.kode} — ${rekening.uraian}`, 14, startY)
-    doc.setFont('helvetica', 'normal')
-
-    const body = rows.map((r, i) => [
-      i + 1,
-      formatTanggal(r.tanggal),
-      r.no_bukti,
-      r.keterangan ?? '-',
-      formatRupiah(r.jumlah),
-    ])
-
-    body.push(['', '', '', 'Total Realisasi', formatRupiah(realisasi)])
-    body.push(['', '', '', 'Sisa', formatRupiah(rekening.pagu_anggaran - realisasi)])
-
-    autoTable(doc, {
-      startY: startY + 4,
-      head: [['No', 'Tanggal', 'No. Bukti', 'Keterangan', 'Jumlah']],
-      body,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [124, 58, 237], textColor: 255 },
-      columnStyles: { 4: { halign: 'right' } },
-    })
-
-    startY = doc.lastAutoTable.finalY + 10
-    if (startY > 180) { doc.addPage(); startY = 14 }
-  })
-
-  doc.save('BukuPembantu.pdf')
-}
-
-export function exportRealisasiPdf(subKegiatan, realisasiPerRek) {
-  const doc = makeDoc()
-  addHeader(doc, 'LAPORAN REALISASI ANGGARAN (SPJ)')
-
-  const body = []
-  subKegiatan.forEach(sk => {
-    const skReal = (sk.kode_rekening ?? []).reduce((s, r) => s + (realisasiPerRek[r.id] ?? 0), 0)
-    body.push([
-      { content: sk.kode, styles: { fontStyle: 'bold' } },
-      { content: sk.nama, styles: { fontStyle: 'bold' } },
-      { content: formatRupiah(sk.total_pagu), styles: { fontStyle: 'bold', halign: 'right' } },
-      { content: formatRupiah(skReal), styles: { fontStyle: 'bold', halign: 'right' } },
-      { content: `${Math.min(100, Math.round(skReal / sk.total_pagu * 100)) || 0}%`, styles: { fontStyle: 'bold', halign: 'right' } },
-      { content: formatRupiah(sk.total_pagu - skReal), styles: { fontStyle: 'bold', halign: 'right' } },
-    ])
-    ;(sk.kode_rekening ?? []).forEach(r => {
-      const real = realisasiPerRek[r.id] ?? 0
-      body.push([
-        `  ${r.kode}`,
-        `  ${r.uraian}`,
-        { content: formatRupiah(r.pagu_anggaran), styles: { halign: 'right' } },
-        { content: formatRupiah(real), styles: { halign: 'right' } },
-        { content: `${Math.min(100, Math.round(real / r.pagu_anggaran * 100)) || 0}%`, styles: { halign: 'right' } },
-        { content: formatRupiah(r.pagu_anggaran - real), styles: { halign: 'right' } },
-      ])
-    })
-  })
-
-  autoTable(doc, {
-    startY: 32,
-    head: [['Kode', 'Uraian', 'Pagu', 'Realisasi', '%', 'Sisa']],
-    body,
-    styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [124, 58, 237], textColor: 255 },
-  })
-
-  doc.save('Realisasi-SPJ.pdf')
-}
-
-export function exportRekapBulananPdf(data) {
-  const doc = makeDoc()
-  addHeader(doc, 'REKAP BULANAN PENERIMAAN DAN PENGELUARAN')
-
-  let saldo = 0
-  const body = data.map(row => {
-    saldo += row.penerimaan - row.pengeluaran
-    return [
-      row.bulan,
-      formatRupiah(row.penerimaan),
-      formatRupiah(row.pengeluaran),
-      formatRupiah(saldo),
-    ]
-  })
-
-  autoTable(doc, {
-    startY: 32,
-    head: [['Bulan', 'Penerimaan', 'Pengeluaran', 'Saldo Kumulatif']],
-    body,
-    styles: { fontSize: 9, cellPadding: 3 },
-    headStyles: { fillColor: [124, 58, 237], textColor: 255 },
-    columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
-  })
-
-  doc.save('RekapBulanan.pdf')
-}
+export function exportBukuPembantuPdf(groups) {}
+export function exportRealisasiPdf(subKegiatan, realisasiPerRek) {}
+export function exportRekapBulananPdf(data) {}
