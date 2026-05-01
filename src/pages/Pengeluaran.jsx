@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
+import Textarea from '@/components/ui/Textarea'
 import Select from '@/components/ui/Select'
 import Badge from '@/components/ui/Badge'
 import ProgressBar from '@/components/ui/ProgressBar'
@@ -30,9 +31,11 @@ function toRoman(month) {
 export default function Pengeluaran() {
   const subKegiatan = useStore(s => s.subKegiatan)
   const pengeluaran = useStore(s => s.pengeluaran)
+  const penerimaan = useStore(s => s.penerimaan)
   const isLoading = useStore(s => s.isLoading)
   const fetchSubKegiatan = useStore(s => s.fetchSubKegiatan)
   const fetchPengeluaran = useStore(s => s.fetchPengeluaran)
+  const fetchPenerimaan = useStore(s => s.fetchPenerimaan)
   const addPengeluaran = useStore(s => s.addPengeluaran)
   const updatePengeluaran = useStore(s => s.updatePengeluaran)
   const deletePengeluaran = useStore(s => s.deletePengeluaran)
@@ -48,6 +51,7 @@ export default function Pengeluaran() {
   useEffect(() => {
     fetchSubKegiatan()
     fetchPengeluaran()
+    fetchPenerimaan()
   }, [])
 
   // Auto-generate No Bukti (only for NEW items)
@@ -131,32 +135,78 @@ export default function Pengeluaran() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    
+    // Financial Validations
+    const amount = totalRincian
+    const remainingQuota = (selectedSk?.kode_rekening?.find(r => r.id === form.kode_rekening_id)?.pagu_anggaran ?? 0) - (realisasiPerRek[form.kode_rekening_id] ?? 0)
+    
+    const totalCair = penerimaan.reduce((s, p) => s + p.jumlah, 0)
+    const totalSpent = pengeluaran.reduce((s, p) => s + p.jumlah, 0)
+    const currentCash = totalCair - totalSpent + (editingItem ? editingItem.jumlah : 0)
+
+    if (amount <= 0) {
+      setErrors({ global: 'Jumlah pengeluaran harus lebih dari 0' })
+      return
+    }
+
+    if (amount > remainingQuota) {
+      setErrors({ global: `Jumlah melebihi sisa quota pagu rekening (${formatRupiah(remainingQuota)})` })
+      return
+    }
+
+    if (amount > currentCash) {
+      setErrors({ global: `Saldo Kas tidak mencukupi. Sisa saldo kas riil: ${formatRupiah(currentCash)}` })
+      return
+    }
+
     setSaving(true)
+    setErrors({})
+
+    const payload = {
+      pengeluaran: {
+        tanggal: form.tanggal,
+        no_bukti: form.no_bukti,
+        sub_kegiatan_id: form.sub_kegiatan_id,
+        kode_rekening_id: form.kode_rekening_id,
+        jumlah: amount,
+        keterangan: form.keterangan || null,
+      },
+      rincian: rincian.map(r => ({
+        uraian: r.uraian,
+        jumlah: parseInt(String(r.jumlah).replace(/\./g, ''), 10),
+      })),
+    }
+
+    console.log('--- START SUBMIT DIAGNOSTICS ---')
+    console.log('Payload Pengeluaran:', payload.pengeluaran)
+    console.log('Payload Rincian:', payload.rincian)
+
     try {
-      const payload = {
-        pengeluaran: {
-          tanggal: form.tanggal,
-          no_bukti: form.no_bukti,
-          sub_kegiatan_id: form.sub_kegiatan_id,
-          kode_rekening_id: form.kode_rekening_id,
-          jumlah: totalRincian,
-          keterangan: form.keterangan || null,
-        },
-        rincian: rincian.map(r => ({
-          uraian: r.uraian,
-          jumlah: parseInt(String(r.jumlah).replace(/\./g, ''), 10),
-        })),
-      }
+      let res
       if (editingItem) {
-        await updatePengeluaran(editingItem.id, payload)
+        console.log('Mode: EDIT, ID:', editingItem.id)
+        res = await updatePengeluaran(editingItem.id, payload)
       } else {
-        await addPengeluaran(payload)
+        console.log('Mode: NEW')
+        res = await addPengeluaran(payload)
       }
-      setModalOpen(false)
+
+
+      console.log('API Response:', res)
+
+      if (res && res.success) {
+        console.log('Save SUCCESS')
+        setModalOpen(false)
+      } else {
+        console.error('Save FAILED:', res?.error)
+        setErrors({ global: res?.error || 'Gagal menyimpan data ke database' })
+      }
     } catch (err) {
+      console.error('Submit EXCEPTION:', err)
       setErrors({ global: err.message })
     } finally {
       setSaving(false)
+      console.log('--- END SUBMIT DIAGNOSTICS ---')
     }
   }
 
@@ -216,9 +266,16 @@ export default function Pengeluaran() {
                     ? `${item.sub_kegiatan.kode}.${item.kode_rekening.kode}`
                     : '-'
                   
-                  const rincianText = item.pengeluaran_rincian?.length > 0
+                  const subK = item.sub_kegiatan
+                  const keg = subK?.kegiatan
+                  
+                  let rincianText = item.pengeluaran_rincian?.length > 0
                     ? item.pengeluaran_rincian.map(r => r.uraian).join(', ')
                     : item.keterangan || 'belanja'
+                  
+                  // Clean redundant "Dibayar" or "kegiatan" from input to avoid "Dibayar Dibayar..."
+                  rincianText = rincianText.replace(/^(dibayar|kegiatan)\s+/i, '').trim()
+                  const parentName = keg?.nama || subK?.nama || '-'
 
                   return (
                     <tr key={item.id} className="hover:bg-indigo-50/30 transition-colors group">
@@ -231,24 +288,24 @@ export default function Pengeluaran() {
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-xs text-slate-800 font-medium leading-relaxed">
-                          Dibayar {rincianText} pada kegiatan {item.sub_kegiatan?.nama || '-'} {item.no_bukti}
+                          Dibayar {rincianText} pada kegiatan {parentName} {item.no_bukti}
                         </p>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <span className="text-sm font-bold text-red-600">{formatRupiah(item.jumlah)}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center justify-center gap-2 transition-all">
                           <button
                             onClick={() => openEdit(item)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                            className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 rounded-xl shadow-sm transition-all"
                             title="Edit Data"
                           >
                             <Pencil size={15} />
                           </button>
                           <button
                             onClick={() => handleDelete(item.id)}
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                            className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 rounded-xl shadow-sm transition-all"
                             title="Hapus Data"
                           >
                             <Trash2 size={15} />
@@ -301,11 +358,12 @@ export default function Pengeluaran() {
                 placeholder={selectedSk ? 'Pilih rekening...' : 'Pilih sub kegiatan dulu'}
                 required
               />
-              <Input
+              <Textarea
                 label="Keterangan Utama"
                 value={form.keterangan}
                 onChange={e => setForm(f => ({ ...f, keterangan: e.target.value }))}
                 placeholder="Contoh: Belanja Alat Tulis Kantor"
+                rows={2}
               />
 
               {selectedSk && (
@@ -336,11 +394,12 @@ export default function Pengeluaran() {
                         <MinusCircle size={16} />
                       </button>
                     )}
-                    <Input
+                    <Textarea
                       label="Uraian Rincian"
                       value={row.uraian}
                       onChange={e => updateRincian(i, 'uraian', e.target.value)}
                       placeholder="Apa yang dibayar?"
+                      rows={3}
                     />
                     <Input
                       label="Jumlah (Rp)"
@@ -360,7 +419,14 @@ export default function Pengeluaran() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-100">
+          {errors.global && (
+            <div className="mt-6 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-medium flex items-start gap-2">
+              <span className="shrink-0 mt-0.5">⚠</span>
+              <span>{errors.global}</span>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 mt-4 pt-6 border-t border-slate-100">
             <Button variant="secondary" onClick={() => setModalOpen(false)} type="button">Batal</Button>
             <Button type="submit" disabled={saving} className="px-10 h-12 shadow-lg shadow-indigo-600/20">
               {saving ? 'Menyimpan...' : editingItem ? 'Simpan Perubahan' : 'Simpan Transaksi'}

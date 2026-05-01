@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
+import Textarea from '@/components/ui/Textarea'
 import ProgressBar from '@/components/ui/ProgressBar'
 import EmptyState from '@/components/ui/EmptyState'
 import Spinner from '@/components/ui/Spinner'
@@ -153,7 +154,13 @@ export default function Anggaran() {
                   <span className="text-[10px] font-bold text-indigo-500/60 uppercase tracking-tighter block leading-none mb-1">{prog.kode}</span>
                   <h2 className="text-sm font-black text-slate-800 uppercase leading-none">{prog.nama}</h2>
                 </div>
-                <button onClick={() => openEditProg(prog)} className="p-1.5 rounded-lg text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 opacity-0 group-hover:opacity-100 transition-all"><Pencil size={14} /></button>
+                <button 
+                  onClick={() => openEditProg(prog)} 
+                  className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
+                  title="Edit Program"
+                >
+                  <Pencil size={14} />
+                </button>
               </div>
               <div className="text-right">
                 <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest leading-none mb-1">Pagu Program</p>
@@ -176,7 +183,13 @@ export default function Anggaran() {
                       <div>
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="text-[9px] font-mono text-slate-400 font-bold">{keg.kode}</span>
-                          <button onClick={(e) => { e.stopPropagation(); openEditKeg(keg) }} className="p-1 text-slate-300 hover:text-indigo-600 opacity-0 group-hover/keg:opacity-100"><Pencil size={12} /></button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); openEditKeg(keg) }} 
+                            className="p-1 bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 rounded-md transition-all shadow-sm"
+                            title="Edit Kegiatan"
+                          >
+                            <Pencil size={12} />
+                          </button>
                         </div>
                         <h3 className="text-xs font-bold text-slate-700 uppercase leading-none">{keg.nama}</h3>
                       </div>
@@ -210,8 +223,20 @@ export default function Anggaran() {
                                   <p className="text-xs font-black text-slate-900 leading-none">{formatRupiah(sk.calculatedPagu)}</p>
                                 </div>
                                 <div className="flex items-center gap-1 ml-4" onClick={e => e.stopPropagation()}>
-                                  <button onClick={() => openEditSk(sk)} className="p-2 rounded-xl hover:bg-indigo-50 text-slate-300 hover:text-indigo-600 transition-colors"><Pencil size={14} /></button>
-                                  <button onClick={() => { if(confirm('Hapus Sub Kegiatan ini?')) deleteSubKegiatan(sk.id) }} className="p-2 rounded-xl hover:bg-red-50 text-slate-300 hover:text-red-600 transition-colors"><Trash2 size={14} /></button>
+                                  <button 
+                                    onClick={() => openEditSk(sk)} 
+                                    className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
+                                    title="Edit Sub Kegiatan"
+                                  >
+                                    <Pencil size={14} />
+                                  </button>
+                                  <button 
+                                    onClick={() => { if(confirm('Hapus Sub Kegiatan ini?')) deleteSubKegiatan(sk.id) }} 
+                                    className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all shadow-sm"
+                                    title="Hapus Sub Kegiatan"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
                                 </div>
                               </div>
                               {skExpanded && (
@@ -241,9 +266,21 @@ export default function Anggaran() {
                                               <td className="px-3 py-2.5 text-right font-black text-slate-900 border-t border-slate-100">{formatRupiah(rek.pagu_anggaran)}</td>
                                               <td className="px-3 py-2.5 text-right font-bold text-red-500 border-t border-slate-100">{formatRupiah(real)}</td>
                                               <td className="px-3 py-2.5 border-t border-slate-100">
-                                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover/rek:opacity-100 transition-opacity">
-                                                  <button onClick={() => openEditRek(rek, sk.id)} className="p-1.5 rounded-lg text-slate-300 hover:text-indigo-600 hover:bg-indigo-50"><Pencil size={12} /></button>
-                                                  <button onClick={() => { if(confirm('Hapus Rekening?')) deleteKodeRekening(rek.id) }} className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50"><Trash2 size={12} /></button>
+                                                <div className="flex items-center justify-end gap-1 transition-all">
+                                                  <button 
+                                                    onClick={() => openEditRek(rek, sk.id)} 
+                                                    className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
+                                                    title="Edit Rekening"
+                                                  >
+                                                    <Pencil size={12} />
+                                                  </button>
+                                                  <button 
+                                                    onClick={() => { if(confirm('Hapus Rekening?')) deleteKodeRekening(rek.id) }} 
+                                                    className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all shadow-sm"
+                                                    title="Hapus Rekening"
+                                                  >
+                                                    <Trash2 size={12} />
+                                                  </button>
                                                 </div>
                                               </td>
                                             </tr>
@@ -308,7 +345,7 @@ export default function Anggaran() {
       <Modal open={rekModal} onClose={() => setRekModal(false)} title={editingRekId ? 'Edit Rekening' : 'Tambah Rekening'}>
         <form onSubmit={handleRekSubmit} className="space-y-4">
           <Input label="Kode Rekening" value={rekForm.kode} onChange={e => setRekForm({...rekForm, kode: e.target.value})} placeholder="5.1.02..." required />
-          <Input label="Uraian Belanja" value={rekForm.uraian} onChange={e => setRekForm({...rekForm, uraian: e.target.value})} required />
+          <Textarea label="Uraian Belanja" value={rekForm.uraian} onChange={e => setRekForm({...rekForm, uraian: e.target.value})} required rows={2} />
           <Input label="Pagu Anggaran" type="number" value={rekForm.pagu_anggaran} onChange={e => setRekForm({...rekForm, pagu_anggaran: e.target.value})} required />
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <Button variant="secondary" onClick={() => setRekModal(false)} type="button">Batal</Button>

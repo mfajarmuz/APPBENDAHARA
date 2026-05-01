@@ -6,11 +6,7 @@ import Badge from '@/components/ui/Badge'
 import ProgressBar from '@/components/ui/ProgressBar'
 import Spinner from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
-import { 
-  KPICard, 
-  ExpenditureTrendsChart, 
-  RealizationVsBudgetChart 
-} from '@/components/DashboardCharts'
+import { KPICard } from '@/components/DashboardCharts'
 
 const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
@@ -48,19 +44,24 @@ export default function Dashboard() {
     [subKegiatan]
   )
 
-  const totalCair = useMemo(
+  const totalPenerimaan = useMemo(
     () => penerimaan.reduce((sum, p) => sum + (p.jumlah ?? 0), 0),
     [penerimaan]
   )
 
-  const totalRealisasi = useMemo(
+  const totalPengeluaran = useMemo(
     () => pengeluaran.reduce((sum, p) => sum + (p.jumlah ?? 0), 0),
     [pengeluaran]
   )
 
-  const sisaSaldoKas = totalCair - totalRealisasi
-  const sisaQuotaAnggaran = totalPagu - totalRealisasi
-  const persenTotal = persen(totalRealisasi, totalPagu)
+  const totalUPGU = useMemo(
+    () => penerimaan.filter(p => p.jenis === 'UP' || p.jenis === 'GU').reduce((sum, p) => sum + (p.jumlah ?? 0), 0),
+    [penerimaan]
+  )
+
+  const sisaSaldoKas = totalUPGU - totalPengeluaran
+  const sisaQuotaAnggaran = totalPagu - totalPengeluaran
+  const persenTotal = persen(totalPengeluaran, totalPagu)
 
   const realisasiPerSk = useMemo(() =>
     subKegiatan.map(sk => {
@@ -96,92 +97,96 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard 
-          label="Pagu Anggaran (DPA)" 
-          value={formatRupiah(totalPagu)} 
+          label="Total Penerimaan" 
+          value={formatRupiah(totalPenerimaan)} 
           variant="primary"
         />
         <KPICard 
-          label="Dana Cair (SP2D)" 
-          value={formatRupiah(totalCair)} 
-          variant="success"
+          label="Total Pengeluaran" 
+          value={formatRupiah(totalPengeluaran)} 
+          variant="danger"
         />
         <KPICard 
           label="Saldo Kas Riil" 
           value={formatRupiah(sisaSaldoKas)} 
-          subtext="Uang yang bisa dibelanjakan"
+          subtext="Dana UP & GU dikurangi Pengeluaran"
           variant={sisaSaldoKas < 0 ? 'danger' : 'success'}
         />
         <KPICard 
           label="Sisa Quota Pagu" 
           value={formatRupiah(sisaQuotaAnggaran)} 
-          subtext={`${persenTotal}% terpakai`}
+          subtext={`${persenTotal}% terpakai dari Pagu`}
           variant="warning"
         />
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ExpenditureTrendsChart data={monthlyData} />
-        <RealizationVsBudgetChart data={realisasiPerSk} />
-      </div>
-
-      {/* Tables Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Realisasi per Sub Kegiatan */}
-        <Card className="lg:col-span-3">
-          <h2 className="text-sm font-semibold text-text-primary mb-4">Detail Realisasi per Sub Kegiatan</h2>
-          {realisasiPerSk.length === 0 ? (
-            <EmptyState message="Belum ada data sub kegiatan" />
-          ) : (
-            <div className="space-y-4">
-              {realisasiPerSk.map(sk => (
-                <div key={sk.id} className="group">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1 min-w-0 mr-3">
-                      <p className="text-sm font-medium text-text-primary group-hover:text-accent transition-colors truncate">
-                        {sk.nama}
-                      </p>
-                      <p className="text-xs text-text-secondary">{sk.kode}</p>
+        <div className="lg:col-span-2">
+          <Card className="h-full">
+            <h2 className="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
+              <span className="w-1 h-4 bg-emerald-600 rounded-full" />
+              Detail Realisasi per Sub Kegiatan
+            </h2>
+            {realisasiPerSk.length === 0 ? (
+              <EmptyState message="Belum ada data sub kegiatan" />
+            ) : (
+              <div className="space-y-6">
+                {realisasiPerSk.map(sk => (
+                  <div key={sk.id} className="group">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0 mr-3">
+                        <p className="text-xs font-black text-indigo-600 uppercase tracking-tighter mb-1">{sk.kode}</p>
+                        <p className="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition-colors truncate">
+                          {sk.nama}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-sm font-black text-slate-900">{formatRupiah(sk.realisasi)}</span>
+                        <Badge variant={statusVariant(sk.persen)}>{statusLabel(sk.persen)}</Badge>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-sm font-semibold text-text-primary">{formatRupiah(sk.realisasi)}</span>
-                      <Badge variant={statusVariant(sk.persen)}>{statusLabel(sk.persen)}</Badge>
+                    <ProgressBar value={sk.persen} />
+                    <div className="flex justify-between mt-1.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pagu: {formatRupiah(sk.total_pagu)}</span>
+                      <span className="text-[10px] font-black text-indigo-600">{sk.persen}%</span>
                     </div>
                   </div>
-                  <ProgressBar value={sk.persen} />
-                  <div className="flex justify-between mt-1">
-                    <span className="text-[10px] text-text-secondary">Pagu: {formatRupiah(sk.total_pagu)}</span>
-                    <span className="text-[10px] text-text-secondary">{sk.persen}%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
 
         {/* Transaksi Terakhir */}
-        <Card className="lg:col-span-2">
-          <h2 className="text-sm font-semibold text-text-primary mb-4">Pengeluaran Terakhir</h2>
-          {transaksiTerakhir.length === 0 ? (
-            <EmptyState message="Belum ada transaksi pengeluaran" />
-          ) : (
-            <div className="space-y-3">
-              {transaksiTerakhir.map((p) => (
-                <div key={p.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0 last:pb-0">
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-text-primary truncate">{p.no_bukti}</p>
-                    <p className="text-[10px] text-text-secondary">{formatTanggal(p.tanggal)}</p>
+        <div className="lg:col-span-1">
+          <Card className="h-full flex flex-col">
+            <h2 className="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
+              <span className="w-1 h-4 bg-indigo-600 rounded-full" />
+              Pengeluaran Terakhir
+            </h2>
+            {transaksiTerakhir.length === 0 ? (
+              <EmptyState message="Belum ada transaksi" />
+            ) : (
+              <div className="space-y-4 flex-1">
+                {transaksiTerakhir.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-slate-100">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-bold text-indigo-600 mb-0.5">{p.no_bukti}</p>
+                      <p className="text-xs text-slate-700 font-medium truncate w-32 md:w-48">{p.keterangan || 'Belanja'}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">{formatTanggal(p.tanggal)}</p>
+                    </div>
+                    <p className="text-sm font-black text-red-600">{formatRupiah(p.jumlah)}</p>
                   </div>
-                  <p className="text-xs font-bold text-danger">{formatRupiah(p.jumlah)}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
     </div>
   )

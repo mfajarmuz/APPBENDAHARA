@@ -40,6 +40,7 @@ CREATE TABLE kode_rekening (
 -- Tabel penerimaan
 CREATE TABLE penerimaan (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  jenis text NOT NULL DEFAULT 'SP2D',
   tanggal date NOT NULL,
   no_sp2d text,
   jumlah bigint NOT NULL,

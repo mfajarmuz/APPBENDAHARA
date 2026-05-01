@@ -113,7 +113,15 @@ ipcMain.handle('add-penerimaan', async (event, payload) => {
 ipcMain.handle('get-pengeluaran', async () => {
   return handleWith(async () => {
     const { data, error } = await supabase.from('pengeluaran')
-      .select(`*, sub_kegiatan(*), kode_rekening(*), pengeluaran_rincian(*)`)
+      .select(`
+        *, 
+        sub_kegiatan (
+          *, 
+          kegiatan (*)
+        ), 
+        kode_rekening (*), 
+        pengeluaran_rincian (*)
+      `)
       .order('tanggal', { ascending: true })
     if (error) throw error
     return data
@@ -122,12 +130,21 @@ ipcMain.handle('get-pengeluaran', async () => {
 
 ipcMain.handle('add-pengeluaran', async (event, { pengeluaran, rincian }) => {
   return handleWith(async () => {
+    console.log('[IPC] add-pengeluaran start', pengeluaran)
     const { data: pengData, error: pengError } = await supabase.from('pengeluaran').insert([pengeluaran]).select().single()
-    if (pengError) throw pengError
+    if (pengError) {
+      console.error('[Supabase Error] add-pengeluaran header:', pengError)
+      throw pengError
+    }
+    
     if (rincian && rincian.length > 0) {
+      console.log('[IPC] inserting rincian for', pengData.id)
       const rincianPayload = rincian.map((r) => ({ ...r, pengeluaran_id: pengData.id }))
       const { error: rinError } = await supabase.from('pengeluaran_rincian').insert(rincianPayload)
-      if (rinError) throw rinError
+      if (rinError) {
+        console.error('[Supabase Error] add-pengeluaran rincian:', rinError)
+        throw rinError
+      }
     }
     return pengData
   })
@@ -181,9 +198,10 @@ ipcMain.handle('delete-kode-rekening', async (event, id) => {
   })
 })
 
-ipcMain.handle('update-penerimaan', async (event, { id, ...payload }) => {
+ipcMain.handle('update-penerimaan', async (event, payload) => {
   return handleWith(async () => {
-    const { data, error } = await supabase.from('penerimaan').update(payload).eq('id', id).select()
+    const { id, ...updateData } = payload
+    const { data, error } = await supabase.from('penerimaan').update(updateData).eq('id', id).select()
     if (error) throw error
     return data
   })
@@ -208,17 +226,34 @@ ipcMain.handle('delete-pengeluaran', async (event, id) => {
 ipcMain.handle('update-pengeluaran', async (event, id, { pengeluaran, rincian }) => {
   return handleWith(async () => {
     // 1. Update Header
-    const { error: pengError } = await supabase.from('pengeluaran').update(pengeluaran).eq('id', id)
-    if (pengError) throw pengError
+    const { error: pengError } = await supabase
+      .from('pengeluaran')
+      .update(pengeluaran)
+      .eq('id', id)
+
+    if (pengError) {
+      console.error('Update Header Error:', pengError)
+      throw pengError
+    }
 
     // 2. Refresh Rincian (Delete and Re-insert)
     const { error: delError } = await supabase.from('pengeluaran_rincian').delete().eq('pengeluaran_id', id)
-    if (delError) throw delError
+    if (delError) {
+      console.error('Delete Rincian Error:', delError)
+      throw delError
+    }
 
     if (rincian && rincian.length > 0) {
-      const rincianPayload = rincian.map((r) => ({ ...r, pengeluaran_id: id }))
+      const rincianPayload = rincian.map((r) => ({ 
+        uraian: r.uraian, 
+        jumlah: r.jumlah, 
+        pengeluaran_id: id 
+      }))
       const { error: rinError } = await supabase.from('pengeluaran_rincian').insert(rincianPayload)
-      if (rinError) throw rinError
+      if (rinError) {
+        console.error('Insert Rincian Error:', rinError)
+        throw rinError
+      }
     }
     return true
   })

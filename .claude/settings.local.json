@@ -27,7 +27,9 @@
       "Read(//c/Users/User/AppData/Local/Google/**)",
       "Bash(powershell -Command \"Get-Command gemini -ErrorAction SilentlyContinue\")",
       "PowerShell(npm list *)",
-      "Bash(npm test *)"
+      "Bash(npm test *)",
+      "Bash(node --input-type=module)",
+      "Bash(npx vite *)"
     ]
   }
 }

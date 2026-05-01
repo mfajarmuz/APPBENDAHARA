@@ -220,7 +220,7 @@ const createPengeluaranSlice = (set, get) => ({
       }
       return res
     } catch (err) {
-      console.error(err)
+      console.error('addPengeluaran store error:', err)
       return { success: false, error: err.message }
     } finally {
       set({ isLoading: false })
@@ -235,7 +235,7 @@ const createPengeluaranSlice = (set, get) => ({
       }
       return res
     } catch (err) {
-      console.error(err)
+      console.error('deletePengeluaran store error:', err)
       return { success: false, error: err.message }
     } finally {
       set({ isLoading: false })
@@ -250,12 +250,12 @@ const createPengeluaranSlice = (set, get) => ({
       }
       return res
     } catch (err) {
-      console.error(err)
+      console.error('updatePengeluaran store error:', err)
       return { success: false, error: err.message }
     } finally {
       set({ isLoading: false })
     }
-  }
+  },
 })
 
 export const useStore = create((set, get) => ({
