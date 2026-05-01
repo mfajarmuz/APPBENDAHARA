@@ -5,18 +5,34 @@ import Penerimaan from './pages/Penerimaan'
 import Pengeluaran from './pages/Pengeluaran'
 import Anggaran from './pages/Anggaran'
 import Laporan from './pages/Laporan'
+import Settings from './pages/Settings'
+import Login from './pages/Login'
+import { useStore } from './store/useStore'
+
+function ProtectedRoute({ children }) {
+  const user = useStore(s => s.user)
+  if (!user) return <Navigate to="/login" replace />
+  return children
+}
 
 export default function App() {
   return (
     <HashRouter>
       <Routes>
-        <Route path="/" element={<Layout />}>
+        <Route path="/login" element={<Login />} />
+        
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="penerimaan" element={<Penerimaan />} />
           <Route path="pengeluaran" element={<Pengeluaran />} />
           <Route path="anggaran" element={<Anggaran />} />
           <Route path="laporan" element={<Laporan />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </HashRouter>
