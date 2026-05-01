@@ -17,12 +17,14 @@
 - Modify: `electron/main.js`
 - Modify: `electron/preload.js`
 
-- [ ] **Step 1: Refactor Zustand Store**
+- [x] **Step 1: Refactor Zustand Store**
   Refactor `useStore.js` to use partitioned state (slices) for better organization.
-- [ ] **Step 2: Standardize IPC Error Handling**
+- [x] **Step 2: Standardize IPC Error Handling**
   Ensure all IPC handlers in `main.js` wrap Supabase calls in try-catch and return consistent objects.
-- [ ] **Step 3: Update Preload API**
+- [x] **Step 3: Update Preload API**
   Verify all necessary methods are exposed in `preload.js` with clear naming.
+
+  - Completed: commit 5572fc1 (Task 1 implemented by automated subagent)
 
 ### Task 2: UI Component Standardization
 
