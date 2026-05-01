@@ -32,10 +32,12 @@
 - Create/Modify: `src/components/ui/`
 - Modify: `src/index.css`
 
-- [ ] **Step 1: Audit & Refine UI Components**
+- [x] **Step 1: Audit & Refine UI Components**
   Ensure components like `Button`, `Modal`, and `Input` are using consistent Tailwind styles and props.
-- [ ] **Step 2: Global Layout Polish**
+- [x] **Step 2: Global Layout Polish**
   Update `Layout.jsx`, `Sidebar.jsx`, and `Topbar.jsx` for a cohesive "Office/Finance" look.
+
+  - Completed: commit 100bb05 (Task 2 implemented by automated subagent)
 
 ### Task 3: Dashboard Implementation
 
