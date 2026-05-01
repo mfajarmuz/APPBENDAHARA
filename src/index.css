@@ -9,33 +9,75 @@
 }
 
 body {
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
   background-color: #F8F8FC;
   color: #12121F;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
 }
 
-/* Scrollbar styling */
+/* Global scrollbar styling for light areas */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: #F0F0F8;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #C4C4D8;
-  border-radius: 3px;
+  border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #9090B0;
 }
 
-/* Sidebar scrollbar (dark) */
+/* Sidebar scrollbar (dark mode) */
 .sidebar-scroll::-webkit-scrollbar-track {
-  background: #1a1a2e;
+  background: #0F172A;
 }
+
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  background: #2d2d4a;
+  background: #334155;
+  border-radius: 4px;
 }
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Card and container utilities */
+@layer components {
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-slate-200 p-6;
+  }
+  
+  .card-hover {
+    @apply card hover:shadow-md transition-shadow duration-200;
+  }
+
+  .finance-badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold;
+  }
+
+  .badge-success {
+    @apply finance-badge bg-emerald-50 text-emerald-700 border border-emerald-200;
+  }
+
+  .badge-danger {
+    @apply finance-badge bg-red-50 text-red-700 border border-red-200;
+  }
+
+  .badge-warning {
+    @apply finance-badge bg-amber-50 text-amber-700 border border-amber-200;
+  }
+
+  .badge-info {
+    @apply finance-badge bg-blue-50 text-blue-700 border border-blue-200;
+  }
+}
+
