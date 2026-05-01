@@ -1,14 +1,18 @@
 import { useEffect, useMemo } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { useAppStore } from '@/store/useAppStore'
+import { useStore } from '@/store/useStore'
 import { formatRupiah, formatTanggal, persen } from '@/lib/format'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import ProgressBar from '@/components/ui/ProgressBar'
 import Spinner from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
+import { 
+  KPICard, 
+  ExpenditureTrendsChart, 
+  RealizationVsBudgetChart 
+} from '@/components/DashboardCharts'
 
-const BULAN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
+const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
 function statusVariant(p) {
   if (p >= 80) return 'success'
@@ -25,15 +29,18 @@ function statusLabel(p) {
 }
 
 export default function Dashboard() {
-  const subKegiatan = useAppStore(s => s.subKegiatan)
-  const pengeluaran = useAppStore(s => s.pengeluaran)
-  const loading = useAppStore(s => s.loading)
-  const fetchSubKegiatan = useAppStore(s => s.fetchSubKegiatan)
-  const fetchPengeluaran = useAppStore(s => s.fetchPengeluaran)
+  const subKegiatan = useStore(s => s.subKegiatan)
+  const pengeluaran = useStore(s => s.pengeluaran)
+  const penerimaan = useStore(s => s.penerimaan)
+  const isLoading = useStore(s => s.isLoading)
+  const fetchSubKegiatan = useStore(s => s.fetchSubKegiatan)
+  const fetchPengeluaran = useStore(s => s.fetchPengeluaran)
+  const fetchPenerimaan = useStore(s => s.fetchPenerimaan)
 
   useEffect(() => {
     fetchSubKegiatan()
     fetchPengeluaran()
+    fetchPenerimaan()
   }, [])
 
   const totalPagu = useMemo(
@@ -41,12 +48,18 @@ export default function Dashboard() {
     [subKegiatan]
   )
 
+  const totalCair = useMemo(
+    () => penerimaan.reduce((sum, p) => sum + (p.jumlah ?? 0), 0),
+    [penerimaan]
+  )
+
   const totalRealisasi = useMemo(
     () => pengeluaran.reduce((sum, p) => sum + (p.jumlah ?? 0), 0),
     [pengeluaran]
   )
 
-  const sisaAnggaran = totalPagu - totalRealisasi
+  const sisaSaldoKas = totalCair - totalRealisasi
+  const sisaQuotaAnggaran = totalPagu - totalRealisasi
   const persenTotal = persen(totalRealisasi, totalPagu)
 
   const realisasiPerSk = useMemo(() =>
@@ -74,7 +87,7 @@ export default function Dashboard() {
 
   const transaksiTerakhir = pengeluaran.slice(0, 5)
 
-  if (loading && subKegiatan.length === 0) {
+  if (isLoading && subKegiatan.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <Spinner size={28} />
@@ -83,107 +96,94 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-5">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card>
-          <p className="text-xs text-text-secondary mb-1">Total Pagu Anggaran</p>
-          <p className="text-xl font-bold text-text-primary">{formatRupiah(totalPagu)}</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-text-secondary mb-1">Total Realisasi</p>
-          <p className="text-xl font-bold text-accent">{formatRupiah(totalRealisasi)}</p>
-          <p className="text-xs text-text-secondary mt-1">{persenTotal}% dari pagu</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-text-secondary mb-1">Sisa Anggaran</p>
-          <p className={`text-xl font-bold ${sisaAnggaran < 0 ? 'text-danger' : 'text-success'}`}>
-            {formatRupiah(sisaAnggaran)}
-          </p>
-        </Card>
+    <div className="space-y-6">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <KPICard 
+          label="Pagu Anggaran (DPA)" 
+          value={formatRupiah(totalPagu)} 
+          variant="primary"
+        />
+        <KPICard 
+          label="Dana Cair (SP2D)" 
+          value={formatRupiah(totalCair)} 
+          variant="success"
+        />
+        <KPICard 
+          label="Saldo Kas Riil" 
+          value={formatRupiah(sisaSaldoKas)} 
+          subtext="Uang yang bisa dibelanjakan"
+          variant={sisaSaldoKas < 0 ? 'danger' : 'success'}
+        />
+        <KPICard 
+          label="Sisa Quota Pagu" 
+          value={formatRupiah(sisaQuotaAnggaran)} 
+          subtext={`${persenTotal}% terpakai`}
+          variant="warning"
+        />
       </div>
 
-      <div className="grid grid-cols-5 gap-4">
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ExpenditureTrendsChart data={monthlyData} />
+        <RealizationVsBudgetChart data={realisasiPerSk} />
+      </div>
+
+      {/* Tables Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Realisasi per Sub Kegiatan */}
-        <Card className="col-span-3">
-          <h2 className="text-sm font-semibold text-text-primary mb-4">Realisasi per Sub Kegiatan</h2>
+        <Card className="lg:col-span-3">
+          <h2 className="text-sm font-semibold text-text-primary mb-4">Detail Realisasi per Sub Kegiatan</h2>
           {realisasiPerSk.length === 0 ? (
             <EmptyState message="Belum ada data sub kegiatan" />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {realisasiPerSk.map(sk => (
-                <div key={sk.id}>
-                  <div className="flex items-start justify-between mb-1">
+                <div key={sk.id} className="group">
+                  <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0 mr-3">
-                      <p className="text-xs font-medium text-text-primary truncate">{sk.nama}</p>
-                      <p className="text-[10px] text-text-secondary">{sk.kode}</p>
+                      <p className="text-sm font-medium text-text-primary group-hover:text-accent transition-colors truncate">
+                        {sk.nama}
+                      </p>
+                      <p className="text-xs text-text-secondary">{sk.kode}</p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-text-secondary">{formatRupiah(sk.realisasi)}</span>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-sm font-semibold text-text-primary">{formatRupiah(sk.realisasi)}</span>
                       <Badge variant={statusVariant(sk.persen)}>{statusLabel(sk.persen)}</Badge>
                     </div>
                   </div>
                   <ProgressBar value={sk.persen} />
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[10px] text-text-secondary">Pagu: {formatRupiah(sk.total_pagu)}</span>
+                    <span className="text-[10px] text-text-secondary">{sk.persen}%</span>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </Card>
 
-        {/* Bar Chart */}
-        <Card className="col-span-2">
-          <h2 className="text-sm font-semibold text-text-primary mb-4">Pengeluaran per Bulan</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={monthlyData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F8" vertical={false} />
-              <XAxis dataKey="bulan" tick={{ fontSize: 10, fill: '#9090B0' }} axisLine={false} tickLine={false} />
-              <YAxis
-                tickFormatter={v => v === 0 ? '0' : `${(v / 1_000_000).toFixed(0)}jt`}
-                tick={{ fontSize: 10, fill: '#9090B0' }}
-                axisLine={false}
-                tickLine={false}
-                width={36}
-              />
-              <Tooltip
-                formatter={(v) => [formatRupiah(v), 'Pengeluaran']}
-                contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #F0F0F8' }}
-              />
-              <Bar dataKey="total" fill="#7C3AED" radius={[4, 4, 0, 0]} maxBarSize={24} />
-            </BarChart>
-          </ResponsiveContainer>
+        {/* Transaksi Terakhir */}
+        <Card className="lg:col-span-2">
+          <h2 className="text-sm font-semibold text-text-primary mb-4">Pengeluaran Terakhir</h2>
+          {transaksiTerakhir.length === 0 ? (
+            <EmptyState message="Belum ada transaksi pengeluaran" />
+          ) : (
+            <div className="space-y-3">
+              {transaksiTerakhir.map((p) => (
+                <div key={p.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-text-primary truncate">{p.no_bukti}</p>
+                    <p className="text-[10px] text-text-secondary">{formatTanggal(p.tanggal)}</p>
+                  </div>
+                  <p className="text-xs font-bold text-danger">{formatRupiah(p.jumlah)}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
-
-      {/* Transaksi Terakhir */}
-      <Card>
-        <h2 className="text-sm font-semibold text-text-primary mb-4">Pengeluaran Terakhir</h2>
-        {transaksiTerakhir.length === 0 ? (
-          <EmptyState message="Belum ada transaksi pengeluaran" />
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left text-xs font-medium text-text-secondary pb-2">Tanggal</th>
-                <th className="text-left text-xs font-medium text-text-secondary pb-2">No Bukti</th>
-                <th className="text-left text-xs font-medium text-text-secondary pb-2">Sub Kegiatan</th>
-                <th className="text-right text-xs font-medium text-text-secondary pb-2">Jumlah</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transaksiTerakhir.map((p, i) => (
-                <tr key={p.id} className={i < transaksiTerakhir.length - 1 ? 'border-b border-border' : ''}>
-                  <td className="py-2 text-text-secondary text-xs">{formatTanggal(p.tanggal)}</td>
-                  <td className="py-2 text-text-primary font-medium">{p.no_bukti}</td>
-                  <td className="py-2 text-text-secondary text-xs truncate max-w-[200px]">
-                    {p.sub_kegiatan?.nama ?? '-'}
-                  </td>
-                  <td className="py-2 text-right font-medium">{formatRupiah(p.jumlah)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
     </div>
   )
 }
+
