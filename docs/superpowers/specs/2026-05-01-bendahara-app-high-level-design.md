@@ -20,12 +20,14 @@ BendaharaApp is a desktop application designed for treasurers (Bendahara) to man
 - `electron/preload.js`: Exposes `window.api` to the React frontend.
 - **Pattern:** Every IPC call should return a consistent response format `{ data, error }`.
 
-### 2.3 Data Model (Supabase)
-- `sub_kegiatan`: Program line items (kode, nama, total_pagu).
-- `kode_rekening`: Child of sub_kegiatan (kode, uraian, pagu_anggaran).
-- `penerimaan`: SP2D receipts (tanggal, no_sp2d, jumlah).
-- `pengeluaran`: Expenditure header (tanggal, no_bukti, sub_kegiatan_id, kode_rekening_id).
-- `pengeluaran_rincian`: Line items for expenditures (uraian, volume, jumlah).
+### 2.4 Financial Concepts
+- **Anggaran (Budget Quota):** Represents the legal spending limit (quota) defined in the DPA for each Activity and Account. It does NOT represent liquid money.
+- **Uang Kas (Cash on Hand):** Represents actual liquid funds received through **Penerimaan (SP2D)**. This is the money available to be spent.
+- **Relationship:**
+  - `Penerimaan` (SP2D) increases **Cash on Hand** but does not change the **Budget Quota**.
+  - `Pengeluaran` (Expenditure) decreases **Cash on Hand** AND consumes the **Budget Quota** for the specific account.
+  - Total `Cash on Hand` should always be sufficient to cover `Pengeluaran`.
+  - `Pengeluaran` cannot exceed the remaining `Budget Quota` (Pagu).
 
 ## 3. UI/UX Standards
 ### 3.1 Design System

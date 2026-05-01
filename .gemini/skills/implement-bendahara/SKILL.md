@@ -15,5 +15,5 @@ Follow the structured plan in `docs/superpowers/plans/2026-05-01-bendahara-app-i
 
 ## Critical Context
 - **IPC Handlers**: `electron/main.js` contains the source of truth for DB operations.
-- **Store**: `src/store/useAppStore.js` is the bridge between UI and Electron.
+- **Store**: `src/store/useStore.js` is the bridge between UI and Electron.
 - **Colors**: Use the Tailwind config palette (accent: #7C3AED, etc.).

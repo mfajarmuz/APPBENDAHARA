@@ -52,7 +52,8 @@
     },
     "files": [
       "dist/**/*",
-      "electron/**/*"
+      "electron/**/*",
+      ".env"
     ],
     "win": {
       "target": "nsis",

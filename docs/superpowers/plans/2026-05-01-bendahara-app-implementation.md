@@ -45,12 +45,14 @@
 - Modify: `src/pages/Dashboard.jsx`
 - Create: `src/components/DashboardCharts.jsx`
 
-- [ ] **Step 1: Implement KPI Cards**
+- [x] **Step 1: Implement KPI Cards**
   Calculate and display Total Pagu, Realization, and Remaining Budget.
-- [ ] **Step 2: Add Expenditure Trends Chart**
+- [x] **Step 2: Add Expenditure Trends Chart**
   Use Recharts to show monthly spending patterns.
-- [ ] **Step 3: Realization vs Budget Chart**
+- [x] **Step 3: Realization vs Budget Chart**
   Visual comparison per `sub_kegiatan`.
+
+  - Completed: commit (implemented by automated agent)
 
 ### Task 4: Laporan (Reports) Module
 
@@ -59,12 +61,14 @@
 - Modify: `src/lib/export-pdf.js`
 - Modify: `src/lib/export-excel.js`
 
-- [ ] **Step 1: BKU (Buku Kas Umum) View**
+- [x] **Step 1: BKU (Buku Kas Umum) View**
   Implement the main chronological view of all transactions.
-- [ ] **Step 2: PDF Export (jsPDF)**
+- [x] **Step 2: PDF Export (jsPDF)**
   Create templates for official BKU and Buku Pembantu PDF reports.
-- [ ] **Step 3: Excel Export (xlsx)**
+- [x] **Step 3: Excel Export (xlsx)**
   Implement data export to formatted Excel sheets.
+
+  - Completed: commit (implemented by automated agent)
 
 ### Task 5: Testing & Finalization
 
@@ -72,9 +76,11 @@
 - Create: `src/test/store.test.js`
 - Create: `src/test/components.test.js`
 
-- [ ] **Step 1: Store Logic Tests**
+- [x] **Step 1: Store Logic Tests**
   Verify state updates and API interactions.
-- [ ] **Step 2: Component Snapshot/Unit Tests**
+- [x] **Step 2: Component Snapshot/Unit Tests**
   Ensure UI components render correctly.
-- [ ] **Step 3: Final Build Check**
+- [x] **Step 3: Final Build Check**
   Run `npm run build` to ensure the Electron app packages correctly.
+
+  - Completed: All tests passed and architecture standardized.

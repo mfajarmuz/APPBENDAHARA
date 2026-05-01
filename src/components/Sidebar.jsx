@@ -5,6 +5,7 @@ import {
   ArrowUpCircle,
   BookOpen,
   FileText,
+  Settings as SettingsIcon,
 } from 'lucide-react'
 
 const navItems = [
@@ -13,6 +14,7 @@ const navItems = [
   { to: '/pengeluaran', icon: ArrowUpCircle, label: 'Pengeluaran' },
   { to: '/anggaran', icon: BookOpen, label: 'Anggaran / DPA' },
   { to: '/laporan', icon: FileText, label: 'Laporan' },
+  { to: '/settings', icon: SettingsIcon, label: 'Pengaturan' },
 ]
 
 export default function Sidebar() {
