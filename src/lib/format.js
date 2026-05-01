@@ -17,7 +17,11 @@ export function formatTanggal(iso) {
 }
 
 export function parseRupiah(str) {
-  return parseInt(String(str).replace(/\D/g, ''), 10) || 0
+  const s = String(str || '')
+  const negative = s.trim().startsWith('-')
+  const digits = s.replace(/\D/g, '')
+  const value = parseInt(digits, 10) || 0
+  return negative ? -value : value
 }
 
 export function persen(realisasi, pagu) {
