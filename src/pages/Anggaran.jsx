@@ -21,6 +21,7 @@ const EMPTY_PARENT = { kode: '', nama: '' }
 export default function Anggaran() {
   const subKegiatan = useStore(s => s.subKegiatan)
   const pengeluaran = useStore(s => s.pengeluaran)
+  const settings = useStore(s => s.settings)
   const isLoading = useStore(s => s.isLoading)
   const fetchSubKegiatan = useStore(s => s.fetchSubKegiatan)
   const fetchPengeluaran = useStore(s => s.fetchPengeluaran)
@@ -145,6 +146,30 @@ export default function Anggaran() {
 
   return (
     <div className="space-y-6 pb-20">
+      {/* Sub Unit Organisasi Header */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 shrink-0">
+              <Tag size={24} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Sub Unit Organisasi</p>
+              <h1 className="text-lg font-black text-slate-800 leading-tight">
+                <span className="text-indigo-600 mr-2">{settings.unit_kerja_kode}</span>
+                {settings.unit_kerja}
+              </h1>
+            </div>
+          </div>
+          <div className="bg-slate-50 px-6 py-3 rounded-xl border border-slate-100 text-right">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Pagu Anggaran</p>
+            <p className="text-xl font-black text-slate-800">
+              {formatRupiah(hierarchicalData.reduce((s, p) => s + p.totalPagu, 0))}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {hierarchicalData.length === 0 ? (
         <Card><EmptyState message="Belum ada data anggaran" /></Card>
       ) : (
@@ -362,7 +387,8 @@ export default function Anggaran() {
         onClose={() => setDeleteSkId(null)}
         onConfirm={async () => {
           if (deleteSkId) {
-            await deleteSubKegiatan(deleteSkId)
+            const res = await deleteSubKegiatan(deleteSkId)
+            if (res && !res.success) alert(`Gagal menghapus: ${res.error}`)
             setDeleteSkId(null)
           }
         }}
@@ -374,7 +400,8 @@ export default function Anggaran() {
         onClose={() => setDeleteRekId(null)}
         onConfirm={async () => {
           if (deleteRekId) {
-            await deleteKodeRekening(deleteRekId)
+            const res = await deleteKodeRekening(deleteRekId)
+            if (res && !res.success) alert(`Gagal menghapus: ${res.error}`)
             setDeleteRekId(null)
           }
         }}

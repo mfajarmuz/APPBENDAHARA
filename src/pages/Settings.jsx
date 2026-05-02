@@ -46,21 +46,34 @@ export default function Settings() {
             <Building2 size={18} />
             <h3 className="font-bold text-sm uppercase tracking-wider">Identitas Unit Kerja</h3>
           </div>
-          <div className="grid grid-cols-1 gap-4">
-            <Input 
-              label="Nama Unit Kerja / SKPD" 
-              value={form.unit_kerja} 
-              onChange={e => setForm({...form, unit_kerja: e.target.value})}
-              placeholder="Contoh: UPTD PUSAT PENGELOLAAN PENDAPATAN DAERAH..."
-              required 
-            />
-            <Input 
-              label="Lokasi (Kecamatan/Kota)" 
-              value={form.lokasi} 
-              onChange={e => setForm({...form, lokasi: e.target.value})}
-              placeholder="Contoh: Sukaraja"
-              required 
-            />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-1">
+              <Input 
+                label="Kode Unit Kerja" 
+                value={form.unit_kerja_kode} 
+                onChange={e => setForm({...form, unit_kerja_kode: e.target.value})}
+                placeholder="Contoh: 5.02.0..."
+                required 
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Input 
+                label="Nama Unit Kerja / SKPD" 
+                value={form.unit_kerja} 
+                onChange={e => setForm({...form, unit_kerja: e.target.value})}
+                placeholder="Contoh: UPTD PUSAT PENGELOLAAN PENDAPATAN DAERAH..."
+                required 
+              />
+            </div>
+            <div className="md:col-span-3">
+              <Input 
+                label="Lokasi (Kecamatan/Kota)" 
+                value={form.lokasi} 
+                onChange={e => setForm({...form, lokasi: e.target.value})}
+                placeholder="Contoh: Sukaraja"
+                required 
+              />
+            </div>
           </div>
         </Card>
 

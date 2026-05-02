@@ -263,6 +263,7 @@ export const useStore = create((set, get) => ({
   error: null,
   user: JSON.parse(localStorage.getItem('user')) || null,
   settings: JSON.parse(localStorage.getItem('app_settings')) || {
+    unit_kerja_kode: '5.02.0.00.0.00.02.0016',
     unit_kerja: 'UPTD PUSAT PENGELOLAAN PENDAPATAN DAERAH WILAYAH KABUPATEN TASIKMALAYA',
     kpa_nama: 'ECEP SUGIARTO, SE, M.A.B',
     kpa_nip: '19680406 199703 1 002',
