@@ -20,9 +20,8 @@ const EMPTY_FORM = {
   tanggal: new Date().toISOString().split('T')[0],
   sub_kegiatan_id: '',
   kode_rekening_id: '',
-  keterangan: '',
 }
-const EMPTY_RINCIAN = { uraian: '', volume: '', jumlah: '' }
+const EMPTY_RINCIAN = { uraian: '', jumlah: '' }
 
 export default function Pengeluaran() {
   const subKegiatan = useStore(s => s.subKegiatan)
@@ -98,11 +97,10 @@ export default function Pengeluaran() {
       tanggal: item.tanggal,
       sub_kegiatan_id: item.sub_kegiatan_id,
       kode_rekening_id: item.kode_rekening_id,
-      keterangan: item.keterangan || '',
     })
     setRincian(item.pengeluaran_rincian?.length > 0 
-      ? item.pengeluaran_rincian.map(r => ({ uraian: r.uraian, volume: r.volume || '', jumlah: String(r.jumlah) }))
-      : [{ uraian: item.keterangan || '', volume: '', jumlah: String(item.jumlah) }]
+      ? item.pengeluaran_rincian.map(r => ({ uraian: r.uraian, jumlah: String(r.jumlah) }))
+      : [{ uraian: item.keterangan || '', jumlah: String(item.jumlah) }]
     )
     setErrors({})
     setModalOpen(true)
@@ -157,11 +155,11 @@ export default function Pengeluaran() {
         sub_kegiatan_id: form.sub_kegiatan_id,
         kode_rekening_id: form.kode_rekening_id,
         jumlah: amount,
-        keterangan: form.keterangan || null,
+        keterangan: rincian[0]?.uraian || null,
       },
       rincian: rincian.map(r => ({
         uraian: r.uraian,
-        volume: r.volume || null,
+        volume: null,
         jumlah: parseInt(String(r.jumlah).replace(/\./g, ''), 10),
       })),
     }
@@ -348,13 +346,6 @@ export default function Pengeluaran() {
                 placeholder={selectedSk ? 'Pilih rekening...' : 'Pilih sub kegiatan dulu'}
                 required
               />
-              <Textarea
-                label="Keterangan Utama"
-                value={form.keterangan}
-                onChange={e => setForm(f => ({ ...f, keterangan: e.target.value }))}
-                placeholder="Contoh: Belanja Alat Tulis Kantor"
-                rows={2}
-              />
 
               {selectedSk && (
                 <div className="bg-indigo-50/50 rounded-xl p-4 text-xs space-y-2 border border-indigo-100">
@@ -391,21 +382,13 @@ export default function Pengeluaran() {
                       placeholder="Apa yang dibayar?"
                       rows={2}
                     />
-                    <div className="grid grid-cols-2 gap-3">
-                      <Input
-                        label="Volume"
-                        value={row.volume}
-                        onChange={e => updateRincian(i, 'volume', e.target.value)}
-                        placeholder="Contoh: 1 Rim"
-                      />
-                      <Input
-                        label="Jumlah (Rp)"
-                        value={row.jumlah}
-                        onChange={e => handleAmountInput(i, e.target.value)}
-                        placeholder="0"
-                        hint={row.jumlah ? formatRupiah(parseInt(row.jumlah.replace(/\./g, ''), 10)) : 'Bisa copas Excel'}
-                      />
-                    </div>
+                    <Input
+                      label="Jumlah (Rp)"
+                      value={row.jumlah}
+                      onChange={e => handleAmountInput(i, e.target.value)}
+                      placeholder="0"
+                      hint={row.jumlah ? formatRupiah(parseInt(row.jumlah.replace(/\./g, ''), 10)) : 'Bisa copas Excel'}
+                    />
                   </div>
                 ))}
               </div>
