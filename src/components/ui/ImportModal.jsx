@@ -70,7 +70,15 @@ export default function ImportModal({ open, onClose }) {
           if (rawDate instanceof Date) {
             tanggal = rawDate.toISOString().split('T')[0];
           } else {
-            tanggal = String(rawDate);
+            const dateStr = String(rawDate || '').trim();
+            // Handle DD-MM-YYYY or DD/MM/YYYY (Indonesian format)
+            const dmyMatch = dateStr.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+            if (dmyMatch) {
+              const [_, d, m, y] = dmyMatch;
+              tanggal = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+            } else {
+              tanggal = dateStr;
+            }
           }
 
           const match = matcher(rawCode);
