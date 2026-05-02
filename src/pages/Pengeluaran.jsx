@@ -1,6 +1,6 @@
 // src/pages/Pengeluaran.jsx
 import { useEffect, useState, useMemo } from 'react'
-import { Plus, Trash2, PlusCircle, MinusCircle, Pencil } from 'lucide-react'
+import { Plus, Trash2, PlusCircle, MinusCircle, Pencil, FileDown } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { formatRupiah, formatTanggal, persen } from '@/lib/format'
 import Card from '@/components/ui/Card'
@@ -14,6 +14,7 @@ import ProgressBar from '@/components/ui/ProgressBar'
 import EmptyState from '@/components/ui/EmptyState'
 import Spinner from '@/components/ui/Spinner'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import ImportModal from '@/components/ui/ImportModal'
 
 const EMPTY_FORM = {
   tanggal: new Date().toISOString().split('T')[0],
@@ -21,7 +22,7 @@ const EMPTY_FORM = {
   kode_rekening_id: '',
   keterangan: '',
 }
-const EMPTY_RINCIAN = { uraian: '', jumlah: '' }
+const EMPTY_RINCIAN = { uraian: '', volume: '', jumlah: '' }
 
 export default function Pengeluaran() {
   const subKegiatan = useStore(s => s.subKegiatan)
@@ -36,6 +37,7 @@ export default function Pengeluaran() {
   const deletePengeluaran = useStore(s => s.deletePengeluaran)
 
   const [modalOpen, setModalOpen] = useState(false)
+  const [importModalOpen, setImportModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [rincian, setRincian] = useState([{ ...EMPTY_RINCIAN }])
@@ -99,8 +101,8 @@ export default function Pengeluaran() {
       keterangan: item.keterangan || '',
     })
     setRincian(item.pengeluaran_rincian?.length > 0 
-      ? item.pengeluaran_rincian.map(r => ({ uraian: r.uraian, jumlah: String(r.jumlah) }))
-      : [{ uraian: item.keterangan || '', jumlah: String(item.jumlah) }]
+      ? item.pengeluaran_rincian.map(r => ({ uraian: r.uraian, volume: r.volume || '', jumlah: String(r.jumlah) }))
+      : [{ uraian: item.keterangan || '', volume: '', jumlah: String(item.jumlah) }]
     )
     setErrors({})
     setModalOpen(true)
@@ -159,6 +161,7 @@ export default function Pengeluaran() {
       },
       rincian: rincian.map(r => ({
         uraian: r.uraian,
+        volume: r.volume || null,
         jumlah: parseInt(String(r.jumlah).replace(/\./g, ''), 10),
       })),
     }
@@ -198,7 +201,8 @@ export default function Pengeluaran() {
 
   async function handleDelete() {
     if (!deleteId) return
-    await deletePengeluaran(deleteId)
+    const res = await deletePengeluaran(deleteId)
+    if (res && !res.success) alert(`Gagal menghapus: ${res.error}`)
     setDeleteId(null)
   }
 
@@ -224,9 +228,14 @@ export default function Pengeluaran() {
             ))}
           </select>
         </div>
-        <Button onClick={openNew} className="h-11 px-6 shadow-lg shadow-indigo-600/10 active:scale-95 transition-transform">
-          <Plus size={18} /> Tambah Pengeluaran Baru
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="secondary" onClick={() => setImportModalOpen(true)} className="h-11 px-6 border-slate-200 hover:bg-slate-50">
+            <FileDown size={18} /> Import Excel
+          </Button>
+          <Button onClick={openNew} className="h-11 px-6 shadow-lg shadow-indigo-600/10 active:scale-95 transition-transform">
+            <Plus size={18} /> Tambah Pengeluaran Baru
+          </Button>
+        </div>
       </div>
 
       <Card className="p-0 overflow-hidden border-slate-200/60 shadow-xl">
@@ -380,15 +389,23 @@ export default function Pengeluaran() {
                       value={row.uraian}
                       onChange={e => updateRincian(i, 'uraian', e.target.value)}
                       placeholder="Apa yang dibayar?"
-                      rows={3}
+                      rows={2}
                     />
-                    <Input
-                      label="Jumlah (Rp)"
-                      value={row.jumlah}
-                      onChange={e => handleAmountInput(i, e.target.value)}
-                      placeholder="0"
-                      hint={row.jumlah ? formatRupiah(parseInt(row.jumlah.replace(/\./g, ''), 10)) : 'Bisa copas Excel'}
-                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input
+                        label="Volume"
+                        value={row.volume}
+                        onChange={e => updateRincian(i, 'volume', e.target.value)}
+                        placeholder="Contoh: 1 Rim"
+                      />
+                      <Input
+                        label="Jumlah (Rp)"
+                        value={row.jumlah}
+                        onChange={e => handleAmountInput(i, e.target.value)}
+                        placeholder="0"
+                        hint={row.jumlah ? formatRupiah(parseInt(row.jumlah.replace(/\./g, ''), 10)) : 'Bisa copas Excel'}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -421,6 +438,11 @@ export default function Pengeluaran() {
         onClose={() => setDeleteId(null)}
         onConfirm={handleDelete}
         message="Apakah Anda yakin ingin menghapus data pengeluaran ini?"
+      />
+
+      <ImportModal 
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
       />
     </div>
   )
