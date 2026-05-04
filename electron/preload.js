@@ -29,4 +29,10 @@ contextBridge.exposeInMainWorld('api', {
   addPengeluaran: (payload) => ipcRenderer.invoke('add-pengeluaran', payload),
   updatePengeluaran: (id, payload) => ipcRenderer.invoke('update-pengeluaran', id, payload),
   deletePengeluaran: (id) => ipcRenderer.invoke('delete-pengeluaran', id),
+
+  // Auto-updater
+  checkForUpdate: () => ipcRenderer.invoke('check-for-update'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
+  onUpdateMessage: (callback) => ipcRenderer.on('update-message', (event, ...args) => callback(...args)),
 });

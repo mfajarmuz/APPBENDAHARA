@@ -42,13 +42,13 @@ export function exportBKUPdf(rows, monthIndex, year = 2026, totalsBulanLalu = { 
   const midCol = 65
   
   doc.text('Unit Kerja', leftCol, startY)
-  doc.text(`: ${settings.unit_kerja}`, midCol, startY)
+  doc.text(`: ${settings.unit_kerja || ''}`, midCol, startY)
   
   doc.text('Kuasa Pengguna Anggaran', leftCol, startY + 5)
-  doc.text(`: ${settings.kpa_nama}`, midCol, startY + 5)
+  doc.text(`: ${settings.kpa_nama || ''}`, midCol, startY + 5)
   
   doc.text('Bendahara Pengeluaran Pembantu', leftCol, startY + 10)
-  doc.text(`: ${settings.bpp_nama}`, midCol, startY + 10)
+  doc.text(`: ${settings.bpp_nama || ''}`, midCol, startY + 10)
 
   // --- TABLE SECTION ---
   // Header names with column indices (per user sample)
@@ -151,28 +151,13 @@ export function exportBKUPdf(rows, monthIndex, year = 2026, totalsBulanLalu = { 
   doc.setFontSize(8)
   
   const dayName = new Date(year, monthIndex + 1, 0).toLocaleDateString('id-ID', { weekday: 'long' })
+  const closingText = `Pada hari ${dayName} tanggal ${terbilang(lastDay)} bulan ${monthName} tahun ${terbilang(year)}, oleh kami Buku Kas Umum ditutup.`
   
-  const parts = [
-    { text: 'Pada hari ', bold: false },
-    { text: dayName, bold: true },
-    { text: ' tanggal ', bold: false },
-    { text: terbilang(lastDay), bold: true },
-    { text: ' bulan ', bold: false },
-    { text: monthName, bold: true },
-    { text: ' tahun ', bold: false },
-    { text: terbilang(year), bold: true },
-    { text: ', oleh kami Buku Kas Umum ditutup.', bold: false }
-  ]
-  
-  let currentX = 14
-  parts.forEach(p => {
-    doc.setFont('helvetica', p.bold ? 'bold' : 'normal')
-    doc.text(p.text, currentX, finalY + 5)
-    currentX += doc.getTextWidth(p.text)
-  })
-
+  const wrappedClosing = doc.splitTextToSize(closingText, 180)
   doc.setFont('helvetica', 'normal')
-  let rincianY = finalY + 10
+  doc.text(wrappedClosing, 14, finalY + 5)
+
+  let rincianY = finalY + 10 + (wrappedClosing.length * 2)
   
   const saldoTunai = 0
   const saldoBank = saldo
@@ -203,26 +188,233 @@ export function exportBKUPdf(rows, monthIndex, year = 2026, totalsBulanLalu = { 
 
   // Signatures
   let signY = rincianY + 15
-  if (signY > 260) { doc.addPage(); } // Extra safety check
+  if (signY > 230) { 
+    doc.addPage()
+    signY = 20
+  }
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   
   doc.text('Mengetahui :', 14, signY)
-  doc.text('Kuasa Pengguna Anggaran,', 14, signY + 5)
+  const kpaJabatanLines = doc.splitTextToSize(`${settings.kpa_jabatan},`, 80)
+  doc.text(kpaJabatanLines, 14, signY + 5)
   
-  doc.text(`${settings.lokasi}, 30 ${monthName.toLowerCase()} ${year}`, 140, signY)
-  doc.text('Bendahara Pengeluaran Pembantu,', 140, signY + 5)
+  doc.text(`${settings.lokasi}, ${lastDay} ${monthName.toLowerCase()} ${year}`, 140, signY)
+  const bppJabatanLines = doc.splitTextToSize(`${settings.bpp_jabatan},`, 60)
+  doc.text(bppJabatanLines, 140, signY + 5)
+
+  const signOffset = Math.max(kpaJabatanLines.length, bppJabatanLines.length) * 5 + 20
 
   doc.setFont('helvetica', 'bold')
-  doc.text(settings.kpa_nama, 14, signY + 30)
-  doc.text(settings.bpp_nama, 140, signY + 30)
+  doc.text(settings.kpa_nama, 14, signY + signOffset)
+  doc.text(settings.bpp_nama, 140, signY + signOffset)
 
   doc.setFont('helvetica', 'normal')
-  doc.text(`NIP. ${settings.kpa_nip}`, 14, signY + 34)
-  doc.text(`NIP. ${settings.bpp_nip}`, 140, signY + 34)
+  doc.text(`NIP. ${settings.kpa_nip}`, 14, signY + signOffset + 4)
+  doc.text(`NIP. ${settings.bpp_nip}`, 140, signY + signOffset + 4)
 
   doc.save(`BKU_${monthName}_${year}.pdf`)
+}
+
+function drawNPD(doc, item, subKegiatan, pengeluaran, bkuNumber = '-') {
+  const settings = useStore.getState().settings
+  
+  const subK = item.sub_kegiatan
+  const rek = item.kode_rekening
+  const keg = subK?.kegiatan
+  const prog = keg?.program
+
+  // Format Program display (Use database relation if available, fallback to pattern mapping)
+  const progKode = prog?.kode || (keg?.kode ? keg.kode.split('.').slice(0, 3).join('.') : '')
+  const progNama = prog?.nama || (keg?.nama ? keg.nama.replace(/^(Kegiatan|Sub Kegiatan|SubKegiatan)\s+/i, '').toUpperCase().replace(/^/i, 'PROGRAM ') : '')
+  const displayProgram = `${progKode} ${progNama}`.trim() || '-'
+
+  // Calculate Realisasi (Akumulasi Belanja)
+  // Total of all expenditures for this specific budget code up to this transaction
+  const relatedPengeluaran = pengeluaran
+    .filter(p => p.kode_rekening_id === item.kode_rekening_id)
+    .sort((a, b) => {
+      const d = new Date(a.tanggal) - new Date(b.tanggal)
+      if (d !== 0) return d
+      return String(a.id).localeCompare(String(b.id))
+    })
+
+  const currentIndex = relatedPengeluaran.findIndex(p => p.id === item.id)
+  const pastAndCurrent = currentIndex !== -1 ? relatedPengeluaran.slice(0, currentIndex + 1) : [item]
+  
+  const akumulasiBelanja = pastAndCurrent.reduce((s, p) => s + p.jumlah, 0)
+  const belanjaSekarang = item.jumlah
+  const paguAnggaran = rek?.pagu_anggaran || 0
+  const sisaAnggaran = paguAnggaran - akumulasiBelanja
+
+  // --- HEADER ---
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.text('PEMERINTAH PROVINSI JAWA BARAT', 105, 15, { align: 'center' })
+  doc.text('Badan Pendapatan Daerah', 105, 20, { align: 'center' })
+  doc.text('Nota Pencairan Dana (NPD)', 105, 25, { align: 'center' })
+
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  
+  let currentY = 35
+  const labels = [
+    ['No', `: ${bkuNumber}`],
+    ['Tanggal', `: ${formatTanggal(item.tanggal)}`],
+    ['Jenis NPD', ': Tanpa Panjar'],
+    ['PPTK', `: ${settings.pptk_nama}`],
+    ['Program', `: ${prog?.kode || ''} - ${prog?.nama || ''}`],
+    ['Kegiatan', `: ${keg?.kode || ''} - ${keg?.nama || ''}`],
+    ['Sub Kegiatan', `: ${subK?.kode || ''} - ${subK?.nama || ''}`],
+    ['', ''],
+    ['No. DPA', ': -'],
+    ['Tahun Anggaran', `: ${new Date(item.tanggal).getFullYear()}`],
+    ['Rincian Belanja', ':']
+  ]
+
+  labels.forEach(([label, value]) => {
+    if (label) {
+      doc.setFont('helvetica', 'bold')
+      doc.text(String(label || ''), 14, currentY)
+    }
+    doc.setFont('helvetica', 'normal')
+    
+    const maxWidth = 150
+    const lines = doc.splitTextToSize(String(value || ''), maxWidth)
+    doc.text(lines, 45, currentY)
+    currentY += (lines.length > 1 ? lines.length * 4.5 : 5)
+  })
+
+  // --- TABLE ---
+  const head = [
+    [
+      { content: 'No', styles: { halign: 'center' } },
+      { content: 'Kode - Nama Rekening', styles: { halign: 'center' } },
+      { content: 'Anggaran', styles: { halign: 'center' } },
+      { content: 'Belanja', styles: { halign: 'center' } },
+      { content: 'Akumulasi\nBelanja', styles: { halign: 'center' } },
+      { content: 'Sisa Anggaran', styles: { halign: 'center' } }
+    ]
+  ]
+
+  const rincianText = item.pengeluaran_rincian?.length > 0
+    ? item.pengeluaran_rincian.map(r => r.uraian).join(', ')
+    : item.keterangan || 'Belanja'
+
+  const body = [
+    [
+      1,
+      `${rek?.kode || ''} ${rek?.uraian || ''}\n${rincianText}`,
+      formatRupiah(paguAnggaran).replace('Rp', '').trim(),
+      formatRupiah(belanjaSekarang).replace('Rp', '').trim(),
+      formatRupiah(akumulasiBelanja).replace('Rp', '').trim(),
+      formatRupiah(sisaAnggaran).replace('Rp', '').trim()
+    ]
+  ]
+
+  autoTable(doc, {
+    startY: currentY + 2,
+    head: head,
+    body: body,
+    foot: [[
+      { content: 'Jumlah', colSpan: 2, styles: { halign: 'center', fontStyle: 'bold' } },
+      { content: formatRupiah(paguAnggaran).replace('Rp', '').trim(), styles: { halign: 'right', fontStyle: 'bold' } },
+      { content: formatRupiah(belanjaSekarang).replace('Rp', '').trim(), styles: { halign: 'right', fontStyle: 'bold' } },
+      { content: formatRupiah(akumulasiBelanja).replace('Rp', '').trim(), styles: { halign: 'right', fontStyle: 'bold' } },
+      { content: formatRupiah(sisaAnggaran).replace('Rp', '').trim(), styles: { halign: 'right', fontStyle: 'bold' } }
+    ]],
+    theme: 'grid',
+    styles: { 
+      fontSize: 8, 
+      cellPadding: 2, 
+      lineColor: [0, 0, 0], 
+      lineWidth: 0.1,
+      textColor: [0, 0, 0],
+      valign: 'middle'
+    },
+    headStyles: { fillColor: [255, 255, 255], fontStyle: 'bold' },
+    footStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0] },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 25, halign: 'right' },
+      3: { cellWidth: 25, halign: 'right' },
+      4: { cellWidth: 25, halign: 'right' },
+      5: { cellWidth: 25, halign: 'right' }
+    }
+  })
+
+  // --- SIGNATURES ---
+  let signY = doc.lastAutoTable.finalY + 20
+  if (signY > 230) {
+    doc.addPage()
+    signY = 30
+  }
+
+  doc.setFontSize(9)
+  doc.text('Disetujui Oleh,', 50, signY, { align: 'center' })
+  doc.text('Disetujui Oleh,', 155, signY, { align: 'center' })
+  
+  doc.setFont('helvetica', 'bold')
+  doc.text('KUASA PENGGUNA ANGGARAN', 50, signY + 5, { align: 'center' })
+  
+  const pptkJabatan = (settings.pptk_jabatan || 'PEJABAT PELAKSANA TEKNIS KEGIATAN').toUpperCase()
+  const pptkJabatanLines = doc.splitTextToSize(pptkJabatan, 80)
+  doc.text(pptkJabatanLines, 155, signY + 5, { align: 'center' })
+
+  const signOffset = Math.max(1, pptkJabatanLines.length) * 5 + 20
+
+  doc.text(settings.kpa_nama || '', 50, signY + signOffset, { align: 'center' })
+  doc.text(settings.pptk_nama || '', 155, signY + signOffset, { align: 'center' })
+
+  doc.setFont('helvetica', 'normal')
+  doc.text(`NIP. ${settings.kpa_nip || ''}`, 50, signY + signOffset + 4, { align: 'center' })
+  doc.text(`NIP. ${settings.pptk_nip || ''}`, 155, signY + signOffset + 4, { align: 'center' })
+}
+
+export function exportNPDPdf(item, subKegiatan, pengeluaran, bkuNumber = '-') {
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
+  drawNPD(doc, item, subKegiatan, pengeluaran, bkuNumber)
+  
+  const dateObj = new Date(item.tanggal)
+  const fileMonth = getMonthName(dateObj.getMonth())
+  const fileYear = dateObj.getFullYear()
+  doc.save(`${bkuNumber}-NPD-${fileMonth}-${fileYear}.pdf`)
+}
+
+export function exportNPDBatchPdf(items, subKegiatan, pengeluaran, bkuRows) {
+  if (!items || items.length === 0) return
+  
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
+  
+  // Pre-calculate BKU numbers and sort items by them
+  const itemsWithBku = items.map(item => {
+    const d = new Date(item.tanggal)
+    const currentMonth = d.getMonth()
+    const currentYear = d.getFullYear()
+    
+    const monthlyBku = bkuRows.filter(r => {
+      const rd = new Date(r.tanggal)
+      return rd.getMonth() === currentMonth && rd.getFullYear() === currentYear
+    })
+    const bkuIdx = monthlyBku.findIndex(r => r.id === item.id && r.type === 'out')
+    const bkuNumber = bkuIdx !== -1 ? bkuIdx + 1 : 999999 // Fallback to end
+    
+    return { item, bkuNumber }
+  }).sort((a, b) => a.bkuNumber - b.bkuNumber)
+  
+  itemsWithBku.forEach(({ item, bkuNumber }, index) => {
+    if (index > 0) doc.addPage()
+    drawNPD(doc, item, subKegiatan, pengeluaran, bkuNumber)
+  })
+  
+  const firstItem = itemsWithBku[0].item
+  const dateObj = new Date(firstItem.tanggal)
+  const fileMonth = getMonthName(dateObj.getMonth())
+  const fileYear = dateObj.getFullYear()
+  
+  doc.save(`BATCH-NPD-${fileMonth}-${fileYear}.pdf`)
 }
 
 export function exportBukuPembantuPdf(groups) {
@@ -245,11 +437,11 @@ export function exportBukuPembantuPdf(groups) {
     doc.setFont('helvetica', 'normal')
     const startY = 30
     doc.text('Unit Kerja', 14, startY)
-    doc.text(`: ${settings.unit_kerja}`, 65, startY)
+    doc.text(`: ${settings.unit_kerja || ''}`, 65, startY)
     doc.text('Kode Rekening', 14, startY + 5)
-    doc.text(`: ${rek.kode}`, 65, startY + 5)
+    doc.text(`: ${rek.kode || ''}`, 65, startY + 5)
     doc.text('Uraian Rekening', 14, startY + 10)
-    doc.text(`: ${rek.uraian}`, 65, startY + 10)
+    doc.text(`: ${rek.uraian || ''}`, 65, startY + 10)
 
     // --- TABLE ---
     const head = [
@@ -257,15 +449,15 @@ export function exportBukuPembantuPdf(groups) {
       ['1', '2', '3', '4', '5', '6']
     ]
 
-    let currentSaldo = rek.pagu_anggaran
+    let currentSaldo = rek.pagu_anggaran || 0
     const body = rows.map((r, i) => {
-      currentSaldo -= r.jumlah
+      currentSaldo -= (r.jumlah || 0)
       return [
         i + 1,
         formatTanggal(r.tanggal),
         r.keterangan || 'Belanja',
         '', // Debet (usually 0 for pembantu as it's for expenditures)
-        formatRupiah(r.jumlah).replace('Rp', '').trim(),
+        formatRupiah(r.jumlah || 0).replace('Rp', '').trim(),
         formatRupiah(currentSaldo).replace('Rp', '').trim()
       ]
     })
@@ -288,16 +480,28 @@ export function exportBukuPembantuPdf(groups) {
 
     // Signatures at the bottom of each group's last page
     const finalY = doc.lastAutoTable.finalY + 15
-    const signY = finalY > 240 ? (doc.addPage(), 30) : finalY
+    let signY = finalY > 230 ? (doc.addPage(), 30) : finalY
     
     doc.setFontSize(9)
     doc.text('Mengetahui :', 14, signY)
-    doc.text('Kuasa Pengguna Anggaran,', 14, signY + 5)
-    doc.text(`${settings.lokasi}, ${new Date().getFullYear()}`, 140, signY)
-    doc.text('Bendahara Pengeluaran Pembantu,', 140, signY + 5)
+    
+    const kpaJabatanLines = doc.splitTextToSize(`${settings.kpa_jabatan || 'Kuasa Pengguna Anggaran'},`, 80)
+    doc.text(kpaJabatanLines, 14, signY + 5)
+    
+    doc.text(`${settings.lokasi || ''}, ${new Date().getFullYear()}`, 140, signY)
+    
+    const bppJabatanLines = doc.splitTextToSize(`${settings.bpp_jabatan || 'Bendahara Pengeluaran Pembantu'},`, 60)
+    doc.text(bppJabatanLines, 140, signY + 5)
+
+    const signOffset = Math.max(kpaJabatanLines.length, bppJabatanLines.length) * 5 + 20
+
     doc.setFont('helvetica', 'bold')
-    doc.text(settings.kpa_nama, 14, signY + 25)
-    doc.text(settings.bpp_nama, 140, signY + 25)
+    doc.text(settings.kpa_nama || '', 14, signY + signOffset)
+    doc.text(settings.bpp_nama || '', 140, signY + signOffset)
+
+    doc.setFont('helvetica', 'normal')
+    doc.text(`NIP. ${settings.kpa_nip || ''}`, 14, signY + signOffset + 4)
+    doc.text(`NIP. ${settings.bpp_nip || ''}`, 140, signY + signOffset + 4)
   })
 
   doc.save(`Buku_Pembantu_${new Date().getTime()}.pdf`)

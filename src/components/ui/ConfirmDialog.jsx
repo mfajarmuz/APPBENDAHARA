@@ -4,7 +4,7 @@ import { AlertTriangle } from 'lucide-react'
 
 export default function ConfirmDialog({ open, onClose, onConfirm, title = 'Konfirmasi Hapus', message = 'Apakah Anda yakin ingin menghapus data ini?', confirmText = 'Hapus', cancelText = 'Batal', isDanger = true }) {
   return (
-    <Modal open={open} onClose={onClose} title="" width={400}>
+    <Modal open={open} onClose={onClose} title="" size="sm">
       <div className="flex flex-col items-center text-center px-4 py-6">
         <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${isDanger ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600'}`}>
           <AlertTriangle size={32} />

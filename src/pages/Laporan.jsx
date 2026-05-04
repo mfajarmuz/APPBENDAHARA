@@ -8,6 +8,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import Spinner from '@/components/ui/Spinner'
 import { exportBKUPdf, exportBukuPembantuPdf, exportRealisasiPdf, exportRekapBulananPdf } from '@/lib/export-pdf'
 import { exportBKUExcel, exportRealisasiExcel } from '@/lib/export-excel'
+import { getBkuRows } from '@/lib/bku'
 
 const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 
@@ -22,6 +23,7 @@ export default function Laporan() {
 
   const [tab, setTab] = useState('bku')
   const [filterBulan, setFilterBulan] = useState(new Date().getMonth())
+  const [filterTahun, setFilterTahun] = useState(new Date().getFullYear())
 
   useEffect(() => {
     fetchSubKegiatan()
@@ -31,86 +33,66 @@ export default function Laporan() {
 
   // BKU Data Transformation
   const bkuRows = useMemo(() => {
-    const combined = [
-      ...penerimaan.map(p => ({
-        tanggal: p.tanggal,
-        uraian: `Diterima Penerimaan SP2D ${p.no_sp2d || ''} ${p.keterangan || ''}`.trim(),
-        no_bukti: p.no_sp2d,
-        debet: p.jumlah,
-        kredit: 0,
-        kode_rekening: '',
-      })),
-      ...pengeluaran.map(p => {
-        const fullCode = p.sub_kegiatan && p.kode_rekening 
-          ? `${p.sub_kegiatan.kode}.${p.kode_rekening.kode}`
-          : ''
-          
-        let rincianText = p.pengeluaran_rincian?.length > 0
-          ? p.pengeluaran_rincian.map(r => r.uraian).join(', ')
-          : p.keterangan || 'Belanja'
-        
-        return {
-          tanggal: p.tanggal,
-          uraian: `${rincianText}`.trim(),
-          no_bukti: '',
-          debet: 0,
-          kredit: p.jumlah,
-          kode_rekening: fullCode,
-        }
-      }),
-    ].sort((a, b) => {
-      const dateDiff = new Date(a.tanggal) - new Date(b.tanggal)
-      if (dateDiff !== 0) return dateDiff
-      
-      const codeA = a.kode_rekening || ''
-      const codeB = b.kode_rekening || ''
-      return codeA.localeCompare(codeB)
-    })
-
-    return combined
+    return getBkuRows(penerimaan, pengeluaran)
   }, [penerimaan, pengeluaran])
 
   const filteredBku = useMemo(() => {
-    return bkuRows.filter(r => new Date(r.tanggal).getMonth() === filterBulan)
-  }, [bkuRows, filterBulan])
+    return bkuRows.filter(r => {
+      const d = new Date(r.tanggal)
+      return d.getMonth() === filterBulan && d.getFullYear() === filterTahun
+    })
+  }, [bkuRows, filterBulan, filterTahun])
 
   const totalsBulanLalu = useMemo(() => {
-    const pastRows = bkuRows.filter(r => new Date(r.tanggal).getMonth() < filterBulan)
+    const pastRows = bkuRows.filter(r => {
+      const d = new Date(r.tanggal)
+      return d.getFullYear() < filterTahun || (d.getFullYear() === filterTahun && d.getMonth() < filterBulan)
+    })
     return pastRows.reduce((acc, r) => {
       acc.debet += r.debet || 0
       acc.kredit += r.kredit || 0
       return acc
     }, { debet: 0, kredit: 0 })
-  }, [bkuRows, filterBulan])
+  }, [bkuRows, filterBulan, filterTahun])
 
   const realisasiPerRek = useMemo(() => {
     const map = {}
     pengeluaran.forEach(p => {
-      map[p.kode_rekening_id] = (map[p.kode_rekening_id] ?? 0) + p.jumlah
+      if (new Date(p.tanggal).getFullYear() === filterTahun) {
+        map[p.kode_rekening_id] = (map[p.kode_rekening_id] ?? 0) + p.jumlah
+      }
     })
     return map
-  }, [pengeluaran])
+  }, [pengeluaran, filterTahun])
 
   const rekapBulanan = useMemo(() => {
     return BULAN.map((nama, i) => {
-      const pen = penerimaan.filter(p => new Date(p.tanggal).getMonth() === i).reduce((s, p) => s + p.jumlah, 0)
-      const peng = pengeluaran.filter(p => new Date(p.tanggal).getMonth() === i).reduce((s, p) => s + p.jumlah, 0)
+      const pen = penerimaan.filter(p => {
+        const d = new Date(p.tanggal)
+        return d.getMonth() === i && d.getFullYear() === filterTahun
+      }).reduce((s, p) => s + p.jumlah, 0)
+      
+      const peng = pengeluaran.filter(p => {
+        const d = new Date(p.tanggal)
+        return d.getMonth() === i && d.getFullYear() === filterTahun
+      }).reduce((s, p) => s + p.jumlah, 0)
+      
       return { bulan: nama, penerimaan: pen, pengeluaran: peng }
     })
-  }, [penerimaan, pengeluaran])
+  }, [penerimaan, pengeluaran, filterTahun])
 
   const pembantuGroups = useMemo(() => {
     return subKegiatan.flatMap(sk => 
       (sk.kode_rekening ?? []).map(rek => ({
         rekening: rek,
         subKegiatan: sk,
-        rows: pengeluaran.filter(p => p.kode_rekening_id === rek.id)
+        rows: pengeluaran.filter(p => p.kode_rekening_id === rek.id && new Date(p.tanggal).getFullYear() === filterTahun)
       })).filter(g => g.rows.length > 0)
     )
-  }, [subKegiatan, pengeluaran])
+  }, [subKegiatan, pengeluaran, filterTahun])
 
   function handleExportPdf() {
-    if (tab === 'bku') exportBKUPdf(filteredBku, filterBulan, 2026, totalsBulanLalu)
+    if (tab === 'bku') exportBKUPdf(filteredBku, filterBulan, filterTahun, totalsBulanLalu)
     else if (tab === 'pembantu') exportBukuPembantuPdf(pembantuGroups)
     else if (tab === 'lra') exportRealisasiPdf(subKegiatan, realisasiPerRek)
     else if (tab === 'rekap') exportRekapBulananPdf(rekapBulanan)
@@ -150,14 +132,37 @@ export default function Laporan() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
         <div className="flex items-center gap-3">
           {tab === 'bku' && (
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Calendar size={16} className="text-slate-400" />
+                <select
+                  value={filterBulan}
+                  onChange={e => setFilterBulan(parseInt(e.target.value, 10))}
+                  className="text-sm border-none focus:ring-0 bg-transparent font-bold text-slate-700 cursor-pointer"
+                >
+                  {BULAN.map((b, i) => <option key={i} value={i}>{b}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
+                <select
+                  value={filterTahun}
+                  onChange={e => setFilterTahun(parseInt(e.target.value, 10))}
+                  className="text-sm border-none focus:ring-0 bg-transparent font-bold text-slate-700 cursor-pointer"
+                >
+                  {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+          {(tab === 'pembantu' || tab === 'lra' || tab === 'rekap') && (
             <div className="flex items-center gap-2">
               <Calendar size={16} className="text-slate-400" />
               <select
-                value={filterBulan}
-                onChange={e => setFilterBulan(parseInt(e.target.value, 10))}
+                value={filterTahun}
+                onChange={e => setFilterTahun(parseInt(e.target.value, 10))}
                 className="text-sm border-none focus:ring-0 bg-transparent font-bold text-slate-700 cursor-pointer"
               >
-                {BULAN.map((b, i) => <option key={i} value={i}>{b}</option>)}
+                {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
           )}
@@ -226,7 +231,7 @@ export default function Laporan() {
         )}
 
         {tab === 'pembantu' && (
-          <div className="p-8 space-y-10">
+          <div className="p-4 sm:p-6 md:p-8 space-y-6 md:space-y-10">
             {pembantuGroups.length === 0 ? (
               <EmptyState message="Belum ada transaksi pengeluaran" />
             ) : pembantuGroups.map((g, i) => (
@@ -249,30 +254,32 @@ export default function Laporan() {
                   </div>
                 </div>
                 <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                  <table className="w-full text-left">
-                    <thead className="bg-slate-50/50 border-b border-slate-100">
-                      <tr>
-                        <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tanggal</th>
-                        <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Keterangan / Item</th>
-                        <th className="px-5 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-widest">Jumlah</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {g.rows.map((row, ri) => (
-                        <tr key={ri} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-5 py-3 text-xs text-slate-500 font-medium">{formatTanggal(row.tanggal)}</td>
-                          <td className="px-5 py-3 text-xs text-slate-600 italic">
-                            {row.pengeluaran_rincian?.length > 0 
-                              ? row.pengeluaran_rincian.map(rin => rin.uraian).join(', ')
-                              : row.keterangan || '-'}
-                          </td>
-                          <td className="px-5 py-3 text-right font-black text-slate-900 text-sm">
-                            {formatRupiah(row.jumlah)}
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left min-w-[600px]">
+                      <thead className="bg-slate-50/50 border-b border-slate-100">
+                        <tr>
+                          <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tanggal</th>
+                          <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Keterangan / Item</th>
+                          <th className="px-5 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-widest">Jumlah</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {g.rows.map((row, ri) => (
+                          <tr key={ri} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-5 py-3 text-xs text-slate-500 font-medium">{formatTanggal(row.tanggal)}</td>
+                            <td className="px-5 py-3 text-xs text-slate-600 italic">
+                              {row.pengeluaran_rincian?.length > 0 
+                                ? row.pengeluaran_rincian.map(rin => rin.uraian).join(', ')
+                                : row.keterangan || '-'}
+                            </td>
+                            <td className="px-5 py-3 text-right font-black text-slate-900 text-sm">
+                              {formatRupiah(row.jumlah)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             ))}

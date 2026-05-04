@@ -29,7 +29,7 @@ export default function Layout() {
       <main className="flex-1 flex flex-col h-full overflow-hidden w-full lg:w-auto relative z-0">
         <Topbar onMenuClick={() => setSidebarOpen(true)} />
         <div className="flex-1 overflow-y-auto">
-          <div className="p-4 md:p-8 max-w-7xl mx-auto">
+          <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
             <Outlet />
           </div>
         </div>

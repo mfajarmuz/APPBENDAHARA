@@ -1,6 +1,6 @@
 {
   "name": "bendahara-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Aplikasi Bendahara Pengeluaran UPTD BAPENDA Kab. Tasikmalaya",
   "main": "electron/main.js",
   "scripts": {
@@ -15,12 +15,14 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
     "dotenv": "^17.4.2",
+    "electron-updater": "^6.8.3",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
     "lucide-react": "^1.14.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.0",
+    "react-select": "^5.10.2",
     "recharts": "^2.15.3",
     "xlsx": "^0.18.5",
     "zustand": "^5.0.4"
@@ -58,6 +60,13 @@
     "win": {
       "target": "nsis",
       "icon": "public/icon.ico"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "mfajarmuz",
+        "repo": "APPBENDAHARA"
+      }
+    ]
   }
 }

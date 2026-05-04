@@ -71,7 +71,6 @@ export default function ImportModal({ open, onClose }) {
             tanggal = rawDate.toISOString().split('T')[0];
           } else {
             const dateStr = String(rawDate || '').trim();
-            // Handle DD-MM-YYYY or DD/MM/YYYY (Indonesian format)
             const dmyMatch = dateStr.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
             if (dmyMatch) {
               const [_, d, m, y] = dmyMatch;
@@ -162,7 +161,8 @@ export default function ImportModal({ open, onClose }) {
     try {
       for (const row of validRows) {
         const d = new Date(row.tanggal);
-        const bgNoBukti = `BPP-IMP-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}-${Date.now()}-${row.id}`;
+        const randomSuffix = Math.random().toString(36).substring(2, 5).toUpperCase();
+        const bgNoBukti = `BPP-IMP-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}-${Date.now()}-${row.id}-${randomSuffix}`;
 
         const payload = {
           pengeluaran: {
@@ -175,6 +175,7 @@ export default function ImportModal({ open, onClose }) {
           },
           rincian: [{
             uraian: row.uraian,
+            volume: null,
             jumlah: row.jumlah
           }],
         };
@@ -209,7 +210,7 @@ export default function ImportModal({ open, onClose }) {
       open={open}
       onClose={onClose}
       title="Import Data Pengeluaran dari Excel"
-      width={1000}
+      size="xl"
     >
       <div className="space-y-6">
         {!file ? (
@@ -267,45 +268,47 @@ export default function ImportModal({ open, onClose }) {
             ) : (
               <>
                 <div className="overflow-hidden border border-slate-200 rounded-xl shadow-sm">
-                  <div className="max-h-[400px] overflow-y-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 z-10">
-                        <tr>
-                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-12 text-center">Status</th>
-                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-24">Tanggal</th>
-                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-32">Kode</th>
-                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Uraian</th>
-                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-32 text-right">Jumlah</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 bg-white">
-                        {data.map((row) => (
-                          <tr key={row.id} className={`hover:bg-slate-50 transition-colors ${!row.isValid ? 'bg-red-50/30' : ''}`}>
-                            <td className="px-4 py-3 text-center">
-                              {row.isValid ? (
-                                <CheckCircle2 size={16} className="text-green-500 mx-auto" />
-                              ) : (
-                                <div className="group relative">
-                                  <AlertCircle size={16} className="text-red-500 mx-auto cursor-help" />
-                                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-xl z-50">
-                                    <ul className="list-disc pl-3 space-y-1">
-                                      {row.errors.map((err, i) => (
-                                        <li key={i}>{err}</li>
-                                      ))}
-                                    </ul>
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
-                                  </div>
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-xs text-slate-600 font-medium">{row.tanggal}</td>
-                            <td className="px-4 py-3 text-xs font-mono text-slate-500">{row.rawCode}</td>
-                            <td className="px-4 py-3 text-xs text-slate-700 truncate max-w-[300px]" title={row.uraian}>{row.uraian}</td>
-                            <td className="px-4 py-3 text-xs font-bold text-slate-900 text-right">{formatRupiah(row.jumlah)}</td>
+                  <div className="max-h-[400px] overflow-auto">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse min-w-[600px]">
+                        <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 z-10">
+                          <tr>
+                            <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-12 text-center">Status</th>
+                            <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-24">Tanggal</th>
+                            <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-32">Kode</th>
+                            <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Uraian</th>
+                            <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-32 text-right">Jumlah</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                          {data.map((row) => (
+                            <tr key={row.id} className={`hover:bg-slate-50 transition-colors ${!row.isValid ? 'bg-red-50/30' : ''}`}>
+                              <td className="px-4 py-3 text-center">
+                                {row.isValid ? (
+                                  <CheckCircle2 size={16} className="text-green-500 mx-auto" />
+                                ) : (
+                                  <div className="group relative">
+                                    <AlertCircle size={16} className="text-red-500 mx-auto cursor-help" />
+                                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-xl z-50">
+                                      <ul className="list-disc pl-3 space-y-1">
+                                        {row.errors.map((err, i) => (
+                                          <li key={i}>{err}</li>
+                                        ))}
+                                      </ul>
+                                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
+                                    </div>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-xs text-slate-600 font-medium">{row.tanggal}</td>
+                              <td className="px-4 py-3 text-xs font-mono text-slate-500">{row.rawCode}</td>
+                              <td className="px-4 py-3 text-xs text-slate-700 truncate max-w-[300px]" title={row.uraian}>{row.uraian}</td>
+                              <td className="px-4 py-3 text-xs font-bold text-slate-900 text-right">{formatRupiah(row.jumlah)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
 

@@ -6,7 +6,7 @@ const createSubKegiatanSlice = (set, get) => ({
     set({ isLoading: true })
     try {
       const res = await window.api.getSubKegiatan()
-      if (res && res.success) set({ subKegiatan: res.data })
+      if (res && res.success) set({ subKegiatan: res.data || [] })
       else console.error('getSubKegiatan failed', res && res.error)
     } catch (err) {
       console.error(err)
@@ -140,7 +140,7 @@ const createPenerimaanSlice = (set, get) => ({
     set({ isLoading: true })
     try {
       const res = await window.api.getPenerimaan()
-      if (res && res.success) set({ penerimaan: res.data })
+      if (res && res.success) set({ penerimaan: res.data || [] })
       else console.error('getPenerimaan failed', res && res.error)
     } catch (err) {
       console.error(err)
@@ -153,7 +153,8 @@ const createPenerimaanSlice = (set, get) => ({
     try {
       const res = await window.api.addPenerimaan(payload)
       if (res && res.success) {
-        set((s) => ({ penerimaan: [res.data[0], ...s.penerimaan] }))
+        // Handle batch insert: res.data is an array of inserted records
+        set((s) => ({ penerimaan: [...(res.data || []), ...s.penerimaan] }))
       }
       return res
     } catch (err) {
@@ -203,7 +204,7 @@ const createPengeluaranSlice = (set, get) => ({
     set({ isLoading: true })
     try {
       const res = await window.api.getPengeluaran()
-      if (res && res.success) set({ pengeluaran: res.data })
+      if (res && res.success) set({ pengeluaran: res.data || [] })
       else console.error('getPengeluaran failed', res && res.error)
     } catch (err) {
       console.error(err)
@@ -262,19 +263,44 @@ export const useStore = create((set, get) => ({
   isLoading: false,
   error: null,
   user: JSON.parse(localStorage.getItem('user')) || null,
-  settings: JSON.parse(localStorage.getItem('app_settings')) || {
+  settings: {
     unit_kerja_kode: '5.02.0.00.0.00.02.0016',
     unit_kerja: 'UPTD PUSAT PENGELOLAAN PENDAPATAN DAERAH WILAYAH KABUPATEN TASIKMALAYA',
     kpa_nama: 'ECEP SUGIARTO, SE, M.A.B',
     kpa_nip: '19680406 199703 1 002',
+    kpa_jabatan: 'Kuasa Pengguna Anggaran',
     bpp_nama: 'YADIN HERYADIN, SE',
     bpp_nip: '19711128 200801 1 001',
-    lokasi: 'Sukaraja'
+    bpp_jabatan: 'Bendahara Pengeluaran Pembantu',
+    pptk_nama: 'Drs. CASMITA, M.Pd',
+    pptk_nip: '19680211 199403 1 005',
+    pptk_jabatan: 'Pejabat Pelaksana Teknis Kegiatan',
+    lokasi: 'Sukaraja',
+    ...(JSON.parse(localStorage.getItem('app_settings')) || {})
   },
   
   updateSettings: (newSettings) => {
     localStorage.setItem('app_settings', JSON.stringify(newSettings))
     set({ settings: newSettings })
+  },
+
+  resetSettings: () => {
+    const defaults = {
+      unit_kerja_kode: '5.02.0.00.0.00.02.0016',
+      unit_kerja: 'UPTD PUSAT PENGELOLAAN PENDAPATAN DAERAH WILAYAH KABUPATEN TASIKMALAYA',
+      kpa_nama: 'ECEP SUGIARTO, SE, M.A.B',
+      kpa_nip: '19680406 199703 1 002',
+      kpa_jabatan: 'Kuasa Pengguna Anggaran',
+      bpp_nama: 'YADIN HERYADIN, SE',
+      bpp_nip: '19711128 200801 1 001',
+      bpp_jabatan: 'Bendahara Pengeluaran Pembantu',
+      pptk_nama: 'Drs. CASMITA, M.Pd',
+      pptk_nip: '19680211 199403 1 005',
+      pptk_jabatan: 'Pejabat Pelaksana Teknis Kegiatan',
+      lokasi: 'Sukaraja'
+    }
+    localStorage.setItem('app_settings', JSON.stringify(defaults))
+    set({ settings: defaults })
   },
   
   login: (username, password) => {

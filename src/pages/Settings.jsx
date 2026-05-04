@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useStore } from '@/store/useStore'
-import { Save, Building2, UserCheck, MapPin } from 'lucide-react'
+import { Save, Building2, UserCheck, RefreshCcw, AlertCircle, Laptop, Download, Power } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -8,9 +8,49 @@ import Input from '@/components/ui/Input'
 export default function Settings() {
   const settings = useStore(s => s.settings)
   const updateSettings = useStore(s => s.updateSettings)
+  const resetSettings = useStore(s => s.resetSettings)
   const [form, setForm] = useState({ ...settings })
   const [isSaving, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+
+  // Auto-update states
+  const [updateStatus, setUpdateStatus] = useState('Standby')
+  const [updateInfo, setUpdateInfo] = useState(null)
+  const [downloadProgress, setDownloadProgress] = useState(0)
+
+  // Sync form when settings change (e.g. after reset)
+  useEffect(() => {
+    setForm({ ...settings })
+  }, [settings])
+
+  useEffect(() => {
+    // Listen to update messages from main process
+    if (window.api?.onUpdateMessage) {
+      window.api.onUpdateMessage((msg) => {
+        setUpdateStatus(msg.text)
+        if (msg.data) {
+          if (msg.text === 'Pembaruan tersedia.') {
+            setUpdateInfo(msg.data)
+          } else if (msg.text === 'Sedang mengunduh...') {
+            setDownloadProgress(Math.round(msg.data.percent || 0))
+          }
+        }
+      })
+    }
+  }, [])
+
+  const handleCheckUpdate = () => {
+    window.api?.checkForUpdate()
+  }
+
+  const handleDownloadUpdate = () => {
+    window.api?.downloadUpdate()
+  }
+
+  const handleInstallUpdate = () => {
+    window.api?.quitAndInstall()
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -25,6 +65,13 @@ export default function Settings() {
     setTimeout(() => setShowSuccess(false), 3000)
   }
 
+  const handleReset = () => {
+    resetSettings()
+    setShowResetConfirm(false)
+    setShowSuccess(true)
+    setTimeout(() => setShowSuccess(false), 3000)
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -32,12 +79,34 @@ export default function Settings() {
           <h2 className="text-xl font-bold text-slate-900">Pengaturan Aplikasi</h2>
           <p className="text-sm text-slate-500">Kelola identitas dinas dan pejabat penandatangan laporan</p>
         </div>
-        {showSuccess && (
-          <div className="bg-emerald-50 text-emerald-600 text-xs font-bold px-4 py-2 rounded-full border border-emerald-100 animate-bounce">
-            ✓ Pengaturan berhasil disimpan
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {showSuccess && (
+            <div className="bg-emerald-50 text-emerald-600 text-xs font-bold px-4 py-2 rounded-full border border-emerald-100 animate-bounce">
+              ✓ Berhasil disimpan
+            </div>
+          )}
+          <Button 
+            variant="secondary" 
+            onClick={() => setShowResetConfirm(true)}
+            className="text-xs font-bold border-slate-200"
+          >
+            <RefreshCcw size={14} className="mr-2" /> Reset
+          </Button>
+        </div>
       </div>
+
+      {showResetConfirm && (
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between animate-in fade-in slide-in-from-top-4">
+          <div className="flex items-center gap-3 text-amber-800">
+            <AlertCircle size={20} />
+            <p className="text-sm font-medium">Reset semua pengaturan ke nilai default?</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => setShowResetConfirm(false)} className="h-8 px-4 text-xs">Batal</Button>
+            <Button onClick={handleReset} className="h-8 px-4 text-xs bg-amber-600 hover:bg-amber-700">Ya, Reset</Button>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Identitas Unit Kerja */}
@@ -47,7 +116,7 @@ export default function Settings() {
             <h3 className="font-bold text-sm uppercase tracking-wider">Identitas Unit Kerja</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-1">
+            <div className="col-span-1">
               <Input 
                 label="Kode Unit Kerja" 
                 value={form.unit_kerja_kode} 
@@ -78,13 +147,19 @@ export default function Settings() {
         </Card>
 
         {/* Pejabat Penandatangan */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="p-6">
             <div className="flex items-center gap-2 mb-6 text-indigo-600">
               <UserCheck size={18} />
               <h3 className="font-bold text-sm uppercase tracking-wider">Kuasa Pengguna Anggaran (KPA)</h3>
             </div>
             <div className="space-y-4">
+              <Input 
+                label="Jabatan" 
+                value={form.kpa_jabatan} 
+                onChange={e => setForm({...form, kpa_jabatan: e.target.value})}
+                required 
+              />
               <Input 
                 label="Nama Lengkap & Gelar" 
                 value={form.kpa_nama} 
@@ -107,6 +182,12 @@ export default function Settings() {
             </div>
             <div className="space-y-4">
               <Input 
+                label="Jabatan" 
+                value={form.bpp_jabatan} 
+                onChange={e => setForm({...form, bpp_jabatan: e.target.value})}
+                required 
+              />
+              <Input 
                 label="Nama Lengkap & Gelar" 
                 value={form.bpp_nama} 
                 onChange={e => setForm({...form, bpp_nama: e.target.value})}
@@ -116,6 +197,33 @@ export default function Settings() {
                 label="NIP" 
                 value={form.bpp_nip} 
                 onChange={e => setForm({...form, bpp_nip: e.target.value})}
+                required 
+              />
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center gap-2 mb-6 text-indigo-600">
+              <UserCheck size={18} />
+              <h3 className="font-bold text-sm uppercase tracking-wider">Pejabat Pelaksana Teknis Kegiatan (PPTK)</h3>
+            </div>
+            <div className="space-y-4">
+              <Input 
+                label="Jabatan" 
+                value={form.pptk_jabatan} 
+                onChange={e => setForm({...form, pptk_jabatan: e.target.value})}
+                required 
+              />
+              <Input 
+                label="Nama Lengkap & Gelar" 
+                value={form.pptk_nama} 
+                onChange={e => setForm({...form, pptk_nama: e.target.value})}
+                required 
+              />
+              <Input 
+                label="NIP" 
+                value={form.pptk_nip} 
+                onChange={e => setForm({...form, pptk_nip: e.target.value})}
                 required 
               />
             </div>
@@ -132,6 +240,58 @@ export default function Settings() {
           </Button>
         </div>
       </form>
+
+      {/* Pembaruan Aplikasi */}
+      <Card className="p-6 mt-8 border-t-4 border-t-indigo-500">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2 text-indigo-600">
+            <Laptop size={18} />
+            <h3 className="font-bold text-sm uppercase tracking-wider">Pembaruan Aplikasi</h3>
+          </div>
+          <Badge variant="secondary" className="bg-slate-100 text-slate-600">v1.0.0</Badge>
+        </div>
+
+        <div className="flex flex-col md:flex-row items-center gap-6">
+          <div className="flex-1 space-y-2">
+            <p className="text-sm font-bold text-slate-700">Status: <span className="text-indigo-600">{updateStatus}</span></p>
+            {updateInfo && updateStatus === 'Pembaruan tersedia.' && (
+              <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                Versi baru ditemukan: <span className="font-bold">{updateInfo.version}</span> ({updateInfo.releaseDate})
+              </p>
+            )}
+            
+            {updateStatus === 'Sedang mengunduh...' && (
+              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-2">
+                <div 
+                  className="bg-indigo-600 h-full transition-all duration-300" 
+                  style={{ width: `${downloadProgress}%` }}
+                ></div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            {updateStatus === 'Standby' || updateStatus === 'Aplikasi sudah versi terbaru.' || updateStatus.startsWith('Error') ? (
+              <Button onClick={handleCheckUpdate} variant="secondary" className="text-xs">
+                <RefreshCcw size={14} className="mr-2" /> Cek Pembaruan
+              </Button>
+            ) : null}
+
+            {updateStatus === 'Pembaruan tersedia.' && (
+              <Button onClick={handleDownloadUpdate} className="text-xs bg-emerald-600 hover:bg-emerald-700">
+                <Download size={14} className="mr-2" /> Unduh Sekarang
+              </Button>
+            )}
+
+            {updateStatus === 'Pembaruan selesai diunduh. Restart untuk memasang.' && (
+              <Button onClick={handleInstallUpdate} className="text-xs bg-indigo-600 hover:bg-indigo-700">
+                <Power size={14} className="mr-2" /> Pasang & Restart
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
     </div>
   )
 }
+

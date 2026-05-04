@@ -43,6 +43,8 @@ CREATE TABLE penerimaan (
   jenis text NOT NULL DEFAULT 'SP2D',
   tanggal date NOT NULL,
   no_sp2d text,
+  sub_kegiatan_id uuid REFERENCES sub_kegiatan(id),
+  kode_rekening_id uuid REFERENCES kode_rekening(id),
   jumlah bigint NOT NULL,
   keterangan text,
   created_at timestamptz DEFAULT now()
@@ -51,8 +53,9 @@ CREATE TABLE penerimaan (
 -- Tabel pengeluaran
 CREATE TABLE pengeluaran (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  jenis text NOT NULL DEFAULT 'GU',
   tanggal date NOT NULL,
-  no_bukti text NOT NULL,
+  no_bukti text,
   sub_kegiatan_id uuid REFERENCES sub_kegiatan(id),
   kode_rekening_id uuid REFERENCES kode_rekening(id),
   jumlah bigint NOT NULL,

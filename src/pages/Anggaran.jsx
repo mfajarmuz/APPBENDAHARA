@@ -275,7 +275,7 @@ export default function Anggaran() {
                                     <button onClick={() => openNewRek(sk.id)} className="text-[10px] text-indigo-600 font-black flex items-center gap-1 hover:underline"><Plus size={14} /> TAMBAH REKENING</button>
                                   </div>
                                   <div className="px-3 overflow-x-auto">
-                                    <table className="w-full text-[11px] border-separate border-spacing-0">
+                                    <table className="w-full text-[11px] border-separate border-spacing-0 min-w-[800px]">
                                       <thead>
                                         <tr className="text-slate-400">
                                           <th className="text-left px-3 py-2 font-black uppercase tracking-tighter">Kode Rekening</th>
@@ -335,8 +335,10 @@ export default function Anggaran() {
       {/* Modals */}
       <Modal open={progModal} onClose={() => setProgModal(false)} title="Edit Program">
         <form onSubmit={handleProgSubmit} className="space-y-4">
-          <Input label="Kode Program" value={progForm.kode} onChange={e => setProgForm({...progForm, kode: e.target.value})} required />
-          <Input label="Nama Program" value={progForm.nama} onChange={e => setProgForm({...progForm, nama: e.target.value})} required />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input label="Kode Program" value={progForm.kode} onChange={e => setProgForm({...progForm, kode: e.target.value})} required />
+            <Input label="Nama Program" value={progForm.nama} onChange={e => setProgForm({...progForm, nama: e.target.value})} required />
+          </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <Button variant="secondary" onClick={() => setProgModal(false)} type="button">Batal</Button>
             <Button type="submit" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Perubahan'}</Button>
@@ -346,8 +348,10 @@ export default function Anggaran() {
 
       <Modal open={kegModal} onClose={() => setKegModal(false)} title="Edit Kegiatan">
         <form onSubmit={handleKegSubmit} className="space-y-4">
-          <Input label="Kode Kegiatan" value={kegForm.kode} onChange={e => setKegForm({...kegForm, kode: e.target.value})} required />
-          <Input label="Nama Kegiatan" value={kegForm.nama} onChange={e => setKegForm({...kegForm, nama: e.target.value})} required />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input label="Kode Kegiatan" value={kegForm.kode} onChange={e => setKegForm({...kegForm, kode: e.target.value})} required />
+            <Input label="Nama Kegiatan" value={kegForm.nama} onChange={e => setKegForm({...kegForm, nama: e.target.value})} required />
+          </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <Button variant="secondary" onClick={() => setKegModal(false)} type="button">Batal</Button>
             <Button type="submit" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Perubahan'}</Button>
@@ -359,7 +363,7 @@ export default function Anggaran() {
         <form onSubmit={handleSkSubmit} className="space-y-4">
           <Input label="Kode Sub Kegiatan" value={skForm.kode} onChange={e => setSkForm({...skForm, kode: e.target.value})} required />
           <Input label="Nama Sub Kegiatan" value={skForm.nama} onChange={e => setSkForm({...skForm, nama: e.target.value})} required />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Sumber Dana" value={skForm.sumber_dana} onChange={e => setSkForm({...skForm, sumber_dana: e.target.value})} />
             <Input label="Tahun" type="number" value={skForm.tahun_anggaran} onChange={e => setSkForm({...skForm, tahun_anggaran: e.target.value})} />
           </div>
@@ -372,9 +376,11 @@ export default function Anggaran() {
 
       <Modal open={rekModal} onClose={() => setRekModal(false)} title={editingRekId ? 'Edit Rekening' : 'Tambah Rekening'}>
         <form onSubmit={handleRekSubmit} className="space-y-4">
-          <Input label="Kode Rekening" value={rekForm.kode} onChange={e => setRekForm({...rekForm, kode: e.target.value})} placeholder="5.1.02..." required />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input label="Kode Rekening" value={rekForm.kode} onChange={e => setRekForm({...rekForm, kode: e.target.value})} placeholder="5.1.02..." required />
+            <Input label="Pagu Anggaran" type="number" value={rekForm.pagu_anggaran} onChange={e => setRekForm({...rekForm, pagu_anggaran: e.target.value})} required />
+          </div>
           <Textarea label="Uraian Belanja" value={rekForm.uraian} onChange={e => setRekForm({...rekForm, uraian: e.target.value})} required rows={2} />
-          <Input label="Pagu Anggaran" type="number" value={rekForm.pagu_anggaran} onChange={e => setRekForm({...rekForm, pagu_anggaran: e.target.value})} required />
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <Button variant="secondary" onClick={() => setRekModal(false)} type="button">Batal</Button>
             <Button type="submit" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan'}</Button>

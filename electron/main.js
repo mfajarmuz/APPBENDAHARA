@@ -1,12 +1,12 @@
 const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const { createClient } = require('@supabase/supabase-js')
+const { autoUpdater } = require('electron-updater')
 require('dotenv').config({ path: path.join(__dirname, '../.env') })
 
-// Initialize Supabase in main process
-const supabaseUrl = process.env.SUPABASE_URL
-const supabaseKey = process.env.SUPABASE_ANON_KEY
-const supabase = createClient(supabaseUrl, supabaseKey)
+// Auto-updater configuration
+autoUpdater.autoDownload = false // We want user to click "Update"
+autoUpdater.allowPrerelease = false
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -18,6 +18,27 @@ function createWindow() {
       nodeIntegration: false,
     },
   })
+
+  // Send update messages to renderer
+  const sendStatusToWindow = (text, data = null) => {
+    win.webContents.send('update-message', { text, data })
+  }
+
+  autoUpdater.on('checking-for-update', () => sendStatusToWindow('Mengecek pembaruan...'))
+  autoUpdater.on('update-available', (info) => sendStatusToWindow('Pembaruan tersedia.', info))
+  autoUpdater.on('update-not-available', (info) => sendStatusToWindow('Aplikasi sudah versi terbaru.'))
+  autoUpdater.on('error', (err) => sendStatusToWindow(`Error: ${err}`))
+  autoUpdater.on('download-progress', (progressObj) => {
+    sendStatusToWindow('Sedang mengunduh...', progressObj)
+  })
+  autoUpdater.on('update-downloaded', (info) => {
+    sendStatusToWindow('Pembaruan selesai diunduh. Restart untuk memasang.', info)
+  })
+
+  // IPC to trigger update actions
+  ipcMain.handle('check-for-update', () => autoUpdater.checkForUpdates())
+  ipcMain.handle('download-update', () => autoUpdater.downloadUpdate())
+  ipcMain.handle('quit-and-install', () => autoUpdater.quitAndInstall())
 
   // Use app.isPackaged to check if running in dev or prod
   if (!app.isPackaged) {
@@ -96,7 +117,13 @@ ipcMain.handle('add-kode-rekening', async (event, payload) => {
 
 ipcMain.handle('get-penerimaan', async () => {
   return handleWith(async () => {
-    const { data, error } = await supabase.from('penerimaan').select('*').order('tanggal', { ascending: true })
+    const { data, error } = await supabase.from('penerimaan')
+      .select(`
+        *,
+        sub_kegiatan (*),
+        kode_rekening (*)
+      `)
+      .order('tanggal', { ascending: true })
     if (error) throw error
     return data
   })
@@ -104,7 +131,20 @@ ipcMain.handle('get-penerimaan', async () => {
 
 ipcMain.handle('add-penerimaan', async (event, payload) => {
   return handleWith(async () => {
-    const { data, error } = await supabase.from('penerimaan').insert([payload]).select()
+    // Deep clone and clean the payload to strip IPC proxies/weirdness
+    const cleanPayload = JSON.parse(JSON.stringify(payload))
+    let dataToInsert = []
+    
+    if (Array.isArray(cleanPayload)) {
+      dataToInsert = cleanPayload
+    } else if (cleanPayload && typeof cleanPayload === 'object' && Object.keys(cleanPayload).every(k => !isNaN(k))) {
+      // Handle array-like objects from IPC
+      dataToInsert = Object.values(cleanPayload)
+    } else {
+      dataToInsert = [cleanPayload]
+    }
+    
+    const { data, error } = await supabase.from('penerimaan').insert(dataToInsert).select()
     if (error) throw error
     return data
   })
@@ -117,7 +157,10 @@ ipcMain.handle('get-pengeluaran', async () => {
         *, 
         sub_kegiatan (
           *, 
-          kegiatan (*)
+          kegiatan (
+            *,
+            program (*)
+          )
         ), 
         kode_rekening (*), 
         pengeluaran_rincian (*)
@@ -130,21 +173,44 @@ ipcMain.handle('get-pengeluaran', async () => {
 
 ipcMain.handle('add-pengeluaran', async (event, { pengeluaran, rincian }) => {
   return handleWith(async () => {
-    console.log('[IPC] add-pengeluaran start', pengeluaran)
-    const { data: pengData, error: pengError } = await supabase.from('pengeluaran').insert([pengeluaran]).select().single()
-    if (pengError) {
-      console.error('[Supabase Error] add-pengeluaran header:', pengError)
-      throw pengError
-    }
+    // 1. Server-side Budget Validation (Pagu)
+    const { data: rek, error: rekError } = await supabase
+      .from('kode_rekening')
+      .select('pagu_anggaran, uraian')
+      .eq('id', pengeluaran.kode_rekening_id)
+      .single()
+    if (rekError) throw rekError
     
+    const { data: currentSpent, error: spentError } = await supabase
+      .from('pengeluaran')
+      .select('jumlah')
+      .eq('kode_rekening_id', pengeluaran.kode_rekening_id)
+    if (spentError) throw spentError
+    
+    const totalSpent = (currentSpent || []).reduce((s, p) => s + p.jumlah, 0)
+    const sisa = rek.pagu_anggaran - totalSpent
+    
+    if (pengeluaran.jumlah > sisa) {
+      throw new Error(`Anggaran untuk "${rek.uraian}" tidak mencukupi. Sisa Pagu: ${sisa}, Diminta: ${pengeluaran.jumlah}`)
+    }
+
+    // 1.5 Validation (Consistency)
     if (rincian && rincian.length > 0) {
-      console.log('[IPC] inserting rincian for', pengData.id)
+      const totalRincian = rincian.reduce((s, r) => s + (r.jumlah || 0), 0)
+      if (totalRincian !== pengeluaran.jumlah) {
+        throw new Error(`Ketidakkonsistenan data: Total rincian (${totalRincian}) tidak sama dengan total pengeluaran (${pengeluaran.jumlah})`)
+      }
+    }
+
+    // 2. Insert Header
+    const { data: pengData, error: pengError } = await supabase.from('pengeluaran').insert([pengeluaran]).select().single()
+    if (pengError) throw pengError
+    
+    // 3. Insert Rincian
+    if (rincian && rincian.length > 0) {
       const rincianPayload = rincian.map((r) => ({ ...r, pengeluaran_id: pengData.id }))
       const { error: rinError } = await supabase.from('pengeluaran_rincian').insert(rincianPayload)
-      if (rinError) {
-        console.error('[Supabase Error] add-pengeluaran rincian:', rinError)
-        throw rinError
-      }
+      if (rinError) throw rinError
     }
     return pengData
   })
@@ -225,7 +291,28 @@ ipcMain.handle('delete-pengeluaran', async (event, id) => {
 
 ipcMain.handle('update-pengeluaran', async (event, id, { pengeluaran, rincian }) => {
   return handleWith(async () => {
-    // 1. Update Header
+    // 1. Validation (Pagu) if jumlah is changing
+    if (pengeluaran.jumlah !== undefined) {
+      const { data: currentPeng, error: getError } = await supabase.from('pengeluaran').select('kode_rekening_id').eq('id', id).single()
+      if (getError) throw getError
+      
+      const rekId = pengeluaran.kode_rekening_id || currentPeng.kode_rekening_id
+      
+      const { data: rek, error: rekError } = await supabase.from('kode_rekening').select('pagu_anggaran, uraian').eq('id', rekId).single()
+      if (rekError) throw rekError
+
+      const { data: otherSpent, error: spentError } = await supabase.from('pengeluaran').select('jumlah').eq('kode_rekening_id', rekId).neq('id', id)
+      if (spentError) throw spentError
+      
+      const totalOtherSpent = (otherSpent || []).reduce((s, p) => s + p.jumlah, 0)
+      const sisa = rek.pagu_anggaran - totalOtherSpent
+      
+      if (pengeluaran.jumlah > sisa) {
+        throw new Error(`Anggaran untuk "${rek.uraian}" tidak mencukupi. Sisa Pagu: ${sisa}, Diminta: ${pengeluaran.jumlah}`)
+      }
+    }
+
+    // 2. Update Header
     const { error: pengError } = await supabase
       .from('pengeluaran')
       .update(pengeluaran)
@@ -246,6 +333,7 @@ ipcMain.handle('update-pengeluaran', async (event, id, { pengeluaran, rincian })
     if (rincian && rincian.length > 0) {
       const rincianPayload = rincian.map((r) => ({ 
         uraian: r.uraian, 
+        volume: r.volume || null,
         jumlah: r.jumlah, 
         pengeluaran_id: id 
       }))
