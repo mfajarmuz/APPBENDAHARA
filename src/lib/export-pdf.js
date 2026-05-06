@@ -628,13 +628,6 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
   }
 
   allSubKegiatan.forEach((sk) => {
-    // Header Row for Sub Kegiatan
-    body.push([
-      { content: sk.kode, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
-      { content: sk.nama, colSpan: 12, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
-      { content: '', styles: { fillColor: [240, 240, 240] } }
-    ])
-
     let skTotals = {
       pagu: 0,
       lsBarjas: { lalu: 0, ini: 0, sd: 0 },
@@ -643,9 +636,11 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
     }
 
     const listRekening = sk.kode_rekening || []
+    const subBody = []
+
     listRekening.forEach((rek) => {
       const rekPengeluaran = pengeluaran.filter(p => p.kode_rekening_id === rek.id)
-      
+
       const filterByTime = (items, isIni) => items.filter(p => {
         const d = new Date(p.tanggal)
         const m = d.getMonth()
@@ -665,7 +660,7 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
       const totalRekSd = lsBarjasSd + upGuTuSd
       const sisaPagu = (rek.pagu_anggaran || 0) - totalRekSd
 
-      body.push([
+      subBody.push([
         rek.kode,
         { content: rek.uraian, styles: { overflow: 'linebreak' } },
         formatRupiah(rek.pagu_anggaran).replace('Rp', '').trim(),
@@ -690,20 +685,26 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
       skTotals.totalSd += totalRekSd
     })
 
-    // Total Row for Sub Kegiatan
+    // Header Row for Sub Kegiatan (Now with totals on the right)
     body.push([
-      { content: 'Total Sub Kegiatan', colSpan: 2, styles: { fontStyle: 'bold', halign: 'right' } },
-      { content: formatRupiah(skTotals.pagu).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
-      '-', '-', '-',
-      { content: formatRupiah(skTotals.lsBarjas.lalu).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
-      { content: formatRupiah(skTotals.lsBarjas.ini).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
-      { content: formatRupiah(skTotals.lsBarjas.sd).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
-      { content: formatRupiah(skTotals.upGuTu.lalu).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
-      { content: formatRupiah(skTotals.upGuTu.ini).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
-      { content: formatRupiah(skTotals.upGuTu.sd).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
-      { content: formatRupiah(skTotals.totalSd).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
-      { content: formatRupiah(skTotals.pagu - skTotals.totalSd).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } }
+      { content: sk.kode, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
+      { content: sk.nama, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
+      { content: formatRupiah(skTotals.pagu).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 240, 240] } },
+      { content: '-', styles: { fillColor: [240, 240, 240], halign: 'center' } },
+      { content: '-', styles: { fillColor: [240, 240, 240], halign: 'center' } },
+      { content: '-', styles: { fillColor: [240, 240, 240], halign: 'center' } },
+      { content: formatRupiah(skTotals.lsBarjas.lalu).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 240, 240] } },
+      { content: formatRupiah(skTotals.lsBarjas.ini).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 240, 240] } },
+      { content: formatRupiah(skTotals.lsBarjas.sd).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 240, 240] } },
+      { content: formatRupiah(skTotals.upGuTu.lalu).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 240, 240] } },
+      { content: formatRupiah(skTotals.upGuTu.ini).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 240, 240] } },
+      { content: formatRupiah(skTotals.upGuTu.sd).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 240, 240] } },
+      { content: formatRupiah(skTotals.totalSd).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 240, 240] } },
+      { content: formatRupiah(skTotals.pagu - skTotals.totalSd).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 240, 240] } }
     ])
+
+    // Individual Account Rows
+    body.push(...subBody)
 
     globalTotals.pagu += skTotals.pagu
     globalTotals.lsBarjas.lalu += skTotals.lsBarjas.lalu
