@@ -791,80 +791,120 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
   let finalY = doc.lastAutoTable.finalY + 5
   if (finalY > 150) { doc.addPage(); finalY = 15 }
 
-  const filterByT = (items, isIni) => items.filter(p => {
+  const filterByJenisTime = (items, jenisList, isIni) => items.filter(p => {
     const d = new Date(p.tanggal); const m = d.getMonth(); const y = d.getFullYear()
-    return isIni ? (y === year && m === monthIndex) : (y < year || (y === year && m < monthIndex))
+    const matchesJenis = jenisList.includes(p.jenis)
+    return matchesJenis && (isIni ? (y === year && m === monthIndex) : (y < year || (y === year && m < monthIndex)))
   })
 
-  const p_ini = filterByT(pengeluaran, true)
-  const p_lalu = filterByT(pengeluaran, false)
-  const pen_ini = filterByT(penerimaan, true)
-  const pen_lalu = filterByT(penerimaan, false)
+  const sumJ = (items) => items.reduce((s, p) => s + p.jumlah, 0)
+  const sumT = (items, field) => items.reduce((s, p) => s + (p[field] || 0), 0)
 
-  const sumJ = (items, jenis) => items.filter(p => p.jenis === jenis).reduce((s, p) => s + p.jumlah, 0)
-  const sumTax = (items, field) => items.reduce((s, p) => s + (p[field] || 0), 0)
-
-  const calcRow = (label, getVal, isBold = false) => {
-    const vLalu = getVal(p_lalu, pen_lalu, false)
-    const vIni = getVal(p_ini, pen_ini, true)
-    const vSd = vLalu + vIni
-    return [
-      { content: label, styles: { fontStyle: isBold ? 'bold' : 'normal' } },
-      '-', '-', '-',
-      vLalu > 0 ? formatRupiah(vLalu).replace('Rp', '').trim() : '-',
-      vIni > 0 ? formatRupiah(vIni).replace('Rp', '').trim() : '-',
-      vSd > 0 ? formatRupiah(vSd).replace('Rp', '').trim() : '-',
-      '-', '-', '-',
-      vSd > 0 ? formatRupiah(vSd).replace('Rp', '').trim() : '-'
-    ]
+  const getAgg = (jenisList) => {
+    const l = sumJ(filterByJenisTime(pengeluaran, jenisList, false))
+    const i = sumJ(filterByJenisTime(pengeluaran, jenisList, true))
+    return { lalu: l, ini: i, sd: l + i }
   }
 
-  const taxRows = [
-    { label: '    a. PPN', field: 'ppn' },
-    { label: '    b. PPh.- 21', field: 'pph_21' },
-    { label: '    c. PPh.- 22', field: 'pph_22' },
-    { label: '    d. PPh.- 23', field: 'pph_23' },
-    { label: '    e. PPh. Psl 4 (Ayat 2)', field: 'pph_4_2' }
-  ]
+  const getTaxAgg = (field) => {
+    // Taxes for LS
+    const lsL = sumT(filterByJenisTime(pengeluaran, ['LS'], false), field)
+    const lsI = sumT(filterByJenisTime(pengeluaran, ['LS'], true), field)
+    // Taxes for GU (UP/GU/TU/KKPD)
+    const guL = sumT(filterByJenisTime(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], false), field)
+    const guI = sumT(filterByJenisTime(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], true), field)
+    return {
+      ls: { lalu: lsL, ini: lsI, sd: lsL + lsI },
+      gu: { lalu: guL, ini: guI, sd: guL + guI }
+    }
+  }
 
-  const totalTaxLalu = sumTax(p_lalu, 'ppn') + sumTax(p_lalu, 'pph_21') + sumTax(p_lalu, 'pph_22') + sumTax(p_lalu, 'pph_23') + sumTax(p_lalu, 'pph_4_2')
-  const totalTaxIni = sumTax(p_ini, 'ppn') + sumTax(p_ini, 'pph_21') + sumTax(p_ini, 'pph_22') + sumTax(p_ini, 'pph_23') + sumTax(p_ini, 'pph_4_2')
+  const makeRow = (label, lsAgg, guAgg, isBold = false) => {
+    const r = new Array(19).fill('-')
+    r[0] = { content: label, colSpan: 7, styles: { fontStyle: isBold ? 'bold' : 'normal' } }
+    // LS Barjas Cols (11, 12, 13)
+    r[11] = lsAgg.lalu > 0 ? formatRupiah(lsAgg.lalu).replace('Rp', '').trim() : '-'
+    r[12] = lsAgg.ini > 0 ? formatRupiah(lsAgg.ini).replace('Rp', '').trim() : '-'
+    r[13] = lsAgg.sd > 0 ? formatRupiah(lsAgg.sd).replace('Rp', '').trim() : '-'
+    // UP/GU/TU Cols (14, 15, 16)
+    r[14] = guAgg.lalu > 0 ? formatRupiah(guAgg.lalu).replace('Rp', '').trim() : '-'
+    r[15] = guAgg.ini > 0 ? formatRupiah(guAgg.ini).replace('Rp', '').trim() : '-'
+    r[16] = guAgg.sd > 0 ? formatRupiah(guAgg.sd).replace('Rp', '').trim() : '-'
+    // Total SD (17)
+    const totalSd = lsAgg.sd + guAgg.sd
+    r[17] = totalSd > 0 ? formatRupiah(totalSd).replace('Rp', '').trim() : '-'
+    return r
+  }
+
+  const zero = { lalu: 0, ini: 0, sd: 0 }
+  const lsAll = getAgg(['LS'])
+  const guAll = getAgg(['UP', 'GU', 'TU', 'KKPD'])
+  
+  const taxSumRow = (label, field) => {
+    const agg = getTaxAgg(field)
+    return makeRow(label, agg.ls, agg.gu)
+  }
+
+  const p_ini = filterByJenisTime(pengeluaran, ['LS', 'UP', 'GU', 'TU', 'KKPD', 'Pajak'], true)
+  const p_lalu = filterByJenisTime(pengeluaran, ['LS', 'UP', 'GU', 'TU', 'KKPD', 'Pajak'], false)
+  const pen_ini = filterByJenisTime(penerimaan, ['Penerimaan'], true)
+  const pen_lalu = filterByJenisTime(penerimaan, ['Penerimaan'], false)
+
+  const allTaxLalu = sumT(p_lalu, 'ppn') + sumT(p_lalu, 'pph_21') + sumT(p_lalu, 'pph_22') + sumT(p_lalu, 'pph_23') + sumT(p_lalu, 'pph_4_2')
+  const allTaxIni = sumT(p_ini, 'ppn') + sumT(p_ini, 'pph_21') + sumT(p_ini, 'pph_22') + sumT(p_ini, 'pph_23') + sumT(p_ini, 'pph_4_2')
+  
+  // Split total tax by LS and GU
+  const getTaxTotalAgg = () => {
+    const lsL = sumT(filterByJenisTime(pengeluaran, ['LS'], false), 'ppn') + sumT(filterByJenisTime(pengeluaran, ['LS'], false), 'pph_21') + sumT(filterByJenisTime(pengeluaran, ['LS'], false), 'pph_22') + sumT(filterByJenisTime(pengeluaran, ['LS'], false), 'pph_23') + sumT(filterByJenisTime(pengeluaran, ['LS'], false), 'pph_4_2')
+    const lsI = sumT(filterByJenisTime(pengeluaran, ['LS'], true), 'ppn') + sumT(filterByJenisTime(pengeluaran, ['LS'], true), 'pph_21') + sumT(filterByJenisTime(pengeluaran, ['LS'], true), 'pph_22') + sumT(filterByJenisTime(pengeluaran, ['LS'], true), 'pph_23') + sumT(filterByJenisTime(pengeluaran, ['LS'], true), 'pph_4_2')
+    const guL = sumT(filterByJenisTime(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], false), 'ppn') + sumT(filterByJenisTime(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], false), 'pph_21') + sumT(filterByJenisTime(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], false), 'pph_22') + sumT(filterByJenisTime(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], false), 'pph_23') + sumT(filterByJenisTime(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], false), 'pph_4_2')
+    const guI = sumT(filterByJenisTime(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], true), 'ppn') + sumT(filterByJenisTime(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], true), 'pph_21') + sumT(filterByJenisTime(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], true), 'pph_22') + sumT(filterByJenisTime(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], true), 'pph_23') + sumT(filterByJenisTime(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], true), 'pph_4_2')
+    return { ls: { lalu: lsL, ini: lsI, sd: lsL + lsI }, gu: { lalu: guL, ini: guI, sd: guL + guI } }
+  }
 
   const summaryBody = [
-    [{ content: 'Penerimaan', styles: { fontStyle: 'bold' } }, '', '', '', '', '', '', '', '', '', ''],
-    calcRow(' - SPJ - (LS+UP/GU/TU)', (p, pen) => sumJ(p, 'LS') + sumJ(p, 'GU') + sumJ(p, 'TU') + sumJ(p, 'UP') + sumJ(p, 'KKPD'), true),
-    calcRow('    a. UP', (p) => sumJ(p, 'UP')),
-    calcRow('    b. GU', (p) => sumJ(p, 'GU')),
-    calcRow('    c. TU', (p) => sumJ(p, 'TU')),
-    calcRow('    d. LS', (p) => sumJ(p, 'LS')),
-    calcRow('    e. KKPD', (p) => sumJ(p, 'KKPD')),
-    calcRow(' - Potongan Pajak', (p, pen, isIni) => isIni ? totalTaxIni : totalTaxLalu, true),
-    ...taxRows.map(r => calcRow(r.label, (p) => sumTax(p, r.field))),
-    ['Jumlah Penerimaan', '-', '-', '-', '', '', '', '', '', '', formatRupiah(globalTotals.totalSd + totalTaxLalu + totalTaxIni).replace('Rp', '').trim()],
-    [{ content: 'Pengeluaran', styles: { fontStyle: 'bold' } }, '', '', '', '', '', '', '', '', '', ''],
-    calcRow(' - SPJ - (LS+UP/GU/TU)', (p, pen) => sumJ(p, 'LS') + sumJ(p, 'GU') + sumJ(p, 'TU') + sumJ(p, 'UP') + sumJ(p, 'KKPD'), true),
-    calcRow('    a. UP', (p) => sumJ(p, 'UP')),
-    calcRow('    b. GU', (p) => sumJ(p, 'GU')),
-    calcRow('    c. TU', (p) => sumJ(p, 'TU')),
-    calcRow('    d. LS', (p) => sumJ(p, 'LS')),
-    calcRow('    e. KKPD', (p) => sumJ(p, 'KKPD')),
-    calcRow(' - Penyetoran Pajak', (p, pen, isIni) => isIni ? totalTaxIni : totalTaxLalu, true),
-    ...taxRows.map(r => calcRow(r.label, (p) => sumTax(p, r.field))),
-    ['Jumlah Pengeluaran', '-', '-', '-', '', '', '', '', '', '', formatRupiah(globalTotals.totalSd + totalTaxLalu + totalTaxIni).replace('Rp', '').trim()],
-    [{ content: 'Saldo Kas', styles: { fontStyle: 'bold' } }, '-', '-', '-', '', '', '', '', '', '', formatRupiah(sumJ(pen_lalu, 'Penerimaan') + sumJ(pen_ini, 'Penerimaan') - globalTotals.totalSd).replace('Rp', '').trim()]
+    [{ content: 'Penerimaan', colSpan: 19, styles: { fontStyle: 'bold' } }],
+    makeRow(' - SPJ - (LS+UP/GU/TU)', lsAll, guAll, true),
+    makeRow('    a. UP', zero, getAgg(['UP'])),
+    makeRow('    b. GU', zero, getAgg(['GU'])),
+    makeRow('    c. TU', zero, getAgg(['TU'])),
+    makeRow('    d. LS', lsAll, zero),
+    makeRow('    e. KKPD', zero, getAgg(['KKPD'])),
+    makeRow(' - Potongan Pajak', getTaxTotalAgg().ls, getTaxTotalAgg().gu, true),
+    taxSumRow('    a. PPN', 'ppn'),
+    taxSumRow('    b. PPh.- 21', 'pph_21'),
+    taxSumRow('    c. PPh.- 22', 'pph_22'),
+    taxSumRow('    d. PPh.- 23', 'pph_23'),
+    taxSumRow('    e. PPh. Psl 4 (Ayat 2)', 'pph_4_2'),
+    ['Jumlah Penerimaan', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '', '', '', '', '', '', formatRupiah(globalTotals.totalSd + allTaxLalu + allTaxIni).replace('Rp', '').trim(), ''],
+    [{ content: 'Pengeluaran', colSpan: 19, styles: { fontStyle: 'bold' } }],
+    makeRow(' - SPJ - (LS+UP/GU/TU)', lsAll, guAll, true),
+    makeRow('    a. UP', zero, getAgg(['UP'])),
+    makeRow('    b. GU', zero, getAgg(['GU'])),
+    makeRow('    c. TU', zero, getAgg(['TU'])),
+    makeRow('    d. LS', lsAll, zero),
+    makeRow('    e. KKPD', zero, getAgg(['KKPD'])),
+    makeRow(' - Penyetoran Pajak', getTaxTotalAgg().ls, getTaxTotalAgg().gu, true),
+    taxSumRow('    a. PPN', 'ppn'),
+    taxSumRow('    b. PPh.- 21', 'pph_21'),
+    taxSumRow('    c. PPh.- 22', 'pph_22'),
+    taxSumRow('    d. PPh.- 23', 'pph_23'),
+    taxSumRow('    e. PPh. Psl 4 (Ayat 2)', 'pph_4_2'),
+    ['Jumlah Pengeluaran', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '', '', '', '', '', '', formatRupiah(globalTotals.totalSd + allTaxLalu + allTaxIni).replace('Rp', '').trim(), ''],
+    [{ content: 'Saldo Kas', colSpan: 17, styles: { fontStyle: 'bold', halign: 'right' } }, formatRupiah(sumJ(pen_lalu) + sumJ(pen_ini) - globalTotals.totalSd).replace('Rp', '').trim(), '']
   ]
 
   autoTable(doc, {
     startY: finalY,
     body: summaryBody,
-    theme: 'plain',
-    styles: { fontSize: 6, cellPadding: 0.3, textColor: [0, 0, 0] },
+    theme: 'grid',
+    styles: { fontSize: 6, cellPadding: 0.8, lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0] },
     columnStyles: {
-      0: { cellWidth: 55 },
-      4: { halign: 'right', cellWidth: 20 },
-      5: { halign: 'right', cellWidth: 20 },
-      6: { halign: 'right', cellWidth: 20 },
-      10: { halign: 'right', fontStyle: 'bold', cellWidth: 25 }
+      0: { cellWidth: 6 }, 1: { cellWidth: 6 }, 2: { cellWidth: 8 }, 3: { cellWidth: 8 }, 4: { cellWidth: 8 }, 5: { cellWidth: 10 },
+      6: { cellWidth: 'auto' },
+      11: { halign: 'right', cellWidth: 15 }, 12: { halign: 'right', cellWidth: 15 }, 13: { halign: 'right', cellWidth: 15 },
+      14: { halign: 'right', cellWidth: 15 }, 15: { halign: 'right', cellWidth: 15 }, 16: { halign: 'right', cellWidth: 15 },
+      17: { halign: 'right', fontStyle: 'bold', cellWidth: 20 }
     }
   })
 
