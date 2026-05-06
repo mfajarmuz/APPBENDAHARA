@@ -588,6 +588,177 @@ export function exportRekapBulananPdf(data) {
   doc.save('Rekap_Bulanan.pdf')
 }
 
+export function exportLPJAdministratifPdf(monthIndex, year, subKegiatan, pengeluaran) {
+  const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: [330, 215] })
+  const monthName = getMonthName(monthIndex)
+  const settings = useStore.getState().settings
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate()
+
+  // --- HEADER ---
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(12)
+  doc.text('LAPORAN PERTANGGUNGJAWABAN BENDAHARA PENGELUARAN PEMBANTU', 165, 15, { align: 'center' })
+  doc.setFontSize(11)
+  doc.text(`BULAN: ${monthName} ${year}`, 165, 21, { align: 'center' })
+
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  const startY = 30
+  doc.text('Unit Kerja', 14, startY)
+  doc.text(`: ${settings.unit_kerja || ''}`, 65, startY)
+  doc.text('Sub Kegiatan', 14, startY + 5)
+  doc.text(`: ${subKegiatan?.kode || ''} ${subKegiatan?.nama || ''}`, 65, startY + 5)
+  doc.text('Kuasa Pengguna Anggaran', 14, startY + 10)
+  doc.text(`: ${settings.kpa_nama || ''}`, 65, startY + 10)
+  doc.text('Bendahara Pengeluaran Pembantu', 14, startY + 15)
+  doc.text(`: ${settings.bpp_nama || ''}`, 65, startY + 15)
+
+  // --- DATA AGGREGATION ---
+  const body = []
+  let globalTotals = {
+    lsGaji: { lalu: 0, ini: 0, sd: 0 },
+    lsBarjas: { lalu: 0, ini: 0, sd: 0 },
+    upGuTu: { lalu: 0, ini: 0, sd: 0 },
+    totalSd: 0
+  }
+
+  const listRekening = subKegiatan?.kode_rekening || []
+  listRekening.forEach((rek, idx) => {
+    const rekPengeluaran = pengeluaran.filter(p => p.kode_rekening_id === rek.id)
+    
+    const filterByTime = (items, isIni) => items.filter(p => {
+      const d = new Date(p.tanggal)
+      const m = d.getMonth()
+      const y = d.getFullYear()
+      if (y !== year) return false
+      return isIni ? m === monthIndex : m < monthIndex
+    })
+
+    const lsBarjasLalu = filterByTime(rekPengeluaran.filter(p => p.jenis === 'LS'), false).reduce((s, p) => s + p.jumlah, 0)
+    const lsBarjasIni = filterByTime(rekPengeluaran.filter(p => p.jenis === 'LS'), true).reduce((s, p) => s + p.jumlah, 0)
+    const lsBarjasSd = lsBarjasLalu + lsBarjasIni
+
+    const upGuTuLalu = filterByTime(rekPengeluaran.filter(p => p.jenis === 'GU'), false).reduce((s, p) => s + p.jumlah, 0)
+    const upGuTuIni = filterByTime(rekPengeluaran.filter(p => p.jenis === 'GU'), true).reduce((s, p) => s + p.jumlah, 0)
+    const upGuTuSd = upGuTuLalu + upGuTuIni
+
+    const totalRekSd = lsBarjasSd + upGuTuSd // LS Gaji is 0
+    const sisaPagu = (rek.pagu_anggaran || 0) - totalRekSd
+
+    body.push([
+      idx + 1,
+      rek.kode,
+      rek.uraian,
+      '-', '-', '-', // LS Gaji
+      formatRupiah(lsBarjasLalu).replace('Rp', '').trim(),
+      formatRupiah(lsBarjasIni).replace('Rp', '').trim(),
+      formatRupiah(lsBarjasSd).replace('Rp', '').trim(),
+      formatRupiah(upGuTuLalu).replace('Rp', '').trim(),
+      formatRupiah(upGuTuIni).replace('Rp', '').trim(),
+      formatRupiah(upGuTuSd).replace('Rp', '').trim(),
+      formatRupiah(totalRekSd).replace('Rp', '').trim(),
+      formatRupiah(sisaPagu).replace('Rp', '').trim()
+    ])
+
+    globalTotals.lsBarjas.lalu += lsBarjasLalu
+    globalTotals.lsBarjas.ini += lsBarjasIni
+    globalTotals.lsBarjas.sd += lsBarjasSd
+    globalTotals.upGuTu.lalu += upGuTuLalu
+    globalTotals.upGuTu.ini += upGuTuIni
+    globalTotals.upGuTu.sd += upGuTuSd
+    globalTotals.totalSd += totalRekSd
+  })
+
+  // --- TABLE ---
+  const head = [
+    [
+      { content: 'No', rowSpan: 2 },
+      { content: 'Kode Rekening', rowSpan: 2 },
+      { content: 'Uraian', rowSpan: 2 },
+      { content: 'LS Gaji', colSpan: 3 },
+      { content: 'LS Barang & Jasa', colSpan: 3 },
+      { content: 'UP/GU/TU', colSpan: 3 },
+      { content: 'Jumlah s.d. Bulan Ini', rowSpan: 2 },
+      { content: 'Sisa Pagu', rowSpan: 2 }
+    ],
+    [
+      'Lalu', 'Ini', 'S.D',
+      'Lalu', 'Ini', 'S.D',
+      'Lalu', 'Ini', 'S.D'
+    ]
+  ]
+
+  const foot = [
+    [
+      { content: 'JUMLAH', colSpan: 3, styles: { halign: 'center', fontStyle: 'bold' } },
+      '-', '-', '-',
+      formatRupiah(globalTotals.lsBarjas.lalu).replace('Rp', '').trim(),
+      formatRupiah(globalTotals.lsBarjas.ini).replace('Rp', '').trim(),
+      formatRupiah(globalTotals.lsBarjas.sd).replace('Rp', '').trim(),
+      formatRupiah(globalTotals.upGuTu.lalu).replace('Rp', '').trim(),
+      formatRupiah(globalTotals.upGuTu.ini).replace('Rp', '').trim(),
+      formatRupiah(globalTotals.upGuTu.sd).replace('Rp', '').trim(),
+      formatRupiah(globalTotals.totalSd).replace('Rp', '').trim(),
+      '' // Sisa Pagu total usually not shown or sum of all sisa
+    ]
+  ]
+
+  autoTable(doc, {
+    startY: startY + 22,
+    head: head,
+    body: body,
+    foot: foot,
+    theme: 'grid',
+    styles: { fontSize: 6.5, cellPadding: 1, lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0] },
+    headStyles: { fillColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', valign: 'middle' },
+    footStyles: { fillColor: [255, 255, 255], fontStyle: 'bold', halign: 'right' },
+    columnStyles: {
+      0: { cellWidth: 8, halign: 'center' },
+      1: { cellWidth: 25 },
+      2: { cellWidth: 'auto' },
+      3: { cellWidth: 18, halign: 'right' },
+      4: { cellWidth: 18, halign: 'right' },
+      5: { cellWidth: 18, halign: 'right' },
+      6: { cellWidth: 18, halign: 'right' },
+      7: { cellWidth: 18, halign: 'right' },
+      8: { cellWidth: 18, halign: 'right' },
+      9: { cellWidth: 18, halign: 'right' },
+      10: { cellWidth: 18, halign: 'right' },
+      11: { cellWidth: 18, halign: 'right' },
+      12: { cellWidth: 20, halign: 'right' },
+      13: { cellWidth: 20, halign: 'right' }
+    }
+  })
+
+  // --- SIGNATURES ---
+  let signY = doc.lastAutoTable.finalY + 15
+  if (signY > 180) {
+    doc.addPage()
+    signY = 20
+  }
+
+  doc.setFontSize(9)
+  doc.text('Mengetahui :', 40, signY)
+  const kpaJabatanLines = doc.splitTextToSize(`${settings.kpa_jabatan || 'Kuasa Pengguna Anggaran'},`, 80)
+  doc.text(kpaJabatanLines, 40, signY + 5)
+  
+  doc.text(`${settings.lokasi || ''}, ${lastDay} ${monthName.toLowerCase()} ${year}`, 230, signY)
+  const bppJabatanLines = doc.splitTextToSize(`${settings.bpp_jabatan || 'Bendahara Pengeluaran Pembantu'},`, 80)
+  doc.text(bppJabatanLines, 230, signY + 5)
+
+  const signOffset = Math.max(kpaJabatanLines.length, bppJabatanLines.length) * 5 + 20
+
+  doc.setFont('helvetica', 'bold')
+  doc.text(settings.kpa_nama || '', 40, signY + signOffset)
+  doc.text(settings.bpp_nama || '', 230, signY + signOffset)
+
+  doc.setFont('helvetica', 'normal')
+  doc.text(`NIP. ${settings.kpa_nip || ''}`, 40, signY + signOffset + 4)
+  doc.text(`NIP. ${settings.bpp_nip || ''}`, 230, signY + signOffset + 4)
+
+  doc.save(`LPJ_Administratif_${monthName}_${year}.pdf`)
+}
+
 function persen(v, total) {
   if (!total) return 0
   return Math.round((v / total) * 100)

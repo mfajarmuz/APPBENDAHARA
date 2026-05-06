@@ -60,11 +60,31 @@ vi.mock('@/store/useStore', () => {
 
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { exportBKUPdf, exportBukuPembantuPdf, exportNPDPdf, exportNPDBatchPdf } from '../lib/export-pdf'
+import { exportBKUPdf, exportBukuPembantuPdf, exportNPDPdf, exportNPDBatchPdf, exportLPJAdministratifPdf } from '../lib/export-pdf'
 
 describe('export-pdf', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('exportLPJAdministratifPdf should initialize jsPDF and call save', () => {
+    const subKegiatan = {
+      kode: '1.01.01',
+      nama: 'Test Sub Kegiatan',
+      kode_rekening: [
+        { id: 1, kode: '5.1.1', uraian: 'Rek 1', pagu_anggaran: 10000000 }
+      ]
+    }
+    const pengeluaran = [
+      { tanggal: '2026-01-05', jumlah: 1000000, kode_rekening_id: 1, jenis: 'LS' },
+      { tanggal: '2026-01-15', jumlah: 500000, kode_rekening_id: 1, jenis: 'GU' }
+    ]
+
+    exportLPJAdministratifPdf(0, 2026, subKegiatan, pengeluaran)
+
+    expect(jsPDF).toHaveBeenCalled()
+    expect(mockSave).toHaveBeenCalledWith(expect.stringContaining('LPJ_Administratif_JANUARI_2026.pdf'))
+    expect(autoTable).toHaveBeenCalled()
   })
 
   it('exportBKUPdf should initialize jsPDF and call save', () => {

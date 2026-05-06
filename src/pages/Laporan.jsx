@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { FileText, Download, Calendar } from 'lucide-react'
+import { FileText, Download, Calendar, Printer } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { formatRupiah, formatTanggal } from '@/lib/format'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
 import Spinner from '@/components/ui/Spinner'
-import { exportBKUPdf, exportBukuPembantuPdf, exportRealisasiPdf, exportRekapBulananPdf } from '@/lib/export-pdf'
+import { exportBKUPdf, exportBukuPembantuPdf, exportRealisasiPdf, exportRekapBulananPdf, exportLPJAdministratifPdf } from '@/lib/export-pdf'
 import { exportBKUExcel, exportRealisasiExcel } from '@/lib/export-excel'
 import { getBkuRows } from '@/lib/bku'
 
@@ -131,7 +131,7 @@ export default function Laporan() {
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
         <div className="flex items-center gap-3">
-          {tab === 'bku' && (
+          {(tab === 'bku' || tab === 'lra') && (
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Calendar size={16} className="text-slate-400" />
@@ -154,7 +154,7 @@ export default function Laporan() {
               </div>
             </div>
           )}
-          {(tab === 'pembantu' || tab === 'lra' || tab === 'rekap') && (
+          {(tab === 'pembantu' || tab === 'rekap') && (
             <div className="flex items-center gap-2">
               <Calendar size={16} className="text-slate-400" />
               <select
@@ -174,6 +174,15 @@ export default function Laporan() {
         </div>
         
         <div className="flex items-center gap-3">
+          {tab === 'lra' && (
+            <Button 
+              variant="secondary" 
+              onClick={() => exportLPJAdministratifPdf(filterBulan, 2026, subKegiatan, pengeluaran)}
+              className="h-10 px-4 text-xs font-bold border-slate-200 group text-indigo-600 hover:bg-indigo-50"
+            >
+              <Printer size={14} className="mr-2 group-hover:scale-110 transition-transform" /> Cetak LPJ F4
+            </Button>
+          )}
           <Button variant="secondary" onClick={handleExportExcel} className="h-10 px-4 text-xs font-bold border-slate-200 group">
             <Download size={14} className="mr-2 group-hover:translate-y-0.5 transition-transform" /> Excel
           </Button>
