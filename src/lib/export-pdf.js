@@ -635,6 +635,13 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
       { content: '', styles: { fillColor: [240, 240, 240] } }
     ])
 
+    let skTotals = {
+      pagu: 0,
+      lsBarjas: { lalu: 0, ini: 0, sd: 0 },
+      upGuTu: { lalu: 0, ini: 0, sd: 0 },
+      totalSd: 0
+    }
+
     const listRekening = sk.kode_rekening || []
     listRekening.forEach((rek) => {
       const rekPengeluaran = pengeluaran.filter(p => p.kode_rekening_id === rek.id)
@@ -660,7 +667,7 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
 
       body.push([
         rek.kode,
-        rek.uraian,
+        { content: rek.uraian, styles: { overflow: 'linebreak' } },
         formatRupiah(rek.pagu_anggaran).replace('Rp', '').trim(),
         '-', '-', '-', // LS Gaji
         lsBarjasLalu > 0 ? formatRupiah(lsBarjasLalu).replace('Rp', '').trim() : '-',
@@ -673,15 +680,39 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
         formatRupiah(sisaPagu).replace('Rp', '').trim()
       ])
 
-      globalTotals.pagu += (rek.pagu_anggaran || 0)
-      globalTotals.lsBarjas.lalu += lsBarjasLalu
-      globalTotals.lsBarjas.ini += lsBarjasIni
-      globalTotals.lsBarjas.sd += lsBarjasSd
-      globalTotals.upGuTu.lalu += upGuTuLalu
-      globalTotals.upGuTu.ini += upGuTuIni
-      globalTotals.upGuTu.sd += upGuTuSd
-      globalTotals.totalSd += totalRekSd
+      skTotals.pagu += (rek.pagu_anggaran || 0)
+      skTotals.lsBarjas.lalu += lsBarjasLalu
+      skTotals.lsBarjas.ini += lsBarjasIni
+      skTotals.lsBarjas.sd += lsBarjasSd
+      skTotals.upGuTu.lalu += upGuTuLalu
+      skTotals.upGuTu.ini += upGuTuIni
+      skTotals.upGuTu.sd += upGuTuSd
+      skTotals.totalSd += totalRekSd
     })
+
+    // Total Row for Sub Kegiatan
+    body.push([
+      { content: 'Total Sub Kegiatan', colSpan: 2, styles: { fontStyle: 'bold', halign: 'right' } },
+      { content: formatRupiah(skTotals.pagu).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
+      '-', '-', '-',
+      { content: formatRupiah(skTotals.lsBarjas.lalu).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
+      { content: formatRupiah(skTotals.lsBarjas.ini).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
+      { content: formatRupiah(skTotals.lsBarjas.sd).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
+      { content: formatRupiah(skTotals.upGuTu.lalu).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
+      { content: formatRupiah(skTotals.upGuTu.ini).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
+      { content: formatRupiah(skTotals.upGuTu.sd).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
+      { content: formatRupiah(skTotals.totalSd).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } },
+      { content: formatRupiah(skTotals.pagu - skTotals.totalSd).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } }
+    ])
+
+    globalTotals.pagu += skTotals.pagu
+    globalTotals.lsBarjas.lalu += skTotals.lsBarjas.lalu
+    globalTotals.lsBarjas.ini += skTotals.lsBarjas.ini
+    globalTotals.lsBarjas.sd += skTotals.lsBarjas.sd
+    globalTotals.upGuTu.lalu += skTotals.upGuTu.lalu
+    globalTotals.upGuTu.ini += skTotals.upGuTu.ini
+    globalTotals.upGuTu.sd += skTotals.upGuTu.sd
+    globalTotals.totalSd += skTotals.totalSd
   })
 
   // --- TABLE ---
