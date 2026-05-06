@@ -14,6 +14,79 @@ const createSubKegiatanSlice = (set, get) => ({
     } catch (err) { console.error('getSubKegiatan failed', err.message) }
     finally { set({ isLoading: false }) }
   },
+  addProgram: async (payload) => {
+    try {
+      const res = await window.api.addProgram(payload)
+      if (res && res.success) await get().fetchSubKegiatan()
+      return res
+    } catch (err) { return { success: false, error: err.message } }
+  },
+  updateProgram: async (id, payload) => {
+    try {
+      const res = await window.api.updateProgram(id, payload)
+      if (res && res.success) await get().fetchSubKegiatan()
+      return res
+    } catch (err) { return { success: false, error: err.message } }
+  },
+  addKegiatan: async (payload) => {
+    try {
+      const res = await window.api.addKegiatan(payload)
+      if (res && res.success) await get().fetchSubKegiatan()
+      return res
+    } catch (err) { return { success: false, error: err.message } }
+  },
+  updateKegiatan: async (id, payload) => {
+    try {
+      const res = await window.api.updateKegiatan(id, payload)
+      if (res && res.success) await get().fetchSubKegiatan()
+      return res
+    } catch (err) { return { success: false, error: err.message } }
+  },
+  addSubKegiatan: async (payload) => {
+    try {
+      const res = await window.api.addSubKegiatan(payload)
+      if (res && res.success) await get().fetchSubKegiatan()
+      return res
+    } catch (err) { return { success: false, error: err.message } }
+  },
+  updateSubKegiatan: async (payload) => {
+    try {
+      const res = await window.api.updateSubKegiatan(payload)
+      if (res && res.success) await get().fetchSubKegiatan()
+      return res
+    } catch (err) { return { success: false, error: err.message } }
+  },
+  deleteSubKegiatan: async (id) => {
+    try {
+      const res = await window.api.deleteSubKegiatan(id)
+      if (res && res.success) await get().fetchSubKegiatan()
+      return res
+    } catch (err) { return { success: false, error: err.message } }
+  }
+})
+
+const createKodeRekeningSlice = (set, get) => ({
+  addKodeRekening: async (payload) => {
+    try {
+      const res = await window.api.addKodeRekening(payload)
+      if (res && res.success) await get().fetchSubKegiatan()
+      return res
+    } catch (err) { return { success: false, error: err.message } }
+  },
+  updateKodeRekening: async (payload) => {
+    try {
+      const res = await window.api.updateKodeRekening(payload)
+      if (res && res.success) await get().fetchSubKegiatan()
+      return res
+    } catch (err) { return { success: false, error: err.message } }
+  },
+  deleteKodeRekening: async (id) => {
+    try {
+      const res = await window.api.deleteKodeRekening(id)
+      if (res && res.success) await get().fetchSubKegiatan()
+      return res
+    } catch (err) { return { success: false, error: err.message } }
+  }
 })
 
 const createPenerimaanSlice = (set, get) => ({
@@ -171,6 +244,7 @@ export const useStore = create((set, get) => ({
   },
 
   ...createSubKegiatanSlice(set, get),
+  ...createKodeRekeningSlice(set, get),
   ...createPenerimaanSlice(set, get),
   ...createPengeluaranSlice(set, get),
 }))
