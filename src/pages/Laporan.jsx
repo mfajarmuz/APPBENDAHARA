@@ -177,7 +177,7 @@ export default function Laporan() {
           {tab === 'lra' && (
             <Button 
               variant="secondary" 
-              onClick={() => exportLPJAdministratifPdf(filterBulan, 2026, subKegiatan, pengeluaran)}
+              onClick={() => exportLPJAdministratifPdf(filterBulan, 2026, subKegiatan, pengeluaran, penerimaan)}
               className="h-10 px-4 text-xs font-bold border-slate-200 group text-indigo-600 hover:bg-indigo-50"
             >
               <Printer size={14} className="mr-2 group-hover:scale-110 transition-transform" /> Cetak LPJ F4

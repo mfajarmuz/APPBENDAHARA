@@ -4,6 +4,7 @@ import { Save, Building2, UserCheck, RefreshCcw, AlertCircle, Laptop, Download, 
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import Badge from '@/components/ui/Badge'
 
 export default function Settings() {
   const settings = useStore(s => s.settings)
@@ -170,6 +171,33 @@ export default function Settings() {
                 label="NIP" 
                 value={form.kpa_nip} 
                 onChange={e => setForm({...form, kpa_nip: e.target.value})}
+                required 
+              />
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center gap-2 mb-6 text-indigo-600">
+              <UserCheck size={18} />
+              <h3 className="font-bold text-sm uppercase tracking-wider">Bendahara Pengeluaran</h3>
+            </div>
+            <div className="space-y-4">
+              <Input 
+                label="Jabatan" 
+                value={form.bp_jabatan} 
+                onChange={e => setForm({...form, bp_jabatan: e.target.value})}
+                required 
+              />
+              <Input 
+                label="Nama Lengkap & Gelar" 
+                value={form.bp_nama} 
+                onChange={e => setForm({...form, bp_nama: e.target.value})}
+                required 
+              />
+              <Input 
+                label="NIP" 
+                value={form.bp_nip} 
+                onChange={e => setForm({...form, bp_nip: e.target.value})}
                 required 
               />
             </div>

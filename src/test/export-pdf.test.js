@@ -68,19 +68,20 @@ describe('export-pdf', () => {
   })
 
   it('exportLPJAdministratifPdf should initialize jsPDF and call save', () => {
-    const subKegiatan = {
+    const allSubKegiatan = [{
       kode: '1.01.01',
       nama: 'Test Sub Kegiatan',
       kode_rekening: [
         { id: 1, kode: '5.1.1', uraian: 'Rek 1', pagu_anggaran: 10000000 }
       ]
-    }
+    }]
     const pengeluaran = [
       { tanggal: '2026-01-05', jumlah: 1000000, kode_rekening_id: 1, jenis: 'LS' },
       { tanggal: '2026-01-15', jumlah: 500000, kode_rekening_id: 1, jenis: 'GU' }
     ]
+    const penerimaan = []
 
-    exportLPJAdministratifPdf(0, 2026, subKegiatan, pengeluaran)
+    exportLPJAdministratifPdf(0, 2026, allSubKegiatan, pengeluaran, penerimaan)
 
     expect(jsPDF).toHaveBeenCalled()
     expect(mockSave).toHaveBeenCalledWith(expect.stringContaining('LPJ_Administratif_JANUARI_2026.pdf'))
