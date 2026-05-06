@@ -789,13 +789,8 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
   })
   // --- SUMMARY SECTION ---
   let finalY = doc.lastAutoTable.finalY + 5
-  if (finalY > 160) { doc.addPage(); finalY = 15 }
+  if (finalY > 150) { doc.addPage(); finalY = 15 }
 
-  // Calculation for Summary
-  const filteredPen = penerimaan.filter(p => new Date(p.tanggal).getFullYear() === year)
-  const penLalu = filteredPen.filter(p => new Date(p.tanggal).getMonth() < monthIndex).reduce((s, p) => s + p.jumlah, 0)
-  const penIni = filteredPen.filter(p => new Date(p.tanggal).getMonth() === monthIndex).reduce((s, p) => s + p.jumlah, 0)
-  
   const filterByT = (items, isIni) => items.filter(p => {
     const d = new Date(p.tanggal); const m = d.getMonth(); const y = d.getFullYear()
     return isIni ? (y === year && m === monthIndex) : (y < year || (y === year && m < monthIndex))
@@ -803,36 +798,73 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
 
   const p_ini = filterByT(pengeluaran, true)
   const p_lalu = filterByT(pengeluaran, false)
+  const pen_ini = filterByT(penerimaan, true)
+  const pen_lalu = filterByT(penerimaan, false)
 
-  const taxSum = (items) => ({
-    ppn: items.reduce((s, p) => s + (p.ppn || 0), 0),
-    pph21: items.reduce((s, p) => s + (p.pph_21 || 0), 0),
-    pph22: items.reduce((s, p) => s + (p.pph_22 || 0), 0),
-    pph23: items.reduce((s, p) => s + (p.pph_23 || 0), 0),
-    pph42: items.reduce((s, p) => s + (p.pph_4_2 || 0), 0)
-  })
+  const sumJ = (items, jenis) => items.filter(p => p.jenis === jenis).reduce((s, p) => s + p.jumlah, 0)
+  const sumTax = (items, field) => items.reduce((s, p) => s + (p[field] || 0), 0)
 
-  const taxIni = taxSum(p_ini)
-  const taxLalu = taxSum(p_lalu)
+  const calcRow = (label, getVal, isBold = false) => {
+    const vLalu = getVal(p_lalu, pen_lalu, false)
+    const vIni = getVal(p_ini, pen_ini, true)
+    const vSd = vLalu + vIni
+    return [
+      { content: label, styles: { fontStyle: isBold ? 'bold' : 'normal' } },
+      '-', '-', '-',
+      vLalu > 0 ? formatRupiah(vLalu).replace('Rp', '').trim() : '-',
+      vIni > 0 ? formatRupiah(vIni).replace('Rp', '').trim() : '-',
+      vSd > 0 ? formatRupiah(vSd).replace('Rp', '').trim() : '-',
+      '-', '-', '-',
+      vSd > 0 ? formatRupiah(vSd).replace('Rp', '').trim() : '-'
+    ]
+  }
+
+  const taxRows = [
+    { label: '    a. PPN', field: 'ppn' },
+    { label: '    b. PPh.- 21', field: 'pph_21' },
+    { label: '    c. PPh.- 22', field: 'pph_22' },
+    { label: '    d. PPh.- 23', field: 'pph_23' },
+    { label: '    e. PPh. Psl 4 (Ayat 2)', field: 'pph_4_2' }
+  ]
+
+  const totalTaxLalu = sumTax(p_lalu, 'ppn') + sumTax(p_lalu, 'pph_21') + sumTax(p_lalu, 'pph_22') + sumTax(p_lalu, 'pph_23') + sumTax(p_lalu, 'pph_4_2')
+  const totalTaxIni = sumTax(p_ini, 'ppn') + sumTax(p_ini, 'pph_21') + sumTax(p_ini, 'pph_22') + sumTax(p_ini, 'pph_23') + sumTax(p_ini, 'pph_4_2')
 
   const summaryBody = [
-    ['Penerimaan', '', '', '', '', '', '', '', '', '', '', ''],
-    [' - SPJ - (LS+UP/GU/TU)', '-', '-', '-', formatRupiah(globalTotals.lsBarjas.lalu).replace('Rp', '').trim(), formatRupiah(globalTotals.lsBarjas.ini).replace('Rp', '').trim(), formatRupiah(globalTotals.lsBarjas.sd).replace('Rp', '').trim(), formatRupiah(globalTotals.upGuTu.lalu).replace('Rp', '').trim(), formatRupiah(globalTotals.upGuTu.ini).replace('Rp', '').trim(), formatRupiah(globalTotals.upGuTu.sd).replace('Rp', '').trim(), formatRupiah(globalTotals.totalSd).replace('Rp', '').trim()],
-    [' - Potongan Pajak', '-', '-', '-', formatRupiah(taxLalu.ppn + taxLalu.pph21 + taxLalu.pph22 + taxLalu.pph23 + taxLalu.pph42).replace('Rp', '').trim(), formatRupiah(taxIni.ppn + taxIni.pph21 + taxIni.pph22 + taxIni.pph23 + taxIni.pph42).replace('Rp', '').trim(), formatRupiah(taxIni.ppn + taxIni.pph21 + taxIni.pph22 + taxIni.pph23 + taxIni.pph42 + taxLalu.ppn + taxLalu.pph21 + taxLalu.pph22 + taxLalu.pph23 + taxLalu.pph42).replace('Rp', '').trim(), '-', '-', '-', formatRupiah(taxIni.ppn + taxIni.pph21 + taxIni.pph22 + taxIni.pph23 + taxIni.pph42 + taxLalu.ppn + taxLalu.pph21 + taxLalu.pph22 + taxLalu.pph23 + taxLalu.pph42).replace('Rp', '').trim()],
-    ['Jumlah Penerimaan', '-', '-', '-', '', '', '', '', '', '', formatRupiah(globalTotals.totalSd + taxIni.ppn + taxIni.pph21 + taxIni.pph22 + taxIni.pph23 + taxIni.pph42 + taxLalu.ppn + taxLalu.pph21 + taxLalu.pph22 + taxLalu.pph23 + taxLalu.pph42).replace('Rp', '').trim()],
-    ['Pengeluaran', '', '', '', '', '', '', '', '', '', '', ''],
-    ['Jumlah Pengeluaran', '-', '-', '-', '', '', '', '', '', '', formatRupiah(globalTotals.totalSd).replace('Rp', '').trim()],
-    ['Saldo Kas', '-', '-', '-', '', '', '', '', '', '', formatRupiah(penLalu + penIni - globalTotals.totalSd).replace('Rp', '').trim()]
+    [{ content: 'Penerimaan', styles: { fontStyle: 'bold' } }, '', '', '', '', '', '', '', '', '', ''],
+    calcRow(' - SPJ - (LS+UP/GU/TU)', (p, pen) => sumJ(p, 'LS') + sumJ(p, 'GU') + sumJ(p, 'TU') + sumJ(p, 'UP') + sumJ(p, 'KKPD'), true),
+    calcRow('    a. UP', (p) => sumJ(p, 'UP')),
+    calcRow('    b. GU', (p) => sumJ(p, 'GU')),
+    calcRow('    c. TU', (p) => sumJ(p, 'TU')),
+    calcRow('    d. LS', (p) => sumJ(p, 'LS')),
+    calcRow('    e. KKPD', (p) => sumJ(p, 'KKPD')),
+    calcRow(' - Potongan Pajak', (p, pen, isIni) => isIni ? totalTaxIni : totalTaxLalu, true),
+    ...taxRows.map(r => calcRow(r.label, (p) => sumTax(p, r.field))),
+    ['Jumlah Penerimaan', '-', '-', '-', '', '', '', '', '', '', formatRupiah(globalTotals.totalSd + totalTaxLalu + totalTaxIni).replace('Rp', '').trim()],
+    [{ content: 'Pengeluaran', styles: { fontStyle: 'bold' } }, '', '', '', '', '', '', '', '', '', ''],
+    calcRow(' - SPJ - (LS+UP/GU/TU)', (p, pen) => sumJ(p, 'LS') + sumJ(p, 'GU') + sumJ(p, 'TU') + sumJ(p, 'UP') + sumJ(p, 'KKPD'), true),
+    calcRow('    a. UP', (p) => sumJ(p, 'UP')),
+    calcRow('    b. GU', (p) => sumJ(p, 'GU')),
+    calcRow('    c. TU', (p) => sumJ(p, 'TU')),
+    calcRow('    d. LS', (p) => sumJ(p, 'LS')),
+    calcRow('    e. KKPD', (p) => sumJ(p, 'KKPD')),
+    calcRow(' - Penyetoran Pajak', (p, pen, isIni) => isIni ? totalTaxIni : totalTaxLalu, true),
+    ...taxRows.map(r => calcRow(r.label, (p) => sumTax(p, r.field))),
+    ['Jumlah Pengeluaran', '-', '-', '-', '', '', '', '', '', '', formatRupiah(globalTotals.totalSd + totalTaxLalu + totalTaxIni).replace('Rp', '').trim()],
+    [{ content: 'Saldo Kas', styles: { fontStyle: 'bold' } }, '-', '-', '-', '', '', '', '', '', '', formatRupiah(sumJ(pen_lalu, 'Penerimaan') + sumJ(pen_ini, 'Penerimaan') - globalTotals.totalSd).replace('Rp', '').trim()]
   ]
 
   autoTable(doc, {
     startY: finalY,
     body: summaryBody,
     theme: 'plain',
-    styles: { fontSize: 6, cellPadding: 0.5, textColor: [0, 0, 0] },
+    styles: { fontSize: 6, cellPadding: 0.3, textColor: [0, 0, 0] },
     columnStyles: {
-      0: { cellWidth: 50 },
-      10: { halign: 'right', fontStyle: 'bold' }
+      0: { cellWidth: 55 },
+      4: { halign: 'right', cellWidth: 20 },
+      5: { halign: 'right', cellWidth: 20 },
+      6: { halign: 'right', cellWidth: 20 },
+      10: { halign: 'right', fontStyle: 'bold', cellWidth: 25 }
     }
   })
 
