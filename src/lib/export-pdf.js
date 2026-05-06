@@ -660,8 +660,12 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
       const totalRekSd = lsBarjasSd + upGuTuSd
       const sisaPagu = (rek.pagu_anggaran || 0) - totalRekSd
 
+      // Split account code by dot
+      const codeParts = (rek.kode || '').split('.')
+      while (codeParts.length < 6) codeParts.push('') // Ensure 6 columns
+
       subBody.push([
-        rek.kode,
+        ...codeParts.map(part => ({ content: part, styles: { halign: 'center' } })),
         { content: rek.uraian, styles: { overflow: 'linebreak' } },
         formatRupiah(rek.pagu_anggaran).replace('Rp', '').trim(),
         '-', '-', '-', // LS Gaji
@@ -685,9 +689,9 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
       skTotals.totalSd += totalRekSd
     })
 
-    // Header Row for Sub Kegiatan (Now with totals on the right)
+    // Header Row for Sub Kegiatan
     body.push([
-      { content: sk.kode, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
+      { content: sk.kode, colSpan: 6, styles: { fontStyle: 'bold', halign: 'center', fillColor: [240, 240, 240] } },
       { content: sk.nama, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
       { content: formatRupiah(skTotals.pagu).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 240, 240] } },
       { content: '-', styles: { fillColor: [240, 240, 240], halign: 'center' } },
@@ -719,7 +723,7 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
   // --- TABLE ---
   const head = [
     [
-      { content: 'Kode Rekening', rowSpan: 2 },
+      { content: 'Kode Rekening', rowSpan: 2, colSpan: 6 },
       { content: 'Uraian', rowSpan: 2 },
       { content: 'JUMLAH ANGGARAN', rowSpan: 2 },
       { content: 'SPJ - LS GAJI', colSpan: 3 },
@@ -733,12 +737,12 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
       's/d Bulan Lalu', 'Bulan ini', 's/d Bulan Ini',
       's/d Bulan Lalu', 'Bulan ini', 's/d Bulan Ini'
     ],
-    ['1', '2', '3', '4', '5', '6=(4+5)', '7', '8', '9=(7+8)', '10', '11', '13=(10+11)', '14=(6+9+13)', '15=(3-14)']
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9=(7+8)', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19']
   ]
 
   const foot = [
     [
-      { content: 'JUMLAH', colSpan: 2, styles: { halign: 'center', fontStyle: 'bold' } },
+      { content: 'JUMLAH', colSpan: 7, styles: { halign: 'center', fontStyle: 'bold' } },
       formatRupiah(globalTotals.pagu).replace('Rp', '').trim(),
       '-', '-', '-',
       formatRupiah(globalTotals.lsBarjas.lalu).replace('Rp', '').trim(),
@@ -762,23 +766,27 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
     headStyles: { fillColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', valign: 'middle' },
     footStyles: { fillColor: [255, 255, 255], fontStyle: 'bold', halign: 'right' },
     columnStyles: {
-      0: { cellWidth: 35 },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 18, halign: 'right' },
-      3: { cellWidth: 15, halign: 'right' },
-      4: { cellWidth: 15, halign: 'right' },
-      5: { cellWidth: 15, halign: 'right' },
-      6: { cellWidth: 15, halign: 'right' },
-      7: { cellWidth: 15, halign: 'right' },
+      0: { cellWidth: 6 },
+      1: { cellWidth: 6 },
+      2: { cellWidth: 8 },
+      3: { cellWidth: 8 },
+      4: { cellWidth: 8 },
+      5: { cellWidth: 10 },
+      6: { cellWidth: 'auto' },
+      7: { cellWidth: 18, halign: 'right' },
       8: { cellWidth: 15, halign: 'right' },
       9: { cellWidth: 15, halign: 'right' },
       10: { cellWidth: 15, halign: 'right' },
       11: { cellWidth: 15, halign: 'right' },
-      12: { cellWidth: 20, halign: 'right' },
-      13: { cellWidth: 20, halign: 'right' }
+      12: { cellWidth: 15, halign: 'right' },
+      13: { cellWidth: 15, halign: 'right' },
+      14: { cellWidth: 15, halign: 'right' },
+      15: { cellWidth: 15, halign: 'right' },
+      16: { cellWidth: 15, halign: 'right' },
+      17: { cellWidth: 20, halign: 'right' },
+      18: { cellWidth: 20, halign: 'right' }
     }
   })
-
   // --- SUMMARY SECTION ---
   let finalY = doc.lastAutoTable.finalY + 5
   if (finalY > 160) { doc.addPage(); finalY = 15 }
