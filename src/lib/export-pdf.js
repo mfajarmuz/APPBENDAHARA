@@ -267,25 +267,82 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
   body.push([{ content: 'JUMLAH', colSpan: 7, styles: { halign: 'center', fontStyle: 'bold' } }, formatRupiah(globalTotals.pagu).replace('Rp', '').trim(), '-', '-', '-', formatRupiah(globalTotals.ls.lalu).replace('Rp', '').trim(), formatRupiah(globalTotals.ls.ini).replace('Rp', '').trim(), formatRupiah(globalTotals.ls.sd).replace('Rp', '').trim(), formatRupiah(globalTotals.gu.lalu).replace('Rp', '').trim(), formatRupiah(globalTotals.gu.ini).replace('Rp', '').trim(), formatRupiah(globalTotals.gu.sd).replace('Rp', '').trim(), formatRupiah(globalTotals.totalSd).replace('Rp', '').trim(), formatRupiah(globalTotals.pagu - globalTotals.totalSd).replace('Rp', '').trim()])
 
   const makeSumRow = (label, lsAgg, guAgg, isBold = false) => {
-    const r = new Array(19).fill('-'); r[0] = { content: label, colSpan: 7, styles: { fontStyle: isBold ? 'bold' : 'normal' } }
-    r[11] = lsAgg.lalu > 0 ? formatRupiah(lsAgg.lalu).replace('Rp', '').trim() : '-'; r[12] = lsAgg.ini > 0 ? formatRupiah(lsAgg.ini).replace('Rp', '').trim() : '-'; r[13] = lsAgg.sd > 0 ? formatRupiah(lsAgg.sd).replace('Rp', '').trim() : '-'
-    r[14] = guAgg.lalu > 0 ? formatRupiah(guAgg.lalu).replace('Rp', '').trim() : '-'; r[15] = guAgg.ini > 0 ? formatRupiah(guAgg.ini).replace('Rp', '').trim() : '-'; r[16] = guAgg.sd > 0 ? formatRupiah(guAgg.sd).replace('Rp', '').trim() : '-'
-    const totalSd = lsAgg.sd + guAgg.sd
-    r[17] = totalSd > 0 ? formatRupiah(totalSd).replace('Rp', '').trim() : '-'
+    // With colSpan: 7 for label, row array needs 13 elements for 19 columns total
+    // Index 0: Label (Cell 1-7)
+    // Index 1: Anggaran (Cell 8)
+    // Index 2-4: LS Gaji (Cell 9-11)
+    // Index 5-7: LS Barjas (Cell 12-14)
+    // Index 8-10: UP/GU/TU (Cell 15-17)
+    // Index 11: Total SD (Cell 18)
+    // Index 12: Sisa (Cell 19)
+    const r = new Array(13).fill('-')
+    r[0] = { content: label, colSpan: 7, styles: { fontStyle: isBold ? 'bold' : 'normal' } }
+    
+    // LS Barjas (Indices 5, 6, 7)
+    r[5] = lsAgg.lalu > 0 ? formatRupiah(lsAgg.lalu).replace('Rp', '').trim() : '-'
+    r[6] = lsAgg.ini > 0 ? formatRupiah(lsAgg.ini).replace('Rp', '').trim() : '-'
+    r[7] = lsAgg.sd > 0 ? formatRupiah(lsAgg.sd).replace('Rp', '').trim() : '-'
+    
+    // UP/GU/TU (Indices 8, 9, 10)
+    r[8] = guAgg.lalu > 0 ? formatRupiah(guAgg.lalu).replace('Rp', '').trim() : '-'
+    r[9] = guAgg.ini > 0 ? formatRupiah(guAgg.ini).replace('Rp', '').trim() : '-'
+    r[10] = guAgg.sd > 0 ? formatRupiah(guAgg.sd).replace('Rp', '').trim() : '-'
+    
+    // Total SD (Index 11)
+    const tSd = lsAgg.sd + guAgg.sd
+    r[11] = tSd > 0 ? formatRupiah(tSd).replace('Rp', '').trim() : '-'
     return r
   }
-  const getTaxAgg = (f) => ({ ls: { lalu: sumT(filterByJenisTime(pengeluaran, ['LS'], false), f), ini: sumT(filterByJenisTime(pengeluaran, ['LS'], true), f), sd: sumT(filterByJenisTime(pengeluaran, ['LS'], false), f) + sumT(filterByJenisTime(pengeluaran, ['LS'], true), f) }, gu: { lalu: sumT(filterByJenisTime(pengeluaran, ['GU', 'UP', 'TU', 'KKPD'], false), f), ini: sumT(filterByJenisTime(pengeluaran, ['GU', 'UP', 'TU', 'KKPD'], true), f), sd: sumT(filterByJenisTime(pengeluaran, ['GU', 'UP', 'TU', 'KKPD'], false), f) + sumT(filterByJenisTime(pengeluaran, ['GU', 'UP', 'TU', 'KKPD'], true), f) } })
-  const getTaxTotalAgg = () => { const fields = ['ppn', 'pph_21', 'pph_22', 'pph_23', 'pph_4_2']; let res = { ls: { lalu: 0, ini: 0, sd: 0 }, gu: { lalu: 0, ini: 0, sd: 0 } }; fields.forEach(f => { const a = getTaxAgg(f); res.ls.lalu += a.ls.lalu; res.ls.ini += a.ls.ini; res.ls.sd += a.ls.sd; res.gu.lalu += a.gu.lalu; res.gu.ini += a.gu.ini; res.gu.sd += a.gu.sd }); return res }
+  
+  const getTaxAgg = (f) => ({ 
+    ls: { lalu: sumT(filterByJenisTime(pengeluaran, ['LS'], false), f), ini: sumT(filterByJenisTime(pengeluaran, ['LS'], true), f), sd: sumT(filterByJenisTime(pengeluaran, ['LS'], false), f) + sumT(filterByJenisTime(pengeluaran, ['LS'], true), f) }, 
+    gu: { lalu: sumT(filterByJenisTime(pengeluaran, ['GU', 'UP', 'TU', 'KKPD'], false), f), ini: sumT(filterByJenisTime(pengeluaran, ['GU', 'UP', 'TU', 'KKPD'], true), f), sd: sumT(filterByJenisTime(pengeluaran, ['GU', 'UP', 'TU', 'KKPD'], false), f) + sumT(filterByJenisTime(pengeluaran, ['GU', 'UP', 'TU', 'KKPD'], true), f) } 
+  })
+  
+  const getTaxTotalAgg = () => { 
+    const fields = ['ppn', 'pph_21', 'pph_22', 'pph_23', 'pph_4_2']
+    let res = { ls: { lalu: 0, ini: 0, sd: 0 }, gu: { lalu: 0, ini: 0, sd: 0 } }
+    fields.forEach(f => { 
+      const a = getTaxAgg(f)
+      res.ls.lalu += a.ls.lalu; res.ls.ini += a.ls.ini; res.ls.sd += a.ls.sd
+      res.gu.lalu += a.gu.lalu; res.gu.ini += a.gu.ini; res.gu.sd += a.gu.sd 
+    })
+    return res 
+  }
   const taxT = getTaxTotalAgg(); const zero = { lalu: 0, ini: 0, sd: 0 }
 
   // 2. Penerimaan
   body.push([{ content: 'Penerimaan', colSpan: 19, styles: { fontStyle: 'bold', fillColor: [250, 250, 250] } }])
   body.push(makeSumRow(' - SPJ - (LS+UP/GU/TU)', globalTotals.ls, globalTotals.gu, true))
+  
+  const sumP = (items, jenisList, isIni) => items.filter(p => {
+    const d = new Date(p.tanggal); const m = d.getMonth(); const y = d.getFullYear()
+    const matchesJenis = jenisList.includes(p.jenis)
+    return matchesJenis && (isIni ? (y === year && m === monthIndex) : (y < year || (y === year && m < monthIndex)))
+  }).reduce((s, p) => s + p.jumlah, 0)
+
   const jTs = [['    a. UP', ['UP']], ['    b. GU', ['GU']], ['    c. TU', ['TU']], ['    d. LS', ['LS']], ['    e. KKPD', ['KKPD']]]
-  jTs.forEach(jt => { const isL = jt[1][0] === 'LS'; const a = { lalu: sumJ(filterByJenisTime(pengeluaran, jt[1], false)), ini: sumJ(filterByJenisTime(pengeluaran, jt[1], true)), sd: sumJ(filterByJenisTime(pengeluaran, jt[1], false)) + sumJ(filterByJenisTime(pengeluaran, jt[1], true)) }; body.push(makeSumRow(jt[0], isL ? a : zero, isL ? zero : a)) })
+  
+  jTs.forEach(jt => {
+    const isL = jt[1][0] === 'LS'
+    const a = { 
+      lalu: sumP(penerimaan, jt[1], false), 
+      ini: sumP(penerimaan, jt[1], true), 
+      sd: sumP(penerimaan, jt[1], false) + sumP(penerimaan, jt[1], true) 
+    }
+    const row = makeSumRow(jt[0], isL ? a : zero, isL ? zero : a)
+    if (jt[0].trim() === 'b. GU') {
+      row[10] = formatRupiah(globalTotals.gu.sd).replace('Rp', '').trim() // Column 17 (Index 10)
+      row[11] = formatRupiah(globalTotals.totalSd).replace('Rp', '').trim() // Column 18 (Index 11)
+      row[12] = formatRupiah(globalTotals.pagu - globalTotals.totalSd).replace('Rp', '').trim() // Column 19 (Index 12)
+    }
+    body.push(row)
+  })
+
   body.push(makeSumRow(' - Potongan Pajak', taxT.ls, taxT.gu, true))
   const tFs = [['    a. PPN', 'ppn'], ['    b. PPh.- 21', 'pph_21'], ['    c. PPh.- 22', 'pph_22'], ['    d. PPh.- 23', 'pph_23'], ['    e. PPh. Psl 4 (Ayat 2)', 'pph_4_2']]
   tFs.forEach(tf => { const a = getTaxAgg(tf[1]); body.push(makeSumRow(tf[0], a.ls, a.gu)) })
+  
   const totalAgg = { 
     ls: { lalu: globalTotals.ls.lalu + taxT.ls.lalu, ini: globalTotals.ls.ini + taxT.ls.ini, sd: globalTotals.ls.sd + taxT.ls.sd },
     gu: { lalu: globalTotals.gu.lalu + taxT.gu.lalu, ini: globalTotals.gu.ini + taxT.gu.ini, sd: globalTotals.gu.sd + taxT.gu.sd }
@@ -297,8 +354,18 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
   body.push(makeSumRow(' - SPJ - (LS+UP/GU/TU)', globalTotals.ls, globalTotals.gu, true))
   jTs.forEach(jt => {
     const isL = jt[1][0] === 'LS'
-    const a = { lalu: sumJ(filterByJenisTime(pengeluaran, jt[1], false)), ini: sumJ(filterByJenisTime(pengeluaran, jt[1], true)), sd: sumJ(filterByJenisTime(pengeluaran, jt[1], false)) + sumJ(filterByJenisTime(pengeluaran, jt[1], true)) }
-    body.push(makeSumRow(jt[0], isL ? a : zero, isL ? zero : a))
+    const a = { 
+      lalu: sumJ(filterByJenisTime(pengeluaran, jt[1], false)), 
+      ini: sumJ(filterByJenisTime(pengeluaran, jt[1], true)), 
+      sd: sumJ(filterByJenisTime(pengeluaran, jt[1], false)) + sumJ(filterByJenisTime(pengeluaran, jt[1], true)) 
+    }
+    const row = makeSumRow(jt[0], isL ? a : zero, isL ? zero : a)
+    if (jt[0].trim() === 'b. GU') {
+      row[10] = formatRupiah(globalTotals.gu.sd).replace('Rp', '').trim()
+      row[11] = formatRupiah(globalTotals.totalSd).replace('Rp', '').trim()
+      row[12] = formatRupiah(globalTotals.pagu - globalTotals.totalSd).replace('Rp', '').trim()
+    }
+    body.push(row)
   })
   body.push(makeSumRow(' - Penyetoran Pajak', taxT.ls, taxT.gu, true))
   tFs.forEach(tf => { const a = getTaxAgg(tf[1]); body.push(makeSumRow(tf[0], a.ls, a.gu)) })
@@ -307,7 +374,10 @@ export function exportLPJAdministratifPdf(monthIndex, year, allSubKegiatan, peng
   // 4. Saldo Kas
   const pen_i = penerimaan.filter(p => { const d = new Date(p.tanggal); return d.getMonth() === monthIndex && d.getFullYear() === year }).reduce((s, p) => s + p.jumlah, 0)
   const pen_l = penerimaan.filter(p => { const d = new Date(p.tanggal); return (d.getFullYear() < year) || (d.getFullYear() === year && d.getMonth() < monthIndex) }).reduce((s, p) => s + p.jumlah, 0)
-  const sR = new Array(19).fill('-'); sR[0] = { content: 'Saldo Kas', colSpan: 17, styles: { fontStyle: 'bold', halign: 'right' } }; sR[17] = formatRupiah(pen_l + pen_i - globalTotals.totalSd).replace('Rp', '').trim(); body.push(sR)
+  const sR = new Array(3).fill('-')
+  sR[0] = { content: 'Saldo Kas', colSpan: 17, styles: { fontStyle: 'bold', halign: 'right' } }
+  sR[1] = formatRupiah(pen_l + pen_i - globalTotals.totalSd).replace('Rp', '').trim()
+  body.push(sR)
 
   // --- SINGLE TABLE RENDER ---
   const head = [[{ content: 'Kode Rekening', rowSpan: 2, colSpan: 6 }, { content: 'Uraian', rowSpan: 2 }, { content: 'JUMLAH ANGGARAN', rowSpan: 2 }, { content: 'SPJ - LS GAJI', colSpan: 3 }, { content: 'SPJ - LS BARANG & JASA', colSpan: 3 }, { content: 'SPJ - UP / GU / TU', colSpan: 3 }, { content: 'Jumlah (LS/UP/GU/TU) s/d Bulan ini', rowSpan: 2 }, { content: 'Sisa Anggaran', rowSpan: 2 }], ['s/d Bulan Lalu', 'Bulan ini', 's/d Bulan Ini', 's/d Bulan Lalu', 'Bulan ini', 's/d Bulan Ini', 's/d Bulan Lalu', 'Bulan ini', 's/d Bulan Ini'], ['1', '2', '3', '4', '5', '6', '7', '8', '9=(7+8)', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19']]
