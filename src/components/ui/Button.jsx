@@ -1,9 +1,9 @@
 const variants = {
-  primary: 'bg-accent text-white hover:bg-accent/90 active:bg-accent/80 shadow-sm hover:shadow-md',
-  secondary: 'bg-surface text-text-primary border border-border hover:bg-bg active:bg-border',
-  danger: 'bg-danger text-white hover:bg-danger/90 active:bg-danger/80 shadow-sm hover:shadow-md',
-  success: 'bg-success text-white hover:bg-success/90 active:bg-success/80 shadow-sm hover:shadow-md',
-  ghost: 'text-text-secondary hover:bg-bg active:bg-border',
+  primary: 'bg-accent text-white hover:bg-indigo-600 active:bg-indigo-700 shadow-soft hover:shadow-glow',
+  secondary: 'bg-surface text-slate-700 border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 active:bg-slate-100 shadow-sm',
+  danger: 'bg-danger text-white hover:bg-red-600 active:bg-red-700 shadow-sm hover:shadow-md',
+  success: 'bg-success text-white hover:bg-emerald-600 active:bg-emerald-700 shadow-sm hover:shadow-md',
+  ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 active:bg-slate-200',
 }
 
 const sizes = {
@@ -28,8 +28,8 @@ export default function Button({
       onClick={onClick}
       disabled={disabled}
       className={`
-        inline-flex items-center justify-center gap-2 rounded-lg font-medium
-        transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent
+        inline-flex items-center justify-center gap-2 rounded-xl font-medium
+        transition-all duration-300 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500
         disabled:opacity-50 disabled:cursor-not-allowed
         ${fullWidth ? 'w-full' : ''}
         ${variants[variant]} ${sizes[size]} ${className}

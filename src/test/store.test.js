@@ -8,12 +8,12 @@ describe('useStore', () => {
     vi.clearAllMocks()
   })
 
-  it('handles login correctly', () => {
+  it('handles login correctly', async () => {
     const { login } = useStore.getState()
-    expect(login('admin', 'admin123')).toBe(true)
-    expect(useStore.getState().user).toEqual({ username: 'admin', role: 'admin' })
-    
-    expect(login('wrong', 'wrong')).toBe(false)
+    expect(await login('p3dwkabtasikmalaya', 'Sukaraj4')).toBe(true)
+    expect(useStore.getState().user).toEqual({ username: 'p3dwkabtasikmalaya', role: 'admin' })
+
+    expect(await login('wrong', 'pass')).toBe(false)
   })
 
   it('handles logout correctly', () => {
@@ -32,8 +32,9 @@ describe('useStore', () => {
 
   it('adds penerimaan correctly', async () => {
     const newPen = { tanggal: '2026-05-01', jumlah: 1000000 }
-    const mockRes = { success: true, data: [{ id: 'pen1', ...newPen }] }
+    const mockRes = { success: true, data: { id: 'pen1', ...newPen } }
     window.api.addPenerimaan = vi.fn().mockResolvedValue(mockRes)
+    window.api.getPenerimaan = vi.fn().mockResolvedValue({ success: true, data: [{ id: 'pen1', ...newPen }] })
 
     await useStore.getState().addPenerimaan(newPen)
     expect(useStore.getState().penerimaan[0].id).toBe('pen1')

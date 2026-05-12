@@ -1,0 +1,51 @@
+<h2>Desain Teknis: Laporan LPJ Administratif (PDF)</h2>
+<p class="subtitle">Berikut adalah detail implementasi untuk laporan SPJ/Realisasi yang baru.</p>
+
+<div class="section">
+  <h3>1. Logika Pemisahan Kolom (Otomatis)</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>LS Gaji</h4>
+      <ul>
+        <li>Kriteria: Jenis = 'LS' AND Kode Rekening mulai '5.1.01'</li>
+      </ul>
+    </div>
+    <div class="pros">
+      <h4>LS Barang & Jasa</h4>
+      <ul>
+        <li>Kriteria: Jenis = 'LS' AND Kode Rekening LAINNYA</li>
+      </ul>
+    </div>
+    <div class="pros">
+      <h4>UP / GU / TU</h4>
+      <ul>
+        <li>Kriteria: Jenis = 'GU' (Ganti Uang)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>2. Perhitungan Akumulasi</h3>
+  <table style="width:100%; border-collapse: collapse; font-size: 0.8rem;">
+    <tr style="border-bottom: 1px solid #eee;">
+      <td style="padding: 8px; font-weight: bold;">s/d Bulan Lalu</td>
+      <td style="padding: 8px;">Total belanja dari 1 Januari hingga H-1 bulan terpilih.</td>
+    </tr>
+    <tr style="border-bottom: 1px solid #eee;">
+      <td style="padding: 8px; font-weight: bold;">Bulan Ini</td>
+      <td style="padding: 8px;">Total belanja pada bulan terpilih.</td>
+    </tr>
+    <tr style="border-bottom: 1px solid #eee;">
+      <td style="padding: 8px; font-weight: bold;">Jumlah Semua</td>
+      <td style="padding: 8px;">(s/d Bulan Lalu) + (Bulan Ini)</td>
+    </tr>
+  </table>
+</div>
+
+<div class="section">
+  <h3>3. Layout PDF (Lanskap)</h3>
+  <p>Mengingat jumlah kolom yang sangat banyak (14 kolom), saya akan menggunakan <strong>Orientasi Lanskap (A4 Horizontal)</strong> agar teks tetap terbaca jelas dan tidak tumpang tindih.</p>
+</div>
+
+<p>Apakah bagian desain ini sudah sesuai dengan ekspektasi Anda?</p>

@@ -4,6 +4,12 @@
 The project is in the refinement phase. Core features (Dashboard, Anggaran, Penerimaan, Pengeluaran) are implemented. Recent focus has been on fixing bugs in expenditure rincian and report accuracy.
 
 ## Recent Achievements
+- [x] **Release v1.1.3**: Rilis versi 1.1.3 dengan perbaikan indexing kolom, penyelarasan breakdown GU pada tabel ringkasan LPJ, dan unifikasi total tabel anggaran dengan breakdown SPJ/Pajak lengkap.
+- [x] **Bug Fix**: Menambahkan metode CRUD manajemen anggaran yang hilang pada Zustand store untuk memperbaiki fitur penghapusan anggaran.
+- [x] **New Feature**: Implementasi tabel ringkasan LPJ yang detail dengan integrasi struktur kolom anggaran yang sinkron.
+- [x] **New Feature**: Implementasi fitur **Drag & Drop Sorting** pada Laporan BKU. Menghapus semua aturan pengurutan otomatis dan memberikan kendali penuh kepada bendahara untuk mengatur urutan transaksi secara manual. Urutan disimpan permanen ke database.
+- [x] **Bug Fix**: Optimasi alur paket transaksi (LS/GU) di laporan agar tetap menjadi satu kesatuan saat pengisian data awal.
+- [x] **Release v1.1.2**: Rilis versi 1.1.2 dengan penyelesaian masalah sinkronisasi skema database pada Supabase dan pembersihan *fallback mapping* IPC. Skema frontend, backend, dan database jarak jauh kini 100% konsisten menggunakan terminologi `nomor_ls`.
 - [x] **New Feature**: Implementasi Laporan LPJ Administratif (Realisasi/SPJ) format F4 Landscape dengan kategorisasi otomatis.
 - [x] Refactored Zustand store to partitioned slices.
 - [x] Standardized IPC error handling in `main.js`.

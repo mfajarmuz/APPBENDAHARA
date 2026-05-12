@@ -42,11 +42,12 @@ CREATE TABLE penerimaan (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   jenis text NOT NULL DEFAULT 'SP2D',
   tanggal date NOT NULL,
-  no_sp2d text,
+  nomor_ls text,
   sub_kegiatan_id uuid REFERENCES sub_kegiatan(id),
   kode_rekening_id uuid REFERENCES kode_rekening(id),
   jumlah bigint NOT NULL,
   keterangan text,
+  urutan integer DEFAULT 0,
   created_at timestamptz DEFAULT now()
 );
 
@@ -60,6 +61,7 @@ CREATE TABLE pengeluaran (
   kode_rekening_id uuid REFERENCES kode_rekening(id),
   jumlah bigint NOT NULL,
   keterangan text,
+  urutan integer DEFAULT 0,
   created_at timestamptz DEFAULT now()
 );
 

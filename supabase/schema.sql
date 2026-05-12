@@ -21,9 +21,6 @@ CREATE TABLE sub_kegiatan (
   kegiatan_id uuid REFERENCES kegiatan(id) ON DELETE CASCADE,
   kode text UNIQUE NOT NULL,
   nama text NOT NULL,
-  total_pagu bigint NOT NULL,
-  sumber_dana text DEFAULT 'PAD',
-  tahun_anggaran integer DEFAULT 2026,
   created_at timestamptz DEFAULT now()
 );
 
@@ -32,19 +29,22 @@ CREATE TABLE kode_rekening (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   sub_kegiatan_id uuid REFERENCES sub_kegiatan(id) ON DELETE CASCADE,
   kode text NOT NULL,
-  uraian text NOT NULL,
-  pagu_anggaran bigint NOT NULL,
-  created_at timestamptz DEFAULT now()
+  nama text NOT NULL,
+  pagu_anggaran bigint NOT NULL DEFAULT 0,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(sub_kegiatan_id, kode)
 );
 
 -- Tabel penerimaan
 CREATE TABLE penerimaan (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  jenis text NOT NULL DEFAULT 'SP2D',
   tanggal date NOT NULL,
-  no_sp2d text,
+  nomor_ls text,
+  uraian text NOT NULL,
   jumlah bigint NOT NULL,
-  keterangan text,
+  sub_kegiatan_id uuid REFERENCES sub_kegiatan(id),
+  kode_rekening_id uuid REFERENCES kode_rekening(id),
+  urutan integer DEFAULT 0,
   created_at timestamptz DEFAULT now()
 );
 
@@ -52,11 +52,19 @@ CREATE TABLE penerimaan (
 CREATE TABLE pengeluaran (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tanggal date NOT NULL,
-  no_bukti text,
+  no_bukti text NOT NULL,
+  uraian text NOT NULL,
+  jumlah bigint NOT NULL,
   sub_kegiatan_id uuid REFERENCES sub_kegiatan(id),
   kode_rekening_id uuid REFERENCES kode_rekening(id),
-  jumlah bigint NOT NULL,
-  keterangan text,
+  pajak_ppn bigint DEFAULT 0,
+  pajak_pph21 bigint DEFAULT 0,
+  pajak_pph22 bigint DEFAULT 0,
+  pajak_pph23 bigint DEFAULT 0,
+  pajak_pph4_2 bigint DEFAULT 0,
+  pajak_daerah bigint DEFAULT 0,
+  mekanisme_pajak text DEFAULT 'Pungut & Setor',
+  urutan integer DEFAULT 0,
   created_at timestamptz DEFAULT now()
 );
 

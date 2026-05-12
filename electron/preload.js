@@ -3,7 +3,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Expose API yang bisa dipanggil dari React Frontend lewat `window.api`
 contextBridge.exposeInMainWorld('api', {
   // Program & Kegiatan
+  addProgram: (payload) => ipcRenderer.invoke('add-program', payload),
   updateProgram: (id, payload) => ipcRenderer.invoke('update-program', id, payload),
+  addKegiatan: (payload) => ipcRenderer.invoke('add-kegiatan', payload),
   updateKegiatan: (id, payload) => ipcRenderer.invoke('update-kegiatan', id, payload),
 
   // Sub Kegiatan
@@ -29,10 +31,14 @@ contextBridge.exposeInMainWorld('api', {
   addPengeluaran: (payload) => ipcRenderer.invoke('add-pengeluaran', payload),
   updatePengeluaran: (id, payload) => ipcRenderer.invoke('update-pengeluaran', id, payload),
   deletePengeluaran: (id) => ipcRenderer.invoke('delete-pengeluaran', id),
+  updateBkuUrutan: (items) => ipcRenderer.invoke('update-bku-urutan', items),
 
   // Auto-updater
   checkForUpdate: () => ipcRenderer.invoke('check-for-update'),
   downloadUpdate: () => ipcRenderer.invoke('download-update'),
   quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
   onUpdateMessage: (callback) => ipcRenderer.on('update-message', (event, ...args) => callback(...args)),
+
+  // Utils
+  downloadTemplate: (filename) => ipcRenderer.invoke('download-template', filename),
 });

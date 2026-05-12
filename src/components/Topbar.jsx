@@ -26,35 +26,35 @@ export default function Topbar({ onMenuClick }) {
   const user = useStore(s => s.user)
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0 shadow-sm gap-4">
+    <header className="sticky top-0 z-40 h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between px-4 md:px-8 shrink-0 shadow-sm gap-4 transition-all duration-300">
       <div className="flex items-center gap-3">
         <button 
           onClick={onMenuClick} 
-          className="p-2 -ml-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-indigo-600 transition-colors lg:hidden"
+          className="p-2 -ml-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
         >
           <Menu size={24} />
         </button>
-        <h1 className="text-slate-900 font-bold text-lg hidden sm:block">{title}</h1>
+        <h1 className="text-slate-900 font-bold text-lg hidden sm:block tracking-tight">{title}</h1>
       </div>
       <div className="flex items-center gap-4 md:gap-6">
-        <div className="hidden sm:flex items-center gap-2.5 text-slate-600 text-sm font-medium">
-          <Calendar size={16} className="text-slate-400" />
+        <div className="hidden sm:flex items-center gap-2.5 text-slate-500 text-sm font-medium bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 shadow-inner">
+          <Calendar size={14} className="text-indigo-500" />
           <span>{today()}</span>
         </div>
 
-        <div className="hidden sm:block h-8 w-px bg-slate-200" />
+        <div className="hidden sm:block h-8 w-px bg-slate-200/60" />
 
         <div className="flex items-center gap-3">
           <div className="text-right hidden md:block">
             <p className="text-xs font-bold text-slate-900 leading-none capitalize">{user?.username}</p>
             <p className="text-[10px] text-slate-400 leading-none mt-1 uppercase tracking-tighter">{user?.role}</p>
           </div>
-          <button
-            onClick={logout}
-            className="flex items-center justify-center text-slate-400 hover:text-red-600 w-10 h-10 rounded-xl hover:bg-red-50 transition-all group"
+          <button 
+            onClick={logout} 
+            className="w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition-all border border-transparent hover:border-red-100"
             title="Keluar"
           >
-            <LogOut size={18} className="group-hover:translate-x-0.5 transition-transform" />
+            <LogOut size={16} />
           </button>
         </div>
       </div>

@@ -43,10 +43,10 @@ function InteractiveKPICard({ label, value, subtext, variant = 'primary', icon: 
 
   return (
     <div className={`relative overflow-hidden border rounded-3xl transition-all duration-300 shadow-sm hover:shadow-xl ${bgVariants[variant]} ${isOpen ? 'ring-2 ring-offset-2 ring-indigo-500' : ''}`}>
-      <div className="p-5 sm:p-6" onClick={() => setIsOpen(!isOpen)} style={{ cursor: 'pointer' }}>
-        <div className="flex justify-between items-start mb-4">
-          <div className={`p-3 rounded-2xl bg-gradient-to-br ${variants[variant]} text-white shadow-lg`}>
-            {Icon && <Icon size={20} />}
+      <div className="p-4 sm:p-5" onClick={() => setIsOpen(!isOpen)} style={{ cursor: 'pointer' }}>
+        <div className="flex justify-between items-start mb-3">
+          <div className={`p-2.5 rounded-2xl bg-gradient-to-br ${variants[variant]} text-white shadow-lg`}>
+            {Icon && <Icon size={18} />}
           </div>
           {details.length > 0 && (
             <div className={`p-1 rounded-full transition-transform duration-300 ${isOpen ? 'rotate-180 bg-slate-200' : 'bg-slate-100 text-slate-400'}`}>
@@ -55,17 +55,17 @@ function InteractiveKPICard({ label, value, subtext, variant = 'primary', icon: 
           )}
         </div>
         
-        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{label}</p>
-        <h3 className="text-xl sm:text-2xl font-black text-slate-900 leading-none mb-2">{value}</h3>
-        {subtext && <p className="text-[10px] font-bold text-slate-400 italic">{subtext}</p>}
+        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 truncate" title={label}>{label}</p>
+        <h3 className="text-lg sm:text-xl xl:text-lg 2xl:text-xl font-black text-slate-900 leading-tight mb-1 break-all">{value}</h3>
+        {subtext && <p className="text-[10px] font-bold text-slate-400 italic line-clamp-1">{subtext}</p>}
       </div>
 
       {isOpen && details.length > 0 && (
-        <div className="px-6 pb-6 pt-2 border-t border-slate-100 bg-white/50 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+        <div className="px-5 pb-5 pt-2 border-t border-slate-100 bg-white/50 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-300">
           {details.map((item, i) => (
-            <div key={i} className="flex justify-between items-center group">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider group-hover:text-slate-700 transition-colors">{item.label}</span>
-              <span className={`text-xs font-black ${item.className || 'text-slate-800'}`}>{item.value}</span>
+            <div key={i} className="flex justify-between items-center gap-2 group">
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider group-hover:text-slate-700 transition-colors truncate">{item.label}</span>
+              <span className={`text-[10px] font-black whitespace-nowrap ${item.className || 'text-slate-800'}`}>{item.value}</span>
             </div>
           ))}
         </div>
@@ -153,6 +153,80 @@ export default function Dashboard() {
   const sisaQuotaAnggaran = totalPagu - totalPengeluaran
   const persenTotal = persen(totalPengeluaran, totalPagu)
 
+  // Breakdown Pajak Terperinci
+  const pajakDetails = useMemo(() => {
+    const types = [
+      { id: 'ppn', label: 'PPN', regex: /PPN/i },
+      { id: 'pph21', label: 'PPh 21', regex: /PPh\s*21/i },
+      { id: 'pph22', label: 'PPh 22', regex: /PPh\s*22/i },
+      { id: 'pph23', label: 'PPh 23', regex: /PPh\s*23/i },
+      { id: 'pph4', label: 'PPh 4 (2)', regex: /PPh\s*(?:Pasal\s*)?4/i },
+    ]
+
+    const result = types.map(t => {
+      const dipungut = penerimaan
+        .filter(p => p.jenis === 'Pajak' && t.regex.test(p.keterangan || ''))
+        .reduce((s, p) => s + p.jumlah, 0)
+      
+      const disetor = pengeluaran
+        .filter(p => {
+          const u = p.pengeluaran_rincian?.length > 0
+            ? p.pengeluaran_rincian.map(r => r.uraian).join(', ')
+            : p.keterangan || ''
+          return u.startsWith('Setoran PP') && t.regex.test(u)
+        })
+        .reduce((s, p) => s + p.jumlah, 0)
+
+      return { ...t, dipungut, disetor }
+    })
+
+    return result
+  }, [penerimaan, pengeluaran])
+
+  const totalPajakDipungut = useMemo(() => pajakDetails.reduce((s, p) => s + p.dipungut, 0), [pajakDetails])
+  const totalPajakDisetor = useMemo(() => pajakDetails.reduce((s, p) => s + p.disetor, 0), [pajakDetails])
+
+  const INDO_MONTHS = useMemo(() => [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ], [])
+
+  const monthlyRecap = useMemo(() => {
+    let year = new Date().getFullYear()
+    const firstWithDate = pengeluaran.find(p => p.tanggal)
+    if (firstWithDate) {
+      const pYear = parseInt(firstWithDate.tanggal.split('-')[0], 10)
+      if (!isNaN(pYear)) year = pYear
+    }
+
+    const list = INDO_MONTHS.map((monthName, monthIdx) => ({
+      key: `${year}-${String(monthIdx + 1).padStart(2, '0')}`,
+      year,
+      monthName,
+      totalGU: 0,
+      totalLS: 0,
+      totalAll: 0
+    }))
+    
+    pengeluaran.forEach(p => {
+      if (!p.tanggal) return
+      const parts = p.tanggal.split('-')
+      if (parts.length < 2) return
+      const monthIdx = parseInt(parts[1], 10) - 1
+      if (isNaN(monthIdx) || monthIdx < 0 || monthIdx > 11) return
+      
+      const jumlah = p.jumlah ?? 0
+      if (p.jenis === 'LS') {
+        list[monthIdx].totalLS += jumlah
+      } else if (p.jenis === 'GU') {
+        list[monthIdx].totalGU += jumlah
+      }
+      list[monthIdx].totalAll += jumlah
+    })
+    
+    return list
+  }, [pengeluaran, INDO_MONTHS])
+
   if (isLoading && subKegiatan.length === 0) {
     return <div className="flex items-center justify-center h-64"><Spinner size={28} /></div>
   }
@@ -160,7 +234,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-4 sm:space-y-6 pb-12">
       {/* KPI Cards Interaktif */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6">
         <InteractiveKPICard 
           label="Total Penerimaan" 
           value={formatRupiah(totalPenerimaan)} 
@@ -183,6 +257,21 @@ export default function Dashboard() {
             { label: 'Belanja LS', value: formatRupiah(pengeluaranLS) },
             { label: 'Belanja GU', value: formatRupiah(pengeluaranGU) },
             { label: 'Setoran Pajak', value: formatRupiah(pengeluaranPajak), className: 'text-red-600' }
+          ]}
+        />
+        <InteractiveKPICard 
+          label="Status Pajak" 
+          value={formatRupiah(totalPajakDipungut)} 
+          variant="warning"
+          icon={PieIcon}
+          subtext={`${formatRupiah(totalPajakDisetor)} telah disetor`}
+          details={[
+            ...pajakDetails.map(p => ({
+              label: p.label,
+              value: `${formatRupiah(p.dipungut)} / ${formatRupiah(p.disetor)}`,
+              className: p.dipungut > p.disetor ? 'text-amber-600' : 'text-emerald-600'
+            })),
+            { label: 'Sisa Belum Setor', value: formatRupiah(totalPajakDipungut - totalPajakDisetor), className: 'text-red-600 border-t pt-1 mt-1' }
           ]}
         />
         <InteractiveKPICard 
@@ -211,12 +300,48 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6">
-        <Card>
-          <h2 className="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
-            <span className="w-1 h-4 bg-emerald-600 rounded-full" />
-            Detail Realisasi Anggaran (Drill-down Hierarkis)
-          </h2>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        <div className="xl:col-span-5">
+          <Card>
+            <h2 className="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
+              <span className="w-1 h-4 bg-indigo-600 rounded-full" />
+              Rekap Pengeluaran Bulanan (GU & LS)
+            </h2>
+            {monthlyRecap.length === 0 ? (
+              <EmptyState message="Belum ada data pengeluaran" />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                      <th className="py-3 px-4">Bulan</th>
+                      <th className="py-3 px-4 text-right">Belanja GU</th>
+                      <th className="py-3 px-4 text-right">Belanja LS</th>
+                      <th className="py-3 px-4 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50 font-bold text-slate-700">
+                    {monthlyRecap.map(item => (
+                      <tr key={item.key} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3.5 px-4 font-black text-slate-900">{item.monthName} {item.year}</td>
+                        <td className="py-3.5 px-4 text-right text-emerald-600">{formatRupiah(item.totalGU)}</td>
+                        <td className="py-3.5 px-4 text-right text-blue-600">{formatRupiah(item.totalLS)}</td>
+                        <td className="py-3.5 px-4 text-right text-slate-900 font-black">{formatRupiah(item.totalAll)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
+
+        <div className="xl:col-span-7">
+          <Card>
+            <h2 className="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
+              <span className="w-1 h-4 bg-emerald-600 rounded-full" />
+              Detail Realisasi Anggaran (Drill-down Hierarkis)
+            </h2>
           {hierarchicalData.length === 0 ? (
             <EmptyState message="Belum ada data anggaran" />
           ) : (
@@ -338,7 +463,8 @@ export default function Dashboard() {
               ))}
             </div>
           )}
-        </Card>
+          </Card>
+        </div>
       </div>
     </div>
   )

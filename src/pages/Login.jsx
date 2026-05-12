@@ -23,7 +23,7 @@ export default function Login() {
     // Artificial delay for feedback
     await new Promise(resolve => setTimeout(resolve, 500))
     
-    const success = login(username, password)
+    const success = await login(username, password)
     if (success) {
       navigate('/dashboard', { replace: true })
     } else {
@@ -61,6 +61,7 @@ export default function Login() {
                 required
                 autoFocus
                 disabled={isSubmitting}
+                autoComplete="username"
               />
               
               <div className="relative">
@@ -72,6 +73,7 @@ export default function Login() {
                   placeholder="Masukkan password"
                   required
                   disabled={isSubmitting}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"

@@ -174,6 +174,16 @@ const createPengeluaranSlice = (set, get) => ({
     } catch (err) { return { success: false, error: err.message } }
     finally { set({ isLoading: false }) }
   },
+  updateBkuUrutan: async (items) => {
+    try {
+      const res = await window.api.updateBkuUrutan(items)
+      if (res && res.success) {
+        await get().fetchPenerimaan()
+        await get().fetchPengeluaran()
+      }
+      return res
+    } catch (err) { return { success: false, error: err.message } }
+  }
 })
 
 export const useStore = create((set, get) => ({

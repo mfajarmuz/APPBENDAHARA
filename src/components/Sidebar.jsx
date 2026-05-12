@@ -5,6 +5,7 @@ import {
   ArrowUpCircle,
   BookOpen,
   FileText,
+  Calculator,
   Settings as SettingsIcon,
 } from 'lucide-react'
 
@@ -14,58 +15,57 @@ const navItems = [
   { to: '/pengeluaran', icon: ArrowUpCircle, label: 'Pengeluaran' },
   { to: '/anggaran', icon: BookOpen, label: 'Anggaran / DPA' },
   { to: '/laporan', icon: FileText, label: 'Laporan' },
+  { to: '/pajak', icon: Calculator, label: 'Kalkulator Pajak' },
   { to: '/settings', icon: SettingsIcon, label: 'Pengaturan' },
 ]
 
-export default function Sidebar({ onClose }) {
+export default function Sidebar({ onClose, isCollapsed = false }) {
   return (
-    <aside
-      className="sidebar-scroll flex flex-col h-full overflow-y-auto bg-slate-900 border-r border-slate-800"
-      style={{ width: 220, minWidth: 220 }}
-    >
-      {/* Logo / Nama Unit */}
-      <div className="px-4 py-6 border-b border-slate-700/50">
-        <div className="flex items-center gap-3 mb-2">
-          <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold shadow-lg"
-            style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}
-          >
+    <aside className={`bg-slate-900 h-full flex flex-col shadow-xl transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'}`}>
+      <div className={`p-6 border-b border-slate-800/50 flex flex-col ${isCollapsed ? 'items-center justify-center p-4' : ''}`}>
+        <div className="flex items-center gap-3 mb-1">
+          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black shadow-lg shadow-indigo-500/20 shrink-0">
             B
           </div>
-          <span className="text-white font-bold text-sm">Bendahara</span>
+          {!isCollapsed && <h2 className="text-lg font-bold text-white tracking-tight">Bendahara</h2>}
         </div>
-        <p className="text-slate-400 text-[11px] leading-snug pl-11 font-medium">
-          UPTD BAPENDA<br />Kab. Tasikmalaya
-        </p>
+        {!isCollapsed && (
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-tight">
+            UPTD BAPENDA<br />Kab. Tasikmalaya
+          </p>
+        )}
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map(({ to, icon: Icon, label }) => (
+      <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+        {navItems.map((item) => (
           <NavLink
-            key={to}
-            to={to}
+            key={item.to}
+            to={item.to}
             onClick={onClose}
+            title={isCollapsed ? item.label : ''}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+              `flex items-center rounded-xl text-sm font-bold transition-all duration-200 group ${
+                isCollapsed ? 'justify-center p-3' : 'gap-3 px-4 py-3'
+              } ${
                 isActive
-                  ? 'bg-accent text-white shadow-lg'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
               }`
             }
           >
-            <Icon size={18} />
-            <span>{label}</span>
+            <item.icon size={20} className="transition-transform duration-200 group-hover:scale-110 shrink-0" />
+            {!isCollapsed && <span>{item.label}</span>}
           </NavLink>
         ))}
       </nav>
 
-      {/* Info Tahun Anggaran */}
-      <div className="px-4 py-5 border-t border-slate-700/50 bg-slate-800/30">
-        <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold mb-2">
-          Tahun Anggaran
-        </p>
-        <p className="text-white font-bold text-lg">2026</p>
+      <div className={`p-6 bg-slate-950/50 border-t border-slate-800/30 flex flex-col ${isCollapsed ? 'items-center justify-center p-4' : ''}`}>
+        {!isCollapsed && (
+          <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold mb-2">
+            Tahun Anggaran
+          </p>
+        )}
+        <p className={`text-white font-bold ${isCollapsed ? 'text-xs' : 'text-lg'}`}>{new Date().getFullYear()}</p>
       </div>
     </aside>
   )

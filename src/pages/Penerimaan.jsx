@@ -14,13 +14,14 @@ import EmptyState from '@/components/ui/EmptyState'
 import Spinner from '@/components/ui/Spinner'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
-const EMPTY_FORM = { jenis: 'LS', tanggal: '', no_sp2d: '', sub_kegiatan_id: '', kode_rekening_id: '', jumlah: '', ppn: '', pph: '', pph_jenis: 'PPh 23', keterangan: '' }
+const EMPTY_FORM = { jenis: 'LS', tanggal: new Date().toISOString().split('T')[0], nomor_ls: '', sub_kegiatan_id: '', kode_rekening_id: '', jumlah: '', ppn: '', pph: '', pph_jenis: 'PPh 23', keterangan: '', langsung_bayar: false }
 
 const JENIS_OPTIONS = [
   { value: 'UP', label: 'UP (Uang Persediaan)' },
   { value: 'GU', label: 'GU (Ganti Uang)' },
   { value: 'LS', label: 'LS' },
-  { value: 'Pajak', label: 'Pajak' }
+  { value: 'Pajak', label: 'Pajak' },
+  { value: 'Pajak LS', label: 'Pajak LS' }
 ]
 
 const PPH_OPTIONS = [
@@ -39,6 +40,7 @@ export default function Penerimaan() {
   const fetchPenerimaan = useStore(s => s.fetchPenerimaan)
   const fetchSubKegiatan = useStore(s => s.fetchSubKegiatan)
   const addPenerimaan = useStore(s => s.addPenerimaan)
+  const addPengeluaran = useStore(s => s.addPengeluaran)
   const updatePenerimaan = useStore(s => s.updatePenerimaan)
   const deletePenerimaan = useStore(s => s.deletePenerimaan)
 
@@ -74,7 +76,7 @@ export default function Penerimaan() {
         if (d.getMonth() !== parseInt(filterBulan, 10)) return false
       }
       if (filterJenis && p.jenis !== filterJenis) return false
-      if (searchNo && !(p.no_sp2d || '').toLowerCase().includes(searchNo.toLowerCase())) return false
+      if (searchNo && !(p.nomor_ls || '').toLowerCase().includes(searchNo.toLowerCase())) return false
       if (searchKet && !(p.keterangan || '').toLowerCase().includes(searchKet.toLowerCase())) return false
       return true
     }).sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
@@ -82,7 +84,7 @@ export default function Penerimaan() {
 
   function openNew() {
     setEditing(null)
-    setForm(EMPTY_FORM)
+    setForm({ ...EMPTY_FORM, tanggal: new Date().toISOString().split('T')[0] })
     setErrors({})
     setModalOpen(true)
   }
@@ -92,7 +94,7 @@ export default function Penerimaan() {
     setForm({
       jenis: item.jenis ?? 'LS',
       tanggal: item.tanggal ?? '',
-      no_sp2d: item.no_sp2d ?? '',
+      nomor_ls: item.nomor_ls ?? '',
       sub_kegiatan_id: item.sub_kegiatan_id ?? '',
       kode_rekening_id: item.kode_rekening_id ?? '',
       jumlah: String(item.jumlah ?? ''),
@@ -100,6 +102,7 @@ export default function Penerimaan() {
       pph: '',
       pph_jenis: 'PPh 23',
       keterangan: item.keterangan ?? '',
+      langsung_bayar: false,
     })
     setErrors({})
     setModalOpen(true)
@@ -124,58 +127,120 @@ export default function Penerimaan() {
     setSaving(true)
     try {
       let res;
+      let rawKet = form.keterangan || ''
+      
+      // Bersihkan prefix jika ada (mencegah duplikasi jika diedit ulang)
+      rawKet = rawKet.replace(/^(diterima belanja|dibayar belanja|belanja|diterima|dibayar)\s+/i, '').trim()
+
       if (editing) {
         const payload = {
           jenis: form.jenis,
           tanggal: form.tanggal,
-          no_sp2d: form.no_sp2d || null,
+          nomor_ls: form.nomor_ls || null,
           sub_kegiatan_id: form.jenis === 'LS' ? form.sub_kegiatan_id : null,
           kode_rekening_id: form.jenis === 'LS' ? form.kode_rekening_id : null,
           jumlah: parseInt(form.jumlah, 10),
-          keterangan: form.keterangan || null,
+          keterangan: rawKet || null,
         }
         res = await updatePenerimaan({ id: editing.id, ...payload })
       } else {
         const payloads = []
         
-        // 1. LS Utama
+        // 1. LS Utama (Penerimaan)
+        const ketPenerimaan = form.jenis === 'LS' ? `Diterima Belanja ${rawKet}`.trim() : rawKet
         payloads.push({
           jenis: form.jenis,
           tanggal: form.tanggal,
-          no_sp2d: form.no_sp2d || null,
+          nomor_ls: form.nomor_ls || null,
           sub_kegiatan_id: form.jenis === 'LS' ? form.sub_kegiatan_id : null,
           kode_rekening_id: form.jenis === 'LS' ? form.kode_rekening_id : null,
           jumlah: parseInt(form.jumlah, 10),
-          keterangan: form.keterangan || null,
+          keterangan: ketPenerimaan || null,
         })
 
-        // 2. Pajak PPN (jika ada dan jenisnya LS)
+        // 2. Pajak PPN (Penerimaan/Pungutan)
         if (form.jenis === 'LS' && form.ppn && parseInt(form.ppn, 10) > 0) {
           payloads.push({
-            jenis: 'Pajak',
+            jenis: 'Pajak LS',
             tanggal: form.tanggal,
-            no_sp2d: form.no_sp2d || null,
+            nomor_ls: form.nomor_ls || null,
             sub_kegiatan_id: form.sub_kegiatan_id,
             kode_rekening_id: form.kode_rekening_id,
             jumlah: parseInt(form.ppn, 10),
-            keterangan: `PPN dari LS ${form.no_sp2d || ''}`.trim(),
+            keterangan: 'Diterima PPN',
           })
         }
 
-        // 3. Pajak PPh (jika ada dan jenisnya LS)
+        // 3. Pajak PPh (Penerimaan/Pungutan)
         if (form.jenis === 'LS' && form.pph && parseInt(form.pph, 10) > 0) {
           payloads.push({
-            jenis: 'Pajak',
+            jenis: 'Pajak LS',
             tanggal: form.tanggal,
-            no_sp2d: form.no_sp2d || null,
+            nomor_ls: form.nomor_ls || null,
             sub_kegiatan_id: form.sub_kegiatan_id,
             kode_rekening_id: form.kode_rekening_id,
             jumlah: parseInt(form.pph, 10),
-            keterangan: `${form.pph_jenis || 'PPh'} dari LS ${form.no_sp2d || ''}`.trim(),
+            keterangan: `Diterima ${form.pph_jenis || 'PPh'}`,
           })
         }
 
         res = await addPenerimaan(payloads)
+
+        // OTOMATIS BAYAR (Jika Opsi Dipilih)
+        if (res && res.success && form.jenis === 'LS' && form.langsung_bayar) {
+          const amount = parseInt(form.jumlah, 10)
+          const ketPengeluaran = `Dibayar Belanja ${rawKet}`.trim()
+          
+          // 1. Pengeluaran Utama
+          await addPengeluaran({
+            pengeluaran: {
+              tanggal: form.tanggal,
+              jenis: 'LS',
+              no_bukti: form.nomor_ls || `LS-${Date.now()}`,
+              sub_kegiatan_id: form.sub_kegiatan_id,
+              kode_rekening_id: form.kode_rekening_id,
+              jumlah: amount,
+              keterangan: ketPengeluaran || null,
+            },
+            rincian: [{
+              uraian: ketPengeluaran || 'Pembayaran LS',
+              volume: null,
+              jumlah: amount,
+            }]
+          })
+
+          // 2. Setoran PPN (Pengeluaran)
+          if (form.ppn && parseInt(form.ppn, 10) > 0) {
+            await addPengeluaran({
+              pengeluaran: {
+                tanggal: form.tanggal,
+                jenis: 'Pajak LS',
+                no_bukti: form.nomor_ls || `LS-${Date.now()}`,
+                sub_kegiatan_id: form.sub_kegiatan_id,
+                kode_rekening_id: form.kode_rekening_id,
+                jumlah: parseInt(form.ppn, 10),
+                keterangan: 'Disetor PPN',
+              },
+              rincian: []
+            })
+          }
+
+          // 3. Setoran PPh (Pengeluaran)
+          if (form.pph && parseInt(form.pph, 10) > 0) {
+            await addPengeluaran({
+              pengeluaran: {
+                tanggal: form.tanggal,
+                jenis: 'Pajak LS',
+                no_bukti: form.nomor_ls || `LS-${Date.now()}`,
+                sub_kegiatan_id: form.sub_kegiatan_id,
+                kode_rekening_id: form.kode_rekening_id,
+                jumlah: parseInt(form.pph, 10),
+                keterangan: `Disetor ${form.pph_jenis || 'PPh'}`,
+              },
+              rincian: []
+            })
+          }
+        }
       }
       
       if (res && !res.success) {
@@ -325,7 +390,6 @@ return (
           <tr className="bg-bg/50 border-b border-border">
             <th className="text-left text-xs font-medium text-text-secondary px-5 py-3">Tanggal</th>
             <th className="text-left text-xs font-medium text-text-secondary px-5 py-3">Jenis</th>
-            <th className="text-left text-xs font-medium text-text-secondary px-5 py-3">No. Referensi / LS</th>
             <th className="text-left text-xs font-medium text-text-secondary px-5 py-3">Keterangan</th>
             <th className="text-right text-xs font-medium text-text-secondary px-5 py-3">Jumlah</th>
             <th className="px-5 py-3" />
@@ -339,7 +403,6 @@ return (
                   >
                     <td className="px-5 py-3 text-text-secondary text-xs">{formatTanggal(item.tanggal)}</td>
                     <td className="px-5 py-3 font-medium text-text-primary">{item.jenis ?? 'LS'}</td>
-                    <td className="px-5 py-3 font-medium text-text-primary">{item.no_sp2d ?? '-'}</td>
                     <td className="px-5 py-3 text-text-secondary text-xs max-w-xs truncate">{item.keterangan ?? '-'}</td>
                     <td className="px-5 py-3 text-right font-semibold text-success">{formatRupiah(item.jumlah)}</td>
                     <td className="px-5 py-3">
@@ -423,8 +486,8 @@ return (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="No. Referensi / LS"
-              value={form.no_sp2d}
-              onChange={e => setForm(f => ({ ...f, no_sp2d: e.target.value }))}
+              value={form.nomor_ls}
+              onChange={e => setForm(f => ({ ...f, nomor_ls: e.target.value }))}
               placeholder="Contoh: 23/LS/2026"
             />
             <Input
@@ -441,7 +504,20 @@ return (
           </div>
 
           {form.jenis === 'LS' && !editing && (
-            <div className="space-y-4">
+            <div className="space-y-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+              <div className="flex items-center gap-2 mb-2">
+                <input
+                  type="checkbox"
+                  id="langsung_bayar"
+                  checked={form.langsung_bayar}
+                  onChange={e => setForm(f => ({ ...f, langsung_bayar: e.target.checked }))}
+                  className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-slate-300 rounded cursor-pointer"
+                />
+                <label htmlFor="langsung_bayar" className="text-xs font-black text-indigo-700 cursor-pointer uppercase tracking-tight">
+                  Dapat langsung dibayarkan beserta dengan pajaknya
+                </label>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   label="PPN (Opsional)"
@@ -484,7 +560,7 @@ return (
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setModalOpen(false)} type="button">Batal</Button>
             <Button type="submit" disabled={saving}>
-              {saving ? 'Menyimpan...' : editing ? 'Simpan Perubahan' : 'Simpan'}
+              {saving ? 'Menyimpan...' : editing ? 'Simpan Perubahan' : form.langsung_bayar ? 'Simpan & Bayar' : 'Simpan'}
             </Button>
           </div>
         </form>

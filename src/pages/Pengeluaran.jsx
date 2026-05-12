@@ -62,6 +62,7 @@ export default function Pengeluaran() {
   
   // Advanced Filters
   const [filterBulan, setFilterBulan] = useState('')
+  const [filterJenis, setFilterJenis] = useState('')
   const [filterProgram, setFilterProgram] = useState('')
   const [filterKegiatan, setFilterKegiatan] = useState('')
   const [filterSubKegiatan, setFilterSubKegiatan] = useState('')
@@ -87,6 +88,7 @@ export default function Pengeluaran() {
 
   const resetFilters = () => {
     setFilterBulan('')
+    setFilterJenis('')
     setFilterProgram('')
     setFilterKegiatan('')
     setFilterSubKegiatan('')
@@ -147,6 +149,7 @@ export default function Pengeluaran() {
         const d = new Date(p.tanggal)
         if (d.getMonth() !== parseInt(filterBulan, 10)) return false
       }
+      if (filterJenis && p.jenis !== filterJenis) return false
       if (filterProgram && p.sub_kegiatan?.kegiatan?.program_id !== filterProgram) return false
       if (filterKegiatan && p.sub_kegiatan?.kegiatan_id !== filterKegiatan) return false
       if (filterSubKegiatan && p.sub_kegiatan_id !== filterSubKegiatan) return false
@@ -184,7 +187,7 @@ export default function Pengeluaran() {
       if (aValue > bValue) return direction === 'asc' ? 1 : -1
       return 0
     })
-  }, [pengeluaran, filterBulan, filterProgram, filterKegiatan, filterSubKegiatan, filterKodeRekening, searchQuery, sortConfig])
+  }, [pengeluaran, filterBulan, filterJenis, filterProgram, filterKegiatan, filterSubKegiatan, filterKodeRekening, searchQuery, sortConfig])
 
   const selectedSk = useMemo(
     () => subKegiatan.find(sk => sk.id === form.sub_kegiatan_id) ?? null,
@@ -378,13 +381,14 @@ export default function Pengeluaran() {
             const amount = parseInt(form.pph, 10)
             const desc = rincian[0]?.uraian || 'Belanja'
             const jenisPph = form.pph_jenis || 'PPh'
+            const jenisPajak = form.jenis === 'LS' ? 'Pajak LS' : 'Pajak'
             
             // Pungutan (Penerimaan)
             if (form.pajak_pungut !== false) {
               taxPenerimaanPayloads.push({
-                jenis: 'Pajak',
+                jenis: jenisPajak,
                 tanggal: form.tanggal,
-                no_sp2d: bgNoBukti,
+                nomor_ls: bgNoBukti,
                 sub_kegiatan_id: form.sub_kegiatan_id,
                 kode_rekening_id: form.kode_rekening_id,
                 jumlah: amount,
@@ -396,7 +400,7 @@ export default function Pengeluaran() {
             taxPengeluaranPayloads.push({
               pengeluaran: {
                 tanggal: form.tanggal,
-                jenis: 'Pajak',
+                jenis: jenisPajak,
                 no_bukti: bgNoBukti,
                 sub_kegiatan_id: form.sub_kegiatan_id,
                 kode_rekening_id: form.kode_rekening_id,
@@ -464,13 +468,16 @@ export default function Pengeluaran() {
     }
   }
 
-  const handleDownloadTemplate = () => {
-    const link = document.createElement('a')
-    link.href = './template-pengeluaran.xlsx'
-    link.download = 'template-pengeluaran.xlsx'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await window.api.downloadTemplate('template-pengeluaran.xlsx')
+      if (res && res.success) {
+        // Success (user saved the file)
+      }
+    } catch (err) {
+      console.error('Download Template Error:', err)
+      window.alert('Gagal mengunduh template: ' + err.message)
+    }
   }
 
   const skOptions = subKegiatan.map(sk => ({ value: sk.id, label: `${sk.kode} — ${sk.nama}` }))
@@ -541,6 +548,21 @@ export default function Pengeluaran() {
             >
               <option value="">Semua Bulan</option>
               {BULAN.map((b, i) => <option key={i} value={i}>{b}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 block pl-1">Jenis</label>
+            <select
+              value={filterJenis}
+              onChange={e => setFilterJenis(e.target.value)}
+              className="w-full text-xs font-bold border border-slate-200 rounded-xl px-3 py-2.5 bg-slate-50 text-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none appearance-none"
+            >
+              <option value="">Semua Jenis</option>
+              <option value="GU">GU (Ganti Uang)</option>
+              <option value="LS">LS (Langsung)</option>
+              <option value="Pajak">Pajak</option>
+              <option value="Pajak LS">Pajak LS</option>
             </select>
           </div>
 
@@ -652,10 +674,7 @@ export default function Pengeluaran() {
                   
                   let rincianText = item.pengeluaran_rincian?.length > 0
                     ? item.pengeluaran_rincian.map(r => r.uraian).join(', ')
-                    : item.keterangan || 'belanja'
-                  
-                  rincianText = rincianText.replace(/^(dibayar|kegiatan)\s+/i, '').trim()
-                  const parentName = keg?.nama || subK?.nama || '-'
+                    : item.keterangan || '-'
 
                   return (
                     <tr key={item.id} className="hover:bg-indigo-50/30 transition-colors group">
@@ -679,7 +698,7 @@ export default function Pengeluaran() {
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-xs text-slate-800 font-medium leading-relaxed">
-                          Dibayar {rincianText} pada kegiatan {parentName}
+                          {rincianText}
                         </p>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -795,6 +814,16 @@ export default function Pengeluaran() {
                       className="text-indigo-600 focus:ring-indigo-500 w-4 h-4"
                     />
                     Pajak
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="jenis"
+                      checked={form.jenis === 'Pajak LS'}
+                      onChange={() => setForm(f => ({ ...f, jenis: 'Pajak LS' }))}
+                      className="text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                    />
+                    Pajak LS
                   </label>
                 </div>
               </div>

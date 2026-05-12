@@ -27,8 +27,11 @@ export default function Anggaran() {
   const fetchPengeluaran = useStore(s => s.fetchPengeluaran)
   
   const updateProgram = useStore(s => s.updateProgram)
+  const addProgram = useStore(s => s.addProgram)
   const updateKegiatan = useStore(s => s.updateKegiatan)
+  const addKegiatan = useStore(s => s.addKegiatan)
   const updateSubKegiatan = useStore(s => s.updateSubKegiatan)
+  const addSubKegiatan = useStore(s => s.addSubKegiatan)
   const deleteSubKegiatan = useStore(s => s.deleteSubKegiatan)
   
   const addKodeRekening = useStore(s => s.addKodeRekening)
@@ -95,35 +98,60 @@ export default function Anggaran() {
   const toggleExpand = (id) => setExpanded(e => ({ ...e, [id]: !e[id] }))
 
   // Sub Kegiatan
+  function openNewSk(kegId) {
+    setEditingSk(null)
+    setSkForm({ ...EMPTY_SK, kegiatan_id: kegId })
+    setSkModal(true)
+  }
   function openEditSk(sk) {
     setEditingSk(sk)
-    setSkForm({ kode: sk.kode, nama: sk.nama, sumber_dana: sk.sumber_dana, tahun_anggaran: String(sk.tahun_anggaran) })
+    setSkForm({ kode: sk.kode, nama: sk.nama, sumber_dana: sk.sumber_dana, tahun_anggaran: String(sk.tahun_anggaran), kegiatan_id: sk.kegiatan_id })
     setSkModal(true)
   }
   async function handleSkSubmit(e) {
     e.preventDefault(); setSaving(true)
     try {
-      await updateSubKegiatan({ id: editingSk.id, ...skForm, tahun_anggaran: parseInt(skForm.tahun_anggaran, 10) })
+      const payload = { ...skForm, tahun_anggaran: parseInt(skForm.tahun_anggaran, 10) }
+      if (editingSk) await updateSubKegiatan({ id: editingSk.id, ...payload })
+      else await addSubKegiatan(payload)
       setSkModal(false)
     } catch (err) { alert(err.message) } finally { setSaving(false) }
   }
 
   // Program
+  function openNewProg() {
+    setEditingProgId(null)
+    setProgForm(EMPTY_PARENT)
+    setProgModal(true)
+  }
   function openEditProg(prog) {
     setEditingProgId(prog.id); setProgForm({ kode: prog.kode, nama: prog.nama }); setProgModal(true)
   }
   async function handleProgSubmit(e) {
     e.preventDefault(); setSaving(true)
-    try { await updateProgram(editingProgId, progForm); setProgModal(false) } catch (err) { alert(err.message) } finally { setSaving(false) }
+    try { 
+      if (editingProgId) await updateProgram(editingProgId, progForm); 
+      else await addProgram(progForm);
+      setProgModal(false) 
+    } catch (err) { alert(err.message) } finally { setSaving(false) }
   }
 
   // Kegiatan
+  function openNewKeg(progId) {
+    setEditingKegId(null)
+    setKegForm({ ...EMPTY_PARENT, program_id: progId })
+    setKegModal(true)
+  }
   function openEditKeg(keg) {
-    setEditingKegId(keg.id); setKegForm({ kode: keg.kode, nama: keg.nama }); setKegModal(true)
+    setEditingKegId(keg.id); setKegForm({ kode: keg.kode, nama: keg.nama, program_id: keg.program_id }); setKegModal(true)
   }
   async function handleKegSubmit(e) {
     e.preventDefault(); setSaving(true)
-    try { await updateKegiatan(editingKegId, kegForm); setKegModal(false) } catch (err) { alert(err.message) } finally { setSaving(false) }
+    try { 
+      if (editingKegId) await updateKegiatan(editingKegId, kegForm); 
+      else await addKegiatan(kegForm);
+      setKegModal(false) 
+    } catch (err) { alert(err.message) } finally { setSaving(false) }
   }
 
   // Rekening
@@ -161,11 +189,16 @@ export default function Anggaran() {
               </h1>
             </div>
           </div>
-          <div className="bg-slate-50 px-6 py-3 rounded-xl border border-slate-100 text-right">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Pagu Anggaran</p>
-            <p className="text-xl font-black text-slate-800">
-              {formatRupiah(hierarchicalData.reduce((s, p) => s + p.totalPagu, 0))}
-            </p>
+          <div className="flex items-center gap-4">
+            <div className="bg-slate-50 px-6 py-3 rounded-xl border border-slate-100 text-right">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Pagu Anggaran</p>
+              <p className="text-xl font-black text-slate-800">
+                {formatRupiah(hierarchicalData.reduce((s, p) => s + p.totalPagu, 0))}
+              </p>
+            </div>
+            <Button onClick={openNewProg} className="h-12 shadow-md shadow-indigo-600/20">
+              <Plus size={18} /> Tambah Program
+            </Button>
           </div>
         </div>
       </div>
@@ -189,6 +222,13 @@ export default function Anggaran() {
                   title="Edit Program"
                 >
                   <Pencil size={14} />
+                </button>
+                <button 
+                  onClick={() => openNewKeg(prog.id)} 
+                  className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
+                  title="Tambah Kegiatan"
+                >
+                  <Plus size={14} />
                 </button>
               </div>
               <div className="text-right">
@@ -218,6 +258,13 @@ export default function Anggaran() {
                             title="Edit Kegiatan"
                           >
                             <Pencil size={12} />
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); openNewSk(keg.id) }} 
+                            className="p-1 bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 rounded-md transition-all shadow-sm"
+                            title="Tambah Sub Kegiatan"
+                          >
+                            <Plus size={12} />
                           </button>
                         </div>
                         <h3 className="text-xs font-bold text-slate-700 uppercase leading-none">{keg.nama}</h3>
@@ -333,7 +380,7 @@ export default function Anggaran() {
       )}
 
       {/* Modals */}
-      <Modal open={progModal} onClose={() => setProgModal(false)} title="Edit Program">
+      <Modal open={progModal} onClose={() => setProgModal(false)} title={editingProgId ? 'Edit Program' : 'Tambah Program'}>
         <form onSubmit={handleProgSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Kode Program" value={progForm.kode} onChange={e => setProgForm({...progForm, kode: e.target.value})} required />
@@ -341,12 +388,12 @@ export default function Anggaran() {
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <Button variant="secondary" onClick={() => setProgModal(false)} type="button">Batal</Button>
-            <Button type="submit" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Perubahan'}</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan'}</Button>
           </div>
         </form>
       </Modal>
 
-      <Modal open={kegModal} onClose={() => setKegModal(false)} title="Edit Kegiatan">
+      <Modal open={kegModal} onClose={() => setKegModal(false)} title={editingKegId ? 'Edit Kegiatan' : 'Tambah Kegiatan'}>
         <form onSubmit={handleKegSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Kode Kegiatan" value={kegForm.kode} onChange={e => setKegForm({...kegForm, kode: e.target.value})} required />
@@ -354,12 +401,12 @@ export default function Anggaran() {
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <Button variant="secondary" onClick={() => setKegModal(false)} type="button">Batal</Button>
-            <Button type="submit" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Perubahan'}</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan'}</Button>
           </div>
         </form>
       </Modal>
 
-      <Modal open={skModal} onClose={() => setSkModal(false)} title="Edit Sub Kegiatan">
+      <Modal open={skModal} onClose={() => setSkModal(false)} title={editingSk ? 'Edit Sub Kegiatan' : 'Tambah Sub Kegiatan'}>
         <form onSubmit={handleSkSubmit} className="space-y-4">
           <Input label="Kode Sub Kegiatan" value={skForm.kode} onChange={e => setSkForm({...skForm, kode: e.target.value})} required />
           <Input label="Nama Sub Kegiatan" value={skForm.nama} onChange={e => setSkForm({...skForm, nama: e.target.value})} required />
@@ -369,7 +416,7 @@ export default function Anggaran() {
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <Button variant="secondary" onClick={() => setSkModal(false)} type="button">Batal</Button>
-            <Button type="submit" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Perubahan'}</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan'}</Button>
           </div>
         </form>
       </Modal>

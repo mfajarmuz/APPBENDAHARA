@@ -5,6 +5,7 @@ import Penerimaan from './pages/Penerimaan'
 import Pengeluaran from './pages/Pengeluaran'
 import Anggaran from './pages/Anggaran'
 import Laporan from './pages/Laporan'
+import KalkulatorPajak from './pages/KalkulatorPajak'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
 import { useStore } from './store/useStore'
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="pengeluaran" element={<Pengeluaran />} />
           <Route path="anggaran" element={<Anggaran />} />
           <Route path="laporan" element={<Laporan />} />
+          <Route path="pajak" element={<KalkulatorPajak />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
