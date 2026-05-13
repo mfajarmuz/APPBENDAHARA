@@ -117,8 +117,8 @@ async function uploadFileToCMSFolder(localFilePath) {
     // 1. Dapatkan atau buat folder "Keuangan" di root Drive
     const keuanganFolderId = await getOrCreateFolder('Keuangan')
 
-    // 2. Dapatkan atau buat folder "CMS" di dalam "Keuangan"
-    const cmsFolderId = await getOrCreateFolder('CMS', keuanganFolderId)
+    // 2. Dapatkan atau buat folder "Bukti Bayar-Transfer" di dalam "Keuangan"
+    const cmsFolderId = await getOrCreateFolder('Bukti Bayar-Transfer', keuanganFolderId)
 
     // 3. Persiapkan metadata dan unggah file
     const fileName = path.basename(localFilePath)

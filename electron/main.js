@@ -390,7 +390,7 @@ ipcMain.handle('test-google-drive', async () => {
 
 ipcMain.handle('select-pdf-file', async () => {
   const result = await dialog.showOpenDialog({
-    title: 'Pilih Berkas PDF Pendukung CMS',
+    title: 'Pilih Berkas PDF Bukti Bayar/Transfer',
     properties: ['openFile'],
     filters: [{ name: 'Berkas PDF', extensions: ['pdf'] }]
   })

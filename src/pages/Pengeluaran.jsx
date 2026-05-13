@@ -749,7 +749,7 @@ export default function Pengeluaran() {
                               target="_blank"
                               rel="noreferrer"
                               className="p-2 bg-white border border-slate-200 text-emerald-600 hover:text-emerald-700 hover:border-emerald-200 hover:bg-emerald-50 rounded-xl shadow-sm transition-all flex items-center justify-center shrink-0"
-                              title={`Buka Lampiran: ${item.file_pdf_name || 'PDF CMS'}`}
+                              title={`Buka Lampiran: ${item.file_pdf_name || 'PDF Bukti Bayar/Transfer'}`}
                             >
                               <FileText size={15} />
                             </a>
@@ -870,9 +870,9 @@ export default function Pengeluaran() {
                 </div>
               )}
 
-              {/* Unggah Berkas CMS PDF */}
+              {/* Unggah Berkas Bukti Bayar/Transfer PDF */}
               <div className="space-y-1.5 mt-6 pt-6 border-t border-slate-100">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-1">Berkas PDF Pendukung CMS</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-1">Berkas PDF Pendukung Bukti Bayar/Transfer</label>
                 
                 {selectedPdf ? (
                   <div className="flex items-center justify-between bg-emerald-50 border border-emerald-100 p-3.5 rounded-xl text-xs font-bold text-emerald-800 animate-in zoom-in-95 shadow-sm">
@@ -906,7 +906,7 @@ export default function Pengeluaran() {
                       className="w-full flex flex-col sm:flex-row items-center justify-center gap-2 border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 text-slate-500 hover:text-indigo-600 px-4 py-4 rounded-2xl transition-all duration-300 text-xs font-bold group"
                     >
                       <Paperclip size={15} className="group-hover:rotate-45 transition-transform text-slate-400 group-hover:text-indigo-500" />
-                      <span>Pilih Lampiran PDF CMS</span>
+                      <span>Pilih Lampiran PDF Bukti Bayar/Transfer</span>
                     </button>
                     {editingItem?.file_pdf_name && (
                       <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-2 rounded-lg text-[10px]">
@@ -926,7 +926,7 @@ export default function Pengeluaran() {
                   </div>
                 )}
                 <p className="text-[9px] text-slate-400 pl-1 leading-tight">
-                  * Berkas otomatis diunggah ke Google Drive (Struktur: <span className="font-bold">Keuangan &gt; CMS</span>).
+                  * Berkas otomatis diunggah ke Google Drive (Struktur: <span className="font-bold">Keuangan &gt; Bukti Bayar/Transfer</span>).
                 </p>
               </div>
             </div>
