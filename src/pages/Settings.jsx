@@ -339,7 +339,7 @@ export default function Settings() {
                   <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
                   <div>
                     <p className="font-black uppercase tracking-wider text-[10px] text-emerald-700 mb-0.5">Koneksi Sukses!</p>
-                    <p className="font-medium opacity-90">Akun Google Drive pribadi Anda berhasil terhubung. Folder "Keuangan > Bukti Bayar-Transfer" akan otomatis dibuat di Drive utama Anda.</p>
+                    <p className="font-medium opacity-90">Akun Google Drive pribadi Anda berhasil terhubung. Folder "Keuangan / Bukti Bayar-Transfer" akan otomatis dibuat di Drive utama Anda.</p>
                   </div>
                 </>
               ) : (
