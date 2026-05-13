@@ -126,21 +126,30 @@ export function exportBKUPdf(rows, monthIndex, year = new Date().getFullYear(), 
     }
   })
 
-  let finalY = doc.lastAutoTable.finalY + 5
+  let finalY = doc.lastAutoTable.finalY + 8
+
+  // Hitung total tinggi blok closing + rincian + tanda tangan (~85mm)
+  const totalBlockHeight = 85
+  const pageHeight = doc.internal.pageSize.getHeight()
+  if (finalY + totalBlockHeight > pageHeight - 10) {
+    doc.addPage()
+    finalY = 20
+  }
+
   doc.setFontSize(8)
   const dayName = customDate ? new Date(customDate).toLocaleDateString('id-ID', { weekday: 'long' }) : new Date(year, monthIndex + 1, 0).toLocaleDateString('id-ID', { weekday: 'long' })
   const closingText = `Pada hari ${dayName} tanggal ${terbilang(lastDay)} bulan ${monthName} tahun ${terbilang(year)}, oleh kami Buku Kas Umum ditutup.`
   const wrappedClosing = doc.splitTextToSize(closingText, 180)
   doc.setFont('helvetica', 'normal')
-  doc.text(wrappedClosing, 14, finalY + 5)
-  let rincianY = finalY + 10 + (wrappedClosing.length * 2)
+  doc.text(wrappedClosing, 14, finalY)
+  let rincianY = finalY + 5 + (wrappedClosing.length * 3.5)
   const saldoTunai = 0; const saldoBank = saldo; const jumlahSaldo = saldoTunai + saldoBank
   doc.text('a. Saldo Tunai', 14, rincianY); doc.text(': Rp', 45, rincianY); doc.text(formatRupiah(saldoTunai).replace('Rp', '').trim(), 75, rincianY, { align: 'right' }); rincianY += 5
   doc.text('b. Saldo Bank', 14, rincianY); doc.text(': Rp', 45, rincianY); doc.text(formatRupiah(saldoBank).replace('Rp', '').trim(), 75, rincianY, { align: 'right' })
   doc.setLineWidth(0.2); doc.line(45, rincianY + 1.5, 77, rincianY + 1.5); doc.text('+', 79, rincianY + 1.5); rincianY += 5
   doc.text('Jumlah', 14, rincianY); doc.text(': Rp', 45, rincianY); doc.text(formatRupiah(jumlahSaldo).replace('Rp', '').trim(), 75, rincianY, { align: 'right' }); rincianY += 5
   doc.text('Kelebihan Rp,-.', 14, rincianY)
-  let signY = rincianY + 15; if (signY > 230) { doc.addPage(); signY = 20 }
+  let signY = rincianY + 15
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text('Mengetahui :', 14, signY)
   const kpaJabatanLines = doc.splitTextToSize(`${settings.kpa_jabatan},`, 80); doc.text(kpaJabatanLines, 14, signY + 5)
   doc.text(`${settings.lokasi}, ${lastDay} ${monthName.toLowerCase()} ${year}`, 140, signY)
