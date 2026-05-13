@@ -65,7 +65,7 @@
     ],
     "extraResources": [
       ".env",
-      "service-account.json"
+      "oauth-credentials.json"
     ],
     "win": {
       "target": "nsis",

@@ -56,6 +56,32 @@ export default function Settings() {
     window.api?.quitAndInstall()
   }
 
+  const handleLoginDrive = async () => {
+    setDriveStatus({ loading: true, result: null })
+    try {
+      const res = await window.api?.loginGoogleDrive()
+      if (res?.success) {
+        handleTestDrive()
+      } else {
+        setDriveStatus({ loading: false, result: res })
+      }
+    } catch (error) {
+      setDriveStatus({ loading: false, result: { success: false, error: error.message } })
+    }
+  }
+
+  const handleLogoutDrive = async () => {
+    if (confirm('Apakah Anda yakin ingin memutus koneksi Google Drive?')) {
+      setDriveStatus({ loading: true, result: null })
+      try {
+        await window.api?.logoutGoogleDrive()
+        setDriveStatus({ loading: false, result: null })
+      } catch (error) {
+        setDriveStatus({ loading: false, result: { success: false, error: error.message } })
+      }
+    }
+  }
+
   const handleTestDrive = async () => {
     setDriveStatus({ loading: true, result: null })
     try {
@@ -292,14 +318,14 @@ export default function Settings() {
           {driveStatus.result?.success ? (
             <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase text-[9px] tracking-wider font-black px-3">TERHUBUNG</Badge>
           ) : (
-            <Badge variant="secondary" className="bg-slate-100 text-slate-500 uppercase text-[9px] tracking-wider font-black px-3">BELUM TERUJI</Badge>
+            <Badge variant="secondary" className="bg-slate-100 text-slate-500 uppercase text-[9px] tracking-wider font-black px-3">BELUM LOGIN</Badge>
           )}
         </div>
 
         <div className="space-y-4">
           <p className="text-xs text-slate-500 leading-relaxed">
-            Fitur ini memungkinkan aplikasi mencadangkan (backup) data dan laporan secara otomatis ke folder Google Drive terpusat menggunakan akun layanan perantara (<span className="font-semibold text-slate-700">Service Account Google Cloud</span>). 
-            Untuk menghubungkan, pastikan berkas kredensial <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-indigo-600 border border-slate-200 text-[10px]">service-account.json</code> sudah diletakkan di direktori utama aplikasi.
+            Fitur ini memungkinkan aplikasi mengunggah berkas Bukti Bayar/Transfer langsung ke Google Drive pribadi Anda (<span className="font-semibold text-slate-700">Google OAuth 2.0</span>) memanfaatkan 15GB kuota gratis Anda secara resmi.
+            Pastikan berkas <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-indigo-600 border border-slate-200 text-[10px]">oauth-credentials.json</code> sudah diletakkan di direktori aplikasi sebelum memulai login.
           </p>
 
           {driveStatus.result && (
@@ -313,7 +339,7 @@ export default function Settings() {
                   <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
                   <div>
                     <p className="font-black uppercase tracking-wider text-[10px] text-emerald-700 mb-0.5">Koneksi Sukses!</p>
-                    <p className="font-medium opacity-90">Modul API Google Drive berhasil diinisialisasi dan memberikan respon otorisasi penuh.</p>
+                    <p className="font-medium opacity-90">Akun Google Drive pribadi Anda berhasil terhubung. Folder "Keuangan > Bukti Bayar-Transfer" akan otomatis dibuat di Drive utama Anda.</p>
                   </div>
                 </>
               ) : (
@@ -328,26 +354,52 @@ export default function Settings() {
             </div>
           )}
 
-          <div className="flex justify-end pt-4 border-t border-slate-100 mt-4">
-            <Button 
-              onClick={handleTestDrive} 
-              disabled={driveStatus.loading}
-              variant={driveStatus.result?.success ? "secondary" : "primary"}
-              className={`text-xs font-bold h-10 px-5 shadow-lg transition-all active:scale-95 ${
-                driveStatus.result?.success 
-                  ? 'border-slate-200 text-slate-600 hover:bg-slate-50 shadow-none' 
-                  : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/10'
-              }`}
-            >
-              {driveStatus.loading ? (
-                <span className="flex items-center gap-2"><RefreshCcw size={14} className="animate-spin" /> Menghubungkan API...</span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <Cloud size={14} />
-                  {driveStatus.result?.success ? 'Uji Ulang Koneksi' : 'Uji Koneksi Google Drive'}
-                </span>
-              )}
-            </Button>
+          <div className="flex justify-end items-center gap-3 pt-4 border-t border-slate-100 mt-4">
+            {driveStatus.result?.success ? (
+              <>
+                <Button 
+                  onClick={handleLogoutDrive}
+                  disabled={driveStatus.loading}
+                  variant="secondary"
+                  className="text-xs font-bold h-10 px-4 text-rose-600 border-rose-200 hover:bg-rose-50 shadow-none"
+                >
+                  Putuskan Koneksi (Logout)
+                </Button>
+                <Button 
+                  onClick={handleTestDrive} 
+                  disabled={driveStatus.loading}
+                  variant="secondary"
+                  className="text-xs font-bold h-10 px-4 border-slate-200 text-slate-600 hover:bg-slate-50 shadow-none"
+                >
+                  {driveStatus.loading ? 'Menghubungkan...' : 'Cek Koneksi'}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button 
+                  onClick={handleTestDrive} 
+                  disabled={driveStatus.loading}
+                  variant="secondary"
+                  className="text-xs font-bold h-10 px-4 border-slate-200 text-slate-600 hover:bg-slate-50 shadow-none"
+                >
+                  Cek Koneksi Tersimpan
+                </Button>
+                <Button 
+                  onClick={handleLoginDrive} 
+                  disabled={driveStatus.loading}
+                  className="text-xs font-bold h-10 px-5 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/10 transition-all active:scale-95"
+                >
+                  {driveStatus.loading ? (
+                    <span className="flex items-center gap-2"><RefreshCcw size={14} className="animate-spin" /> Membuka Login...</span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <Cloud size={14} />
+                      Hubungkan Akun Google (Login)
+                    </span>
+                  )}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </Card>

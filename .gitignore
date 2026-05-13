@@ -7,3 +7,6 @@ dist-electron/
 
 .worktrees/
 service-account.json
+oauth-credentials.json
+*.json.token
+gdrive_oauth_token.json
