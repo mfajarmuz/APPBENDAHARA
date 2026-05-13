@@ -24,7 +24,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
 import Spinner from '@/components/ui/Spinner'
-import { exportBKUPdf, exportBukuPembantuPdf, exportRealisasiPdf, exportRekapBulananPdf, exportLPJAdministratifPdf, exportBukuPembantuPajakPdf, exportBukuSimpananBankPdf, exportRegisterKasPdf, exportRPPUAPdf, exportRPPUPPdf } from '@/lib/export-pdf'
+import { exportBKUPdf, exportBukuPembantuPdf, exportRealisasiPdf, exportRekapBulananPdf, exportLPJAdministratifPdf, exportLPJPeriodePdf, exportBukuPembantuPajakPdf, exportBukuSimpananBankPdf, exportRegisterKasPdf, exportRPPUAPdf, exportRPPUPPdf } from '@/lib/export-pdf'
 import { exportBKUExcel, exportRealisasiExcel } from '@/lib/export-excel'
 import { getBkuRows } from '@/lib/bku'
 
@@ -872,8 +872,9 @@ export default function Laporan() {
                 </label>
               </div>
 
-              {tipeLaporan === 'pertengahan' && (
+              {(tipeLaporan === 'pertengahan' || tab === 'lra') && (
                 <div className="flex items-center gap-2 border-l border-slate-200 pl-4 transition-all">
+                  {tab === 'lra' && <span className="text-[10px] font-black text-slate-400 uppercase whitespace-nowrap">Batas Periode:</span>}
                   <input
                     type="date"
                     value={customTanggal}
@@ -907,20 +908,40 @@ export default function Laporan() {
         
         <div className="flex items-center gap-3">
           {tab === 'lra' && (
-            <Button 
-              variant="secondary" 
-              onClick={() => exportLPJAdministratifPdf(filterBulan, filterTahun, subKegiatan, pengeluaran, penerimaan, tipeLaporan === 'pertengahan' ? customTanggal : null)}
-              className="h-10 px-4 text-xs font-bold border-slate-200 group text-indigo-600 hover:bg-indigo-50"
-            >
-              <Printer size={14} className="mr-2 group-hover:scale-110 transition-transform" /> Cetak LPJ F4
-            </Button>
+            <>
+              <Button 
+                variant="primary" 
+                onClick={() => exportLPJAdministratifPdf(filterBulan, filterTahun, subKegiatan, pengeluaran, penerimaan, tipeLaporan === 'pertengahan' ? customTanggal : null)}
+                className="h-[42px] px-5 rounded-full group flex items-center justify-center gap-2.5 font-semibold shadow-md shadow-indigo-600/20 transition-all duration-300 hover:scale-[1.03]"
+              >
+                <Printer size={15} className="group-hover:scale-110 transition-transform text-white opacity-90 flex-shrink-0" />
+                <div className="flex flex-col items-start text-left leading-[1.1]">
+                  <span className="text-[11px] font-bold text-white tracking-tight">Cetak</span>
+                  <span className="text-[9px] font-semibold tracking-wider text-indigo-100 uppercase whitespace-nowrap">LPJ F4</span>
+                </div>
+              </Button>
+              
+              <Button 
+                variant="primary" 
+                onClick={() => exportLPJPeriodePdf(filterBulan, filterTahun, subKegiatan, pengeluaran, penerimaan, customTanggal)}
+                className="h-[42px] px-5 rounded-full group flex items-center justify-center gap-2.5 font-semibold shadow-md shadow-indigo-600/20 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 hover:scale-[1.03]"
+              >
+                <Printer size={15} className="group-hover:scale-110 transition-transform text-white opacity-90 flex-shrink-0" />
+                <div className="flex flex-col items-start text-left leading-[1.1]">
+                  <span className="text-[11px] font-bold text-white tracking-tight">Cetak</span>
+                  <span className="text-[9px] font-semibold tracking-wider text-indigo-100 uppercase whitespace-nowrap">LPJ Periode</span>
+                </div>
+              </Button>
+            </>
           )}
           <Button variant="secondary" onClick={handleExportExcel} className="h-10 px-4 text-xs font-bold border-slate-200 group">
             <Download size={14} className="mr-2 group-hover:translate-y-0.5 transition-transform" /> Excel
           </Button>
-          <Button onClick={handleExportPdf} className="h-10 px-6 text-xs font-bold shadow-lg shadow-indigo-600/10 group">
-            <Download size={14} className="mr-2 group-hover:translate-y-0.5 transition-transform" /> Export PDF
-          </Button>
+          {tab !== 'lra' && (
+            <Button onClick={handleExportPdf} className="h-10 px-6 text-xs font-bold shadow-lg shadow-indigo-600/10 group">
+              <Download size={14} className="mr-2 group-hover:translate-y-0.5 transition-transform" /> Export PDF
+            </Button>
+          )}
         </div>
       </div>
 
