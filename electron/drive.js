@@ -62,7 +62,105 @@ async function testConnection() {
   }
 }
 
+/**
+ * Mendapatkan ID Folder berdasarkan nama, atau membuatnya jika belum ada.
+ */
+async function getOrCreateFolder(folderName, parentId = null) {
+  const drive = driveInstance || initDrive()
+  
+  let query = `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`
+  if (parentId) {
+    query += ` and '${parentId}' in parents`
+  } else {
+    query += ` and 'root' in parents`
+  }
+
+  const list = await drive.files.list({
+    q: query,
+    spaces: 'drive',
+    fields: 'files(id, name)',
+  })
+
+  if (list.data.files && list.data.files.length > 0) {
+    // Folder sudah ada, gunakan yang pertama ditemukan
+    return list.data.files[0].id
+  }
+
+  // Folder tidak ditemukan, buat folder baru
+  const fileMetadata = {
+    name: folderName,
+    mimeType: 'application/vnd.google-apps.folder',
+  }
+  if (parentId) {
+    fileMetadata.parents = [parentId]
+  }
+
+  const folder = await drive.files.create({
+    requestBody: fileMetadata,
+    fields: 'id',
+  })
+
+  return folder.data.id
+}
+
+/**
+ * Mengunggah berkas PDF lokal ke Google Drive di struktur folder: Keuangan > CMS
+ */
+async function uploadFileToCMSFolder(localFilePath) {
+  try {
+    const drive = driveInstance || initDrive()
+
+    if (!fs.existsSync(localFilePath)) {
+      throw new Error(`Berkas lokal tidak ditemukan: ${localFilePath}`)
+    }
+
+    // 1. Dapatkan atau buat folder "Keuangan" di root Drive
+    const keuanganFolderId = await getOrCreateFolder('Keuangan')
+
+    // 2. Dapatkan atau buat folder "CMS" di dalam "Keuangan"
+    const cmsFolderId = await getOrCreateFolder('CMS', keuanganFolderId)
+
+    // 3. Persiapkan metadata dan unggah file
+    const fileName = path.basename(localFilePath)
+    const response = await drive.files.create({
+      requestBody: {
+        name: fileName,
+        parents: [cmsFolderId],
+      },
+      media: {
+        mimeType: 'application/pdf',
+        body: fs.createReadStream(localFilePath),
+      },
+      fields: 'id, name, webViewLink',
+    })
+
+    // 4. Atur perizinan file agar bisa dibaca oleh siapa saja yang memiliki link (opsional namun membantu untuk preview)
+    try {
+      await drive.permissions.create({
+        fileId: response.data.id,
+        requestBody: {
+          role: 'reader',
+          type: 'anyone',
+        },
+      })
+    } catch (permErr) {
+      console.warn('Peringatan: Gagal mengatur hak akses file publik:', permErr.message)
+    }
+
+    return {
+      success: true,
+      fileId: response.data.id,
+      fileName: response.data.name,
+      viewLink: response.data.webViewLink,
+    }
+  } catch (error) {
+    console.error('Google Drive Upload Error:', error.message)
+    throw error
+  }
+}
+
 module.exports = {
   initDrive,
-  testConnection
+  testConnection,
+  uploadFileToCMSFolder
 }

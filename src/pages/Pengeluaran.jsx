@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Plus, Trash2, PlusCircle, MinusCircle, Pencil, FileDown, Download, Filter, RefreshCcw, ArrowUp, ArrowDown, Printer } from 'lucide-react'
+import { Plus, Trash2, PlusCircle, MinusCircle, Pencil, FileDown, Download, Filter, RefreshCcw, ArrowUp, ArrowDown, Printer, FileText, Paperclip, X } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { formatRupiah, formatTanggal, persen } from '@/lib/format'
 import { exportNPDPdf, exportNPDBatchPdf } from '@/lib/export-pdf'
@@ -59,6 +59,7 @@ export default function Pengeluaran() {
   const [rincian, setRincian] = useState([{ ...EMPTY_RINCIAN }])
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState({})
+  const [selectedPdf, setSelectedPdf] = useState(null) // { path, name }
   
   // Advanced Filters
   const [filterBulan, setFilterBulan] = useState('')
@@ -226,11 +227,13 @@ export default function Pengeluaran() {
     setForm({ ...EMPTY_FORM, tanggal: new Date().toISOString().split('T')[0] })
     setRincian([{ ...EMPTY_RINCIAN }])
     setErrors({})
+    setSelectedPdf(null)
     setModalOpen(true)
   }
 
   function openEdit(item) {
     setEditingItem(item)
+    setSelectedPdf(null)
     setForm({
       tanggal: item.tanggal,
       jenis: item.jenis || 'GU',
@@ -329,6 +332,7 @@ export default function Pengeluaran() {
         volume: null,
         jumlah: parseInt(String(r.jumlah), 10),
       })),
+      pdfLocalPath: selectedPdf?.path || null,
     }
 
     try {
@@ -739,6 +743,17 @@ export default function Pengeluaran() {
                               <Printer size={15} />
                             </button>
                           )}
+                          {item.file_pdf_link && (
+                            <a
+                              href={item.file_pdf_link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-2 bg-white border border-slate-200 text-emerald-600 hover:text-emerald-700 hover:border-emerald-200 hover:bg-emerald-50 rounded-xl shadow-sm transition-all flex items-center justify-center shrink-0"
+                              title={`Buka Lampiran: ${item.file_pdf_name || 'PDF CMS'}`}
+                            >
+                              <FileText size={15} />
+                            </a>
+                          )}
                           <button
                             onClick={() => openEdit(item)}
                             className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 rounded-xl shadow-sm transition-all"
@@ -854,6 +869,66 @@ export default function Pengeluaran() {
                   <ProgressBar value={persen(realisasiSk, calculatedSkPagu)} />
                 </div>
               )}
+
+              {/* Unggah Berkas CMS PDF */}
+              <div className="space-y-1.5 mt-6 pt-6 border-t border-slate-100">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-1">Berkas PDF Pendukung CMS</label>
+                
+                {selectedPdf ? (
+                  <div className="flex items-center justify-between bg-emerald-50 border border-emerald-100 p-3.5 rounded-xl text-xs font-bold text-emerald-800 animate-in zoom-in-95 shadow-sm">
+                    <div className="flex items-center gap-2 truncate">
+                      <FileText size={16} className="text-emerald-600 shrink-0" />
+                      <span className="truncate font-black text-[11px] text-emerald-700">{selectedPdf.name}</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => setSelectedPdf(null)}
+                      className="p-1 hover:bg-emerald-100 text-emerald-600 rounded-full transition-colors flex items-center justify-center shrink-0"
+                      title="Hapus Berkas"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const file = await window.api?.selectPdfFile()
+                          if (file) {
+                            setSelectedPdf(file)
+                          }
+                        } catch (err) {
+                          alert('Gagal memilih file: ' + err.message)
+                        }
+                      }}
+                      className="w-full flex flex-col sm:flex-row items-center justify-center gap-2 border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 text-slate-500 hover:text-indigo-600 px-4 py-4 rounded-2xl transition-all duration-300 text-xs font-bold group"
+                    >
+                      <Paperclip size={15} className="group-hover:rotate-45 transition-transform text-slate-400 group-hover:text-indigo-500" />
+                      <span>Pilih Lampiran PDF CMS</span>
+                    </button>
+                    {editingItem?.file_pdf_name && (
+                      <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-2 rounded-lg text-[10px]">
+                        <span className="text-slate-500 flex items-center gap-1 truncate font-medium">
+                          <FileText size={11} className="text-slate-400" /> Terlampir: <span className="font-bold text-slate-700 truncate">{editingItem.file_pdf_name}</span>
+                        </span>
+                        <a 
+                          href={editingItem.file_pdf_link} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="text-indigo-600 hover:underline font-bold shrink-0 ml-2"
+                        >
+                          Lihat PDF ↗
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <p className="text-[9px] text-slate-400 pl-1 leading-tight">
+                  * Berkas otomatis diunggah ke Google Drive (Struktur: <span className="font-bold">Keuangan &gt; CMS</span>).
+                </p>
+              </div>
             </div>
 
             <div className="space-y-4">

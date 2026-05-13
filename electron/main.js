@@ -3,7 +3,7 @@ const path = require('path')
 const fs = require('fs')
 const { createClient } = require('@supabase/supabase-js')
 const { autoUpdater } = require('electron-updater')
-const { testConnection } = require('./drive')
+const { testConnection, uploadFileToCMSFolder } = require('./drive')
 
 // Handle error wrapping for IPC
 const handleWith = async (fn) => {
@@ -260,12 +260,28 @@ ipcMain.handle('get-pengeluaran', async () => {
   })
 })
 
-ipcMain.handle('add-pengeluaran', async (event, { pengeluaran, rincian }) => {
+ipcMain.handle('add-pengeluaran', async (event, { pengeluaran, rincian, pdfLocalPath }) => {
   return handleWith(async () => {
+    let finalPengeluaran = { ...pengeluaran }
+
+    // Jika ada berkas PDF lokal dipilih, unggah dulu ke Google Drive
+    if (pdfLocalPath) {
+      try {
+        const uploadRes = await uploadFileToCMSFolder(pdfLocalPath)
+        if (uploadRes && uploadRes.success) {
+          finalPengeluaran.file_pdf_id = uploadRes.fileId
+          finalPengeluaran.file_pdf_name = uploadRes.fileName
+          finalPengeluaran.file_pdf_link = uploadRes.viewLink
+        }
+      } catch (upErr) {
+        throw new Error(`Gagal mengunggah berkas ke Google Drive: ${upErr.message}`)
+      }
+    }
+
     // 1. Insert Pengeluaran Header
     const { data: parent, error: pError } = await supabase
       .from('pengeluaran')
-      .insert([pengeluaran])
+      .insert([finalPengeluaran])
       .select()
       .single()
     
@@ -282,10 +298,26 @@ ipcMain.handle('add-pengeluaran', async (event, { pengeluaran, rincian }) => {
   })
 })
 
-ipcMain.handle('update-pengeluaran', async (event, id, { pengeluaran, rincian }) => {
+ipcMain.handle('update-pengeluaran', async (event, id, { pengeluaran, rincian, pdfLocalPath }) => {
   return handleWith(async () => {
+    let finalPengeluaran = { ...pengeluaran }
+
+    // Jika ada berkas PDF lokal baru diunggah
+    if (pdfLocalPath) {
+      try {
+        const uploadRes = await uploadFileToCMSFolder(pdfLocalPath)
+        if (uploadRes && uploadRes.success) {
+          finalPengeluaran.file_pdf_id = uploadRes.fileId
+          finalPengeluaran.file_pdf_name = uploadRes.fileName
+          finalPengeluaran.file_pdf_link = uploadRes.viewLink
+        }
+      } catch (upErr) {
+        throw new Error(`Gagal mengunggah berkas ke Google Drive: ${upErr.message}`)
+      }
+    }
+
     // Update Header
-    const { error: pError } = await supabase.from('pengeluaran').update(pengeluaran).eq('id', id)
+    const { error: pError } = await supabase.from('pengeluaran').update(finalPengeluaran).eq('id', id)
     if (pError) throw pError
 
     // Delete existing rincian and re-insert
@@ -354,5 +386,21 @@ ipcMain.handle('download-template', async (event, filename) => {
 // Google Drive IPC
 ipcMain.handle('test-google-drive', async () => {
   return await testConnection()
+})
+
+ipcMain.handle('select-pdf-file', async () => {
+  const result = await dialog.showOpenDialog({
+    title: 'Pilih Berkas PDF Pendukung CMS',
+    properties: ['openFile'],
+    filters: [{ name: 'Berkas PDF', extensions: ['pdf'] }]
+  })
+  if (result.canceled || result.filePaths.length === 0) {
+    return null
+  }
+  const filePath = result.filePaths[0]
+  return {
+    path: filePath,
+    name: path.basename(filePath)
+  }
 })
 

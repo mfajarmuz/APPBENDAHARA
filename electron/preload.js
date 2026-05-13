@@ -44,4 +44,5 @@ contextBridge.exposeInMainWorld('api', {
 
   // Google Drive
   testGoogleDrive: () => ipcRenderer.invoke('test-google-drive'),
+  selectPdfFile: () => ipcRenderer.invoke('select-pdf-file'),
 });
