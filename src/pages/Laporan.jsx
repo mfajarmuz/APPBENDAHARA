@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { FileText, Download, Calendar, Printer, GripVertical, ChevronDown, ChevronRight } from 'lucide-react'
+import { FileText, Download, Calendar, Printer, GripVertical, ChevronDown, ChevronRight, Lock, Unlock } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -31,7 +31,7 @@ import { getBkuRows } from '@/lib/bku'
 const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 
 // Sortable Row Component
-function SortableRow({ r, i, formatTanggal, formatRupiah, isSelected, onToggleSelect }) {
+function SortableRow({ r, i, formatTanggal, formatRupiah, isSelected, onToggleSelect, isDragEnabled }) {
   const {
     attributes,
     listeners,
@@ -39,7 +39,7 @@ function SortableRow({ r, i, formatTanggal, formatRupiah, isSelected, onToggleSe
     transform,
     transition,
     isDragging
-  } = useSortable({ id: r.id })
+  } = useSortable({ id: r.id, disabled: !isDragEnabled })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -62,13 +62,20 @@ function SortableRow({ r, i, formatTanggal, formatRupiah, isSelected, onToggleSe
             onChange={() => onToggleSelect(r.id)}
             className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
           />
-          <button 
-            {...attributes} 
-            {...listeners} 
-            className="cursor-grab active:cursor-grabbing p-1 text-slate-300 hover:text-indigo-600 transition-colors"
-          >
-            <GripVertical size={14} />
-          </button>
+          {isDragEnabled ? (
+            <button 
+              {...attributes} 
+              {...listeners} 
+              className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-indigo-600 transition-colors"
+              title="Geser untuk mengatur urutan"
+            >
+              <GripVertical size={14} />
+            </button>
+          ) : (
+            <div className="p-1 text-slate-200 cursor-not-allowed" title="Aktifkan Urut Manual untuk memindahkan">
+              <GripVertical size={14} />
+            </div>
+          )}
           <span className="text-[10px] text-slate-400 font-bold w-4">{i + 1}</span>
         </div>
       </td>
@@ -115,6 +122,7 @@ export default function Laporan() {
   const [pengeluaranCollapsed, setPengeluaranCollapsed] = useState(true)
   const [showFullLs, setShowFullLs] = useState(true)
   const [showFullGu, setShowFullGu] = useState(true)
+  const [isDragEnabled, setIsDragEnabled] = useState(false)
   const [cashUnits, setCashUnits] = useState({
     kertas_100k: 0, kertas_50k: 0, kertas_20k: 0, kertas_10k: 0, kertas_5k: 0, kertas_2k: 0, kertas_1k: 0, kertas_500: 0,
     logam_1000: 0, logam_500: 0, logam_200: 0, logam_100: 0, logam_50: 0, logam_25: 0
@@ -177,6 +185,7 @@ export default function Laporan() {
   }
 
   async function handleDragEnd(event) {
+    if (!isDragEnabled) return
     const { active, over } = event
     if (!over) return
 
@@ -874,11 +883,19 @@ export default function Laporan() {
                 </div>
               )}
 
-              {(tab === 'bku' || tab === 'bank') && (
+              {tab === 'bku' && (
                 <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
-                  <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full uppercase tracking-tighter ring-1 ring-indigo-200">
-                    Mode Urut Manual Aktif (Geser Baris)
-                  </span>
+                  <button
+                    onClick={() => setIsDragEnabled(!isDragEnabled)}
+                    className={`flex items-center gap-1.5 text-[10px] font-black px-3.5 py-1.5 rounded-full uppercase tracking-tighter ring-1 transition-all duration-200 active:scale-95 select-none ${
+                      isDragEnabled 
+                        ? 'bg-emerald-50 text-emerald-600 ring-emerald-200 hover:bg-emerald-100' 
+                        : 'bg-slate-50 text-slate-500 ring-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {isDragEnabled ? <Unlock size={12} /> : <Lock size={12} />}
+                    <span>{isDragEnabled ? 'Urut Manual: AKTIF' : 'Urut Manual: TERKUNCI'}</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -955,6 +972,7 @@ export default function Laporan() {
                           formatRupiah={formatRupiah} 
                           isSelected={selectedIds.includes(r.id)}
                           onToggleSelect={toggleSelect}
+                          isDragEnabled={isDragEnabled}
                         />
                       ))}
                     </SortableContext>

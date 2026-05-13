@@ -7,13 +7,20 @@ function download(wb, filename) {
 }
 
 export function exportBKUExcel(rows) {
-  const data = rows.map((r, i) => ({
-    No: i + 1,
-    Tanggal: formatTanggal(r.tanggal),
-    Uraian: r.uraian,
-    Debet: r.debet,
-    Kredit: r.kredit,
-  }))
+  const data = rows.map((r, i) => {
+    const no = i + 1
+    const suffix = `[${no}]. P3DW Kabupaten Tasikmalaya.`
+    const finalUraian = r.uraian ? `${r.uraian} ${suffix}` : suffix
+
+    return {
+      'NO': no,
+      'TANGGAL': formatTanggal(r.tanggal),
+      'KODE REKENING': r.kode_rekening || '',
+      'URAIAN': finalUraian,
+      'PENERIMAAN': r.debet || 0,
+      'PENGELUARAN': r.kredit || 0,
+    }
+  })
   const ws = XLSX.utils.json_to_sheet(data)
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'BKU')
