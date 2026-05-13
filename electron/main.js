@@ -260,14 +260,14 @@ ipcMain.handle('get-pengeluaran', async () => {
   })
 })
 
-ipcMain.handle('add-pengeluaran', async (event, { pengeluaran, rincian, pdfLocalPath }) => {
+ipcMain.handle('add-pengeluaran', async (event, { pengeluaran, rincian, pdfLocalPath, customFileName }) => {
   return handleWith(async () => {
     let finalPengeluaran = { ...pengeluaran }
 
     // Jika ada berkas PDF lokal dipilih, unggah dulu ke Google Drive
     if (pdfLocalPath) {
       try {
-        const uploadRes = await uploadFileToCMSFolder(pdfLocalPath)
+        const uploadRes = await uploadFileToCMSFolder(pdfLocalPath, customFileName)
         if (uploadRes && uploadRes.success) {
           finalPengeluaran.file_pdf_id = uploadRes.fileId
           finalPengeluaran.file_pdf_name = uploadRes.fileName
@@ -298,14 +298,14 @@ ipcMain.handle('add-pengeluaran', async (event, { pengeluaran, rincian, pdfLocal
   })
 })
 
-ipcMain.handle('update-pengeluaran', async (event, id, { pengeluaran, rincian, pdfLocalPath }) => {
+ipcMain.handle('update-pengeluaran', async (event, id, { pengeluaran, rincian, pdfLocalPath, customFileName }) => {
   return handleWith(async () => {
     let finalPengeluaran = { ...pengeluaran }
 
     // Jika ada berkas PDF lokal baru diunggah
     if (pdfLocalPath) {
       try {
-        const uploadRes = await uploadFileToCMSFolder(pdfLocalPath)
+        const uploadRes = await uploadFileToCMSFolder(pdfLocalPath, customFileName)
         if (uploadRes && uploadRes.success) {
           finalPengeluaran.file_pdf_id = uploadRes.fileId
           finalPengeluaran.file_pdf_name = uploadRes.fileName

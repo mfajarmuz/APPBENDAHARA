@@ -317,6 +317,35 @@ export default function Pengeluaran() {
     const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase()
     const bgNoBukti = `BPP-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}-${Date.now()}-${randomSuffix}`
 
+    // Generate dynamic BKU sequence numbering and format file name for Google Drive
+    const BULAN_UPPER = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER']
+    const currentMonth = d.getMonth()
+    const currentYear = d.getFullYear()
+    
+    let bkuNumber = 1
+    const allBkuRows = getBkuRows(penerimaan, pengeluaran)
+    const monthlyBku = allBkuRows.filter(r => {
+      const rd = new Date(r.tanggal)
+      return rd.getMonth() === currentMonth && rd.getFullYear() === currentYear
+    })
+
+    if (editingItem) {
+      const idx = monthlyBku.findIndex(r => r.id === editingItem.id)
+      bkuNumber = idx !== -1 ? idx + 1 : 1
+    } else {
+      const tempItem = { id: 'temp', tanggal: form.tanggal, jenis: form.jenis, jumlah: amount, type: 'out', urutan: 0 }
+      const simulatedBku = getBkuRows(penerimaan, [...pengeluaran, tempItem])
+      const simulatedMonthly = simulatedBku.filter(r => {
+        const rd = new Date(r.tanggal)
+        return rd.getMonth() === currentMonth && rd.getFullYear() === currentYear
+      })
+      const idx = simulatedMonthly.findIndex(r => r.id === 'temp')
+      bkuNumber = idx !== -1 ? idx + 1 : (monthlyBku.length + 1)
+    }
+
+    const bkuNumStr = String(bkuNumber).padStart(3, '0')
+    const customFileName = `[${bkuNumStr}] [${BULAN_UPPER[currentMonth]}] [${currentYear}]`
+
     const payload = {
       pengeluaran: {
         tanggal: form.tanggal,
@@ -333,6 +362,7 @@ export default function Pengeluaran() {
         jumlah: parseInt(String(r.jumlah), 10),
       })),
       pdfLocalPath: selectedPdf?.path || null,
+      customFileName: customFileName,
     }
 
     try {

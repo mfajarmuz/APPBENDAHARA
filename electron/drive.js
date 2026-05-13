@@ -104,9 +104,9 @@ async function getOrCreateFolder(folderName, parentId = null) {
 }
 
 /**
- * Mengunggah berkas PDF lokal ke Google Drive di struktur folder: Keuangan > CMS
+ * Mengunggah berkas PDF lokal ke Google Drive di struktur folder: Keuangan > Bukti Bayar-Transfer
  */
-async function uploadFileToCMSFolder(localFilePath) {
+async function uploadFileToCMSFolder(localFilePath, customFileName = null) {
   try {
     const drive = driveInstance || initDrive()
 
@@ -121,10 +121,14 @@ async function uploadFileToCMSFolder(localFilePath) {
     const cmsFolderId = await getOrCreateFolder('Bukti Bayar-Transfer', keuanganFolderId)
 
     // 3. Persiapkan metadata dan unggah file
-    const fileName = path.basename(localFilePath)
+    const ext = path.extname(localFilePath) || '.pdf'
+    const finalName = customFileName 
+      ? (customFileName.toLowerCase().endsWith('.pdf') ? customFileName : `${customFileName}${ext}`)
+      : path.basename(localFilePath)
+
     const response = await drive.files.create({
       requestBody: {
-        name: fileName,
+        name: finalName,
         parents: [cmsFolderId],
       },
       media: {
