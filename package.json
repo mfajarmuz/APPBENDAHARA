@@ -1,6 +1,6 @@
 {
   "name": "bendahara-app",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "author": "mfajarmuz",
   "description": "Aplikasi Bendahara Pengeluaran UPTD BAPENDA Kab. Tasikmalaya",
   "main": "electron/main.js",
