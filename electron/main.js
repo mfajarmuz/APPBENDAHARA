@@ -3,6 +3,7 @@ const path = require('path')
 const fs = require('fs')
 const { createClient } = require('@supabase/supabase-js')
 const { autoUpdater } = require('electron-updater')
+const { testConnection } = require('./drive')
 
 // Handle error wrapping for IPC
 const handleWith = async (fn) => {
@@ -349,3 +350,9 @@ ipcMain.handle('download-template', async (event, filename) => {
     return { success: false }
   })
 })
+
+// Google Drive IPC
+ipcMain.handle('test-google-drive', async () => {
+  return await testConnection()
+})
+

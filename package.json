@@ -21,6 +21,7 @@
     "@supabase/supabase-js": "^2.49.4",
     "dotenv": "^17.4.2",
     "electron-updater": "^6.8.3",
+    "googleapis": "^171.4.0",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
     "lucide-react": "^1.14.0",
@@ -63,7 +64,8 @@
       "electron/**/*"
     ],
     "extraResources": [
-      ".env"
+      ".env",
+      "service-account.json"
     ],
     "win": {
       "target": "nsis",

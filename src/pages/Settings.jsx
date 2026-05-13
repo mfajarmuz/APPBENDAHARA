@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useStore } from '@/store/useStore'
-import { Save, Building2, UserCheck, RefreshCcw, AlertCircle, Laptop, Download, Power } from 'lucide-react'
+import { Save, Building2, UserCheck, RefreshCcw, AlertCircle, Laptop, Download, Power, Cloud, CheckCircle2, XCircle } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -19,6 +19,9 @@ export default function Settings() {
   const [updateStatus, setUpdateStatus] = useState('Standby')
   const [updateInfo, setUpdateInfo] = useState(null)
   const [downloadProgress, setDownloadProgress] = useState(0)
+
+  // Google Drive connection states
+  const [driveStatus, setDriveStatus] = useState({ loading: false, result: null })
 
   // Sync form when settings change (e.g. after reset)
   useEffect(() => {
@@ -51,6 +54,16 @@ export default function Settings() {
 
   const handleInstallUpdate = () => {
     window.api?.quitAndInstall()
+  }
+
+  const handleTestDrive = async () => {
+    setDriveStatus({ loading: true, result: null })
+    try {
+      const res = await window.api?.testGoogleDrive()
+      setDriveStatus({ loading: false, result: res })
+    } catch (error) {
+      setDriveStatus({ loading: false, result: { success: false, error: error.message } })
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -268,6 +281,76 @@ export default function Settings() {
           </Button>
         </div>
       </form>
+
+      {/* Integrasi Google Drive */}
+      <Card className="p-6 mt-8 border-t-4 border-t-emerald-500 shadow-md shadow-emerald-500/5">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2 text-emerald-600">
+            <Cloud size={18} />
+            <h3 className="font-bold text-sm uppercase tracking-wider">Integrasi Google Drive</h3>
+          </div>
+          {driveStatus.result?.success ? (
+            <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase text-[9px] tracking-wider font-black px-3">TERHUBUNG</Badge>
+          ) : (
+            <Badge variant="secondary" className="bg-slate-100 text-slate-500 uppercase text-[9px] tracking-wider font-black px-3">BELUM TERUJI</Badge>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Fitur ini memungkinkan aplikasi mencadangkan (backup) data dan laporan secara otomatis ke folder Google Drive terpusat menggunakan akun layanan perantara (<span className="font-semibold text-slate-700">Service Account Google Cloud</span>). 
+            Untuk menghubungkan, pastikan berkas kredensial <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-indigo-600 border border-slate-200 text-[10px]">service-account.json</code> sudah diletakkan di direktori utama aplikasi.
+          </p>
+
+          {driveStatus.result && (
+            <div className={`p-4 rounded-2xl text-xs flex items-start gap-3 border transition-all animate-in fade-in slide-in-from-top-2 ${
+              driveStatus.result.success 
+                ? 'bg-emerald-50/60 border-emerald-100 text-emerald-800 shadow-inner' 
+                : 'bg-rose-50/60 border-rose-100 text-rose-800 shadow-inner'
+            }`}>
+              {driveStatus.result.success ? (
+                <>
+                  <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-black uppercase tracking-wider text-[10px] text-emerald-700 mb-0.5">Koneksi Sukses!</p>
+                    <p className="font-medium opacity-90">Modul API Google Drive berhasil diinisialisasi dan memberikan respon otorisasi penuh.</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <XCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-black uppercase tracking-wider text-[10px] text-rose-700 mb-0.5">Terjadi Kesalahan</p>
+                    <p className="font-mono leading-relaxed mt-1 bg-white/60 p-2 rounded-lg border border-rose-100/50 break-all text-[10px] text-rose-900">{driveStatus.result.error}</p>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-end pt-4 border-t border-slate-100 mt-4">
+            <Button 
+              onClick={handleTestDrive} 
+              disabled={driveStatus.loading}
+              variant={driveStatus.result?.success ? "secondary" : "primary"}
+              className={`text-xs font-bold h-10 px-5 shadow-lg transition-all active:scale-95 ${
+                driveStatus.result?.success 
+                  ? 'border-slate-200 text-slate-600 hover:bg-slate-50 shadow-none' 
+                  : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/10'
+              }`}
+            >
+              {driveStatus.loading ? (
+                <span className="flex items-center gap-2"><RefreshCcw size={14} className="animate-spin" /> Menghubungkan API...</span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Cloud size={14} />
+                  {driveStatus.result?.success ? 'Uji Ulang Koneksi' : 'Uji Koneksi Google Drive'}
+                </span>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       {/* Pembaruan Aplikasi */}
       <Card className="p-6 mt-8 border-t-4 border-t-indigo-500">

@@ -41,4 +41,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // Utils
   downloadTemplate: (filename) => ipcRenderer.invoke('download-template', filename),
+
+  // Google Drive
+  testGoogleDrive: () => ipcRenderer.invoke('test-google-drive'),
 });
