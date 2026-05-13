@@ -71,8 +71,6 @@ async function getOrCreateFolder(folderName, parentId = null) {
   let query = `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`
   if (parentId) {
     query += ` and '${parentId}' in parents`
-  } else {
-    query += ` and 'root' in parents`
   }
 
   const list = await drive.files.list({
@@ -86,7 +84,14 @@ async function getOrCreateFolder(folderName, parentId = null) {
     return list.data.files[0].id
   }
 
-  // Folder tidak ditemukan, buat folder baru
+  // Jika folder 'Keuangan' tidak ditemukan, lempar error ramah.
+  // Karena Service Account memiliki kuota penyimpanan 0 byte, folder utama HARUS dibuat di Google Drive pribadi
+  // milik user dan di-Share ke Service Account sebagai Editor.
+  if (!parentId) {
+    throw new Error(`Folder "${folderName}" tidak ditemukan. Silakan buat folder "${folderName}" di Google Drive Anda dan BAGIKAN (Share) ke email Service Account sebagai Editor.`)
+  }
+
+  // Membuat sub-folder aman jika folder induknya dimiliki oleh akun pribadi (kuota numpang ke pemilik asal)
   const fileMetadata = {
     name: folderName,
     mimeType: 'application/vnd.google-apps.folder',
