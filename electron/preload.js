@@ -47,4 +47,5 @@ contextBridge.exposeInMainWorld('api', {
   loginGoogleDrive: () => ipcRenderer.invoke('login-google-drive'),
   logoutGoogleDrive: () => ipcRenderer.invoke('logout-google-drive'),
   selectPdfFile: () => ipcRenderer.invoke('select-pdf-file'),
+  printToPdf: (payload) => ipcRenderer.invoke('print-to-pdf', payload),
 });

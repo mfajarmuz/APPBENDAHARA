@@ -412,3 +412,46 @@ ipcMain.handle('select-pdf-file', async () => {
   }
 })
 
+ipcMain.handle('print-to-pdf', async (event, { html, defaultPath, pageSize }) => {
+  const os = require('os')
+  const path = require('path')
+  const fs = require('fs')
+  const url = require('url')
+
+  const tempPath = path.join(os.tmpdir(), `print_${Date.now()}.html`)
+  fs.writeFileSync(tempPath, html, 'utf-8')
+
+  const win = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: true } })
+  
+  try {
+    await win.loadURL(url.pathToFileURL(tempPath).href)
+    
+    // Tunggu sebentar untuk memastikan gambar termuat
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    const pdfData = await win.webContents.printToPDF({
+      printBackground: true,
+      pageSize: pageSize || 'A4',
+      margins: { marginType: 'custom', top: 0, bottom: 0, left: 0, right: 0 }
+    })
+    
+    const { filePath } = await dialog.showSaveDialog({
+      title: 'Simpan PDF',
+      defaultPath: defaultPath || 'Laporan.pdf',
+      filters: [{ name: 'PDF', extensions: ['pdf'] }]
+    })
+    
+    if (filePath) {
+      fs.writeFileSync(filePath, pdfData)
+      return { success: true, filePath }
+    }
+  } catch (error) {
+    console.error('Error in print-to-pdf:', error)
+    return { success: false, error: error.message }
+  } finally {
+    try { fs.unlinkSync(tempPath) } catch (e) {}
+    if (!win.isDestroyed()) win.close()
+  }
+
+  return { success: false, canceled: true }
+})

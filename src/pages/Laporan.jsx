@@ -24,7 +24,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
 import Spinner from '@/components/ui/Spinner'
-import { exportBKUPdf, exportBukuPembantuPdf, exportRealisasiPdf, exportRekapBulananPdf, exportLPJAdministratifPdf, exportLPJPeriodePdf, exportBukuPembantuPajakPdf, exportBukuSimpananBankPdf, exportRegisterKasPdf, exportRPPUAPdf, exportRPPUPPdf } from '@/lib/export-pdf'
+import { exportBKUPdf, exportBKUSubKegPdf, exportBAPemeriksaanKasPdf, exportBukuPembantuPdf, exportRealisasiPdf, exportRekapBulananPdf, exportLPJAdministratifPdf, exportLPJPeriodePdf, exportBukuPembantuPajakPdf, exportBukuSimpananBankPdf, exportRegisterKasPdf, exportRPPUAPdf, exportRPPUPPdf } from '@/lib/export-pdf'
 import { exportBKUExcel, exportRealisasiExcel } from '@/lib/export-excel'
 import { getBkuRows } from '@/lib/bku'
 
@@ -907,6 +907,38 @@ export default function Laporan() {
         </div>
         
         <div className="flex items-center gap-3">
+          {tab === 'bku' && (
+            <Button 
+              variant="primary" 
+              onClick={() => {
+                const customDate = tipeLaporan === 'pertengahan' ? customTanggal : null
+                exportBKUSubKegPdf(localBku, filterBulan, filterTahun, totalsBulanLalu, subKegiatan, customDate)
+              }}
+              className="h-[42px] px-5 rounded-full group flex items-center justify-center gap-2.5 font-semibold shadow-md shadow-indigo-600/20 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 hover:scale-[1.03]"
+            >
+              <Printer size={15} className="group-hover:scale-110 transition-transform text-white opacity-90 flex-shrink-0" />
+              <div className="flex flex-col items-start text-left leading-[1.1]">
+                <span className="text-[11px] font-bold text-white tracking-tight">Cetak</span>
+                <span className="text-[9px] font-semibold tracking-wider text-indigo-100 uppercase whitespace-nowrap">BKU-SubKeg</span>
+              </div>
+            </Button>
+          )}
+          {tab === 'bku' && (
+            <Button 
+              variant="primary" 
+              onClick={() => {
+                const customDate = tipeLaporan === 'pertengahan' ? customTanggal : null
+                exportBAPemeriksaanKasPdf(filterBulan, filterTahun, bkuCalculations.saldo, customDate)
+              }}
+              className="h-[42px] px-5 rounded-full group flex items-center justify-center gap-2.5 font-semibold shadow-md shadow-indigo-600/20 transition-all duration-300 hover:scale-[1.03]"
+            >
+              <Printer size={15} className="group-hover:scale-110 transition-transform text-white opacity-90 flex-shrink-0" />
+              <div className="flex flex-col items-start text-left leading-[1.1]">
+                <span className="text-[11px] font-bold text-white tracking-tight">Cetak</span>
+                <span className="text-[9px] font-semibold tracking-wider text-indigo-100 uppercase whitespace-nowrap">BA Kas</span>
+              </div>
+            </Button>
+          )}
           {tab === 'lra' && (
             <>
               <Button 
