@@ -781,11 +781,12 @@ export default function Laporan() {
     )
   }, [subKegiatan, pengeluaran, filterTahun])
 
-  function handleExportPdf() {
-    const customDate = customTanggal
+  async function handleExportPdf() {
+    const customDate = customDates[tipeLaporan]
     if (tab === 'bku') exportBKUPdf(localBku, filterBulan, filterTahun, totalsBulanLalu, customDate)
-    else if (tab === 'bank') exportBukuSimpananBankPdf(filteredBankBku, filterBulan, filterTahun, bankTotalsBulanLalu, customDate)
-    else if (tab === 'pajak') exportBukuPembantuPajakPdf(filteredPajakBku, filterBulan, filterTahun, pajakTotalsBulanLalu, customDate)
+    else if (tab === 'bank') await exportBukuSimpananBankPdf(filteredBankBku, filterBulan, filterTahun, bankTotalsBulanLalu, customDate)
+    else if (tab === 'pajak') await exportBukuPembantuPajakPdf(filteredPajakBku, filterBulan, filterTahun, pajakTotalsBulanLalu, customDate)
+    else if (tab === 'pembantu_rek') exportBukuPembantuPdf(pembantuGroups)
     else if (tab === 'lra') exportRealisasiPdf(subKegiatan, realisasiPerRek, filterTahun)
     else if (tab === 'register_kas') exportRegisterKasPdf(registerKasData, cashUnits, filterBulan, filterTahun, customDate)
     else if (tab === 'rppua') exportRPPUAPdf(rekapBulanan, filterBulan, filterTahun, customDate)
@@ -809,6 +810,7 @@ export default function Laporan() {
           { id: 'bku', label: 'Buku Kas Umum' },
           { id: 'bank', label: 'Buku Simpanan Bank' },
           { id: 'pajak', label: 'Buku Pembantu Pajak' },
+          { id: 'pembantu_rek', label: 'Buku Pembantu Rekening' },
           { id: 'lra', label: 'Realisasi / SPJ' },
           { id: 'register_kas', label: 'Register Kas' },
           { id: 'rppua', label: 'RPPUA' },
@@ -831,7 +833,7 @@ export default function Laporan() {
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
         <div className="flex items-center gap-3">
-          {(tab === 'bku' || tab === 'bank' || tab === 'lra' || tab === 'pajak' || tab === 'register_kas' || tab === 'rppua' || tab === 'rppup') && (
+          {(tab === 'bku' || tab === 'bank' || tab === 'lra' || tab === 'pajak' || tab === 'pembantu_rek' || tab === 'register_kas' || tab === 'rppua' || tab === 'rppup' || tab === 'ba_pemeriksaan' || tab === 'ba_penutupan') && (
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Calendar size={16} className="text-slate-400" />
@@ -1128,6 +1130,40 @@ export default function Laporan() {
                 })()}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {tab === 'pembantu_rek' && (
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden p-6 sm:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse"></span>
+                  Buku Pembantu Rekening
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-1">Laporan pengeluaran per rincian objek belanja (per kode rekening)</p>
+              </div>
+              <div className="flex items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-100 shrink-0">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Total Rekening Aktif</span>
+                <span className="text-base font-black text-indigo-700">{pembantuGroups.length} Akun</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {pembantuGroups.map((group, idx) => (
+                <div key={idx} className="p-4 rounded-2xl border border-slate-100 bg-slate-50/30 hover:bg-white hover:shadow-md transition-all group">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-tighter">{group.rekening.kode}</span>
+                    <span className="text-xs font-bold text-slate-800 line-clamp-2 min-h-[32px]">{group.rekening.uraian}</span>
+                    <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between items-center">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Total Belanja</span>
+                      <span className="text-sm font-black text-slate-900">{formatRupiah(group.rows.reduce((s, r) => s + (r.jumlah || 0), 0))}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {pembantuGroups.length === 0 && <div className="col-span-full"><EmptyState message="Tidak ada rincian belanja di tahun ini" /></div>}
+            </div>
           </div>
         )}
 
@@ -1887,7 +1923,7 @@ export default function Laporan() {
               <div className="flex justify-end mb-6 no-print">
                 <Button 
                   variant="primary" 
-                  onClick={() => exportBAPenutupanKasPdf(registerKasData, useStore.getState().settings)}
+                  onClick={() => exportBAPenutupanKasPdf(registerKasData, useStore.getState().settings, customDates[tipeLaporan])}
                   className="h-10 px-6 rounded-full group flex items-center gap-2 font-bold shadow-lg shadow-indigo-600/20"
                 >
                   <Printer size={16} /> Cetak BA Penutupan Kas
