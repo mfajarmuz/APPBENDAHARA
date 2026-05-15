@@ -183,6 +183,40 @@ export default function Settings() {
                 required 
               />
             </div>
+            <div className="md:col-span-3">
+              <Input 
+                label="Nama Wilayah (Header)" 
+                value={form.lokasi_wilayah} 
+                onChange={e => setForm({...form, lokasi_wilayah: e.target.value})}
+                placeholder="Contoh: KABUPATEN TASIKMALAYA"
+                required 
+              />
+            </div>
+            <div className="md:col-span-3">
+              <Input 
+                label="Alamat Lengkap (Kop Surat)" 
+                value={form.alamat_kantor} 
+                onChange={e => setForm({...form, alamat_kantor: e.target.value})}
+                placeholder="Contoh: Jalan Raya Cikatomas Sukaraja Telepon (0265) 565149"
+                required 
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Input 
+                label="Faksimil / E-mail (Kop Surat)" 
+                value={form.fax_email} 
+                onChange={e => setForm({...form, fax_email: e.target.value})}
+                placeholder="Faksimil : (0265) 566917 E-mail : p3dwkabtsm@gmail.com"
+              />
+            </div>
+            <div className="md:col-span-1">
+              <Input 
+                label="Kode Pos (Kop Surat)" 
+                value={form.kode_pos_line} 
+                onChange={e => setForm({...form, kode_pos_line: e.target.value})}
+                placeholder="Kabupaten Tasikmalaya – 46183"
+              />
+            </div>
           </div>
         </Card>
 

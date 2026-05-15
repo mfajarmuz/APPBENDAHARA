@@ -5,12 +5,12 @@ import { formatRupiah, formatTanggal } from './format'
 import { useStore } from '@/store/useStore'
 import logoJabar from '@/assets/logo-jabar.png'
 
-function getMonthName(monthIndex) {
+export function getMonthName(monthIndex) {
   const months = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER']
   return months[monthIndex] || ''
 }
 
-function terbilang(angka) {
+export function terbilang(angka) {
   const huruf = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"]
   if (angka < 12) return huruf[angka]
   if (angka < 20) return terbilang(angka - 10) + " Belas"
@@ -322,7 +322,7 @@ export async function exportBAPemeriksaanKasPdf(monthIndex, year, saldoBuku, cus
       let isResolved = false
       const timeout = setTimeout(() => {
         if (!isResolved) { isResolved = true; resolve('') }
-      }, 1500) // Timeout 1.5 detik agar tidak hang
+      }, 2000)
 
       const img = new Image()
       img.onload = () => {
@@ -331,11 +331,14 @@ export async function exportBAPemeriksaanKasPdf(monthIndex, year, saldoBuku, cus
         clearTimeout(timeout)
         try {
           const canvas = document.createElement('canvas')
-          canvas.width = img.width
-          canvas.height = img.height
+          const MAX_WIDTH = 300
+          const scale = MAX_WIDTH / img.width
+          canvas.width = MAX_WIDTH
+          canvas.height = img.height * scale
+          
           const ctx = canvas.getContext('2d')
-          ctx.drawImage(img, 0, 0)
-          resolve(canvas.toDataURL('image/png'))
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          resolve(canvas.toDataURL('image/png', 0.8)) // Compressing as well
         } catch (error) {
           resolve('')
         }
@@ -362,7 +365,7 @@ export async function exportBAPemeriksaanKasPdf(monthIndex, year, saldoBuku, cus
       <style>
         @page {
           size: 215mm 330mm;
-          margin: 0.5cm;
+          margin: 0.3cm 0.5cm 0.5cm 0.5cm;
         }
         * {
           box-sizing: border-box;
@@ -376,35 +379,28 @@ export async function exportBAPemeriksaanKasPdf(monthIndex, year, saldoBuku, cus
           margin: 0;
           padding: 0;
         }
-        .kop-surat {
-          display: flex;
-          align-items: center;
-          margin-bottom: 10px;
-          border-bottom: 3px solid black;
-          padding-bottom: 6px;
-          position: relative;
+        .kop-table {
+          width: 100%;
+          border-bottom: 3.5px solid #000;
+          margin-bottom: 1.5px;
+          padding-bottom: 3px;
         }
-        .kop-surat::after {
-          content: "";
-          position: absolute;
-          bottom: -3px;
-          left: 0;
-          right: 0;
-          border-bottom: 1px solid black;
+        .kop-line-2 {
+          border-bottom: 1px solid #000;
+          margin-bottom: 15px;
         }
         .kop-logo {
-          width: 90px;
-          height: auto;
-          margin-right: 20px;
+          width: 80px;
+          vertical-align: middle;
         }
         .kop-text {
-          flex: 1;
           text-align: center;
-          font-family: Arial, sans-serif;
+          vertical-align: middle;
         }
         .kop-text p {
           margin: 0;
-          line-height: 1.15;
+          padding: 0;
+          font-family: Arial, sans-serif;
         }
         .judul {
           text-align: center;
@@ -473,18 +469,23 @@ export async function exportBAPemeriksaanKasPdf(monthIndex, year, saldoBuku, cus
       </style>
     </head>
     <body>
-      <div class="kop-surat">
-        <img src="${logoBase64}" class="kop-logo" />
-        <div class="kop-text">
-          <p style="font-size: 14pt;">PEMERINTAH DAERAH PROVINSI JAWA BARAT</p>
-          <p style="font-size: 16pt; font-weight: bold;">BADAN PENDAPATAN DAERAH</p>
-          <p style="font-size: 16pt; font-weight: bold;">PUSAT PENGELOLAAN PENDAPATAN DAERAH</p>
-          <p style="font-size: 16pt; font-weight: bold;">WILAYAH ${(settings.lokasi_wilayah || 'KABUPATEN TASIKMALAYA').toUpperCase()}</p>
-          <p style="font-size: 10pt; margin-top: 4px;">${settings.alamat_kantor || 'Jalan Raya Cikatomas Sukaraja Telepon (0265) 565149'}</p>
-          <p style="font-size: 10pt;">${settings.fax_email || 'Faksimil : (0265) 566917 E-mail : p3dwkabtsm@gmail.com'}</p>
-          <p style="font-size: 10pt;">${settings.kode_pos_line || 'Kabupaten Tasikmalaya – 46183'}</p>
-        </div>
-      </div>
+      <table class="kop-table">
+        <tr>
+          <td width="90">
+            ${logoBase64 ? `<img src="${logoBase64}" class="kop-logo" />` : ''}
+          </td>
+          <td class="kop-text">
+            <p style="font-size: 14pt;">PEMERINTAH DAERAH PROVINSI JAWA BARAT</p>
+            <p style="font-size: 16pt; font-weight: bold;">BADAN PENDAPATAN DAERAH</p>
+            <p style="font-size: 15pt; font-weight: bold;">PUSAT PENGELOLAAN PENDAPATAN DAERAH</p>
+            <p style="font-size: 15pt; font-weight: bold;">WILAYAH ${(settings.lokasi_wilayah || 'KABUPATEN TASIKMALAYA').toUpperCase()}</p>
+            <p style="font-size: 11pt; margin-top: 3px; font-weight: normal;">${settings.alamat_kantor || 'Jalan Raya Cikatomas Sukaraja Telepon (0265) 565149'}</p>
+            <p style="font-size: 11pt; font-weight: normal;">${settings.fax_email || 'Faksimil : (0265) 566917 E-mail : p3dwkabtsm@gmail.com'}</p>
+            <p style="font-size: 11pt; font-weight: normal;">${settings.kode_pos_line || 'Kabupaten Tasikmalaya – 46183'}</p>
+          </td>
+        </tr>
+      </table>
+      <div class="kop-line-2"></div>
 
       <div style="padding: 0 1.5cm;">
         <div class="judul">
@@ -556,22 +557,22 @@ export async function exportBAPemeriksaanKasPdf(monthIndex, year, saldoBuku, cus
 
         <p class="content-text" style="margin-top: 10px;">Penjelasan perbedaan positif/negatif.<br>Keterangan :  -</p>
 
-        <table class="tanda-tangan">
+        <table class="tanda-tangan" style="margin-top: 30px;">
           <tr>
-            <td></td>
-            <td>${settings.lokasi || 'Sukaraja'}, ${lastDay} ${bulanNama} ${year}<br>Pemeriksa,</td>
+            <td style="text-align: left; padding-left: 50px;"></td>
+            <td style="text-align: center;">${settings.lokasi || 'Sukaraja'}, ${lastDay} ${bulanNama} ${year}<br>Pemeriksa,</td>
           </tr>
           <tr>
-            <td style="padding-top: 10px;">${settings.bpp_jabatan || 'BENDAHARA PENGELUARAN PEMBANTU,'}</td>
-            <td style="padding-top: 10px;">${settings.kpa_jabatan || 'KUASA PENGGUNA ANGGARAN,'}</td>
+            <td style="padding-top: 5px; font-weight: bold; text-align: center;">${(settings.bpp_jabatan || 'BENDAHARA PENGELUARAN PEMBANTU').toUpperCase()},</td>
+            <td style="padding-top: 5px; font-weight: bold; text-align: center;">${(settings.kpa_jabatan || 'KUASA PENGGUNA ANGGARAN').toUpperCase()},</td>
           </tr>
           <tr>
-            <td style="padding-top: 50px; font-weight: bold;"><u>${settings.bpp_nama || ''}</u></td>
-            <td style="padding-top: 50px; font-weight: bold;"><u>${settings.kpa_nama || ''}</u></td>
+            <td style="padding-top: 60px; font-weight: bold; text-align: center;"><u>${(settings.bpp_nama || '').toUpperCase()}</u></td>
+            <td style="padding-top: 60px; font-weight: bold; text-align: center;"><u>${(settings.kpa_nama || '').toUpperCase()}</u></td>
           </tr>
           <tr>
-            <td>${settings.bpp_pangkat || 'Penata Tingkat I'}<br>NIP. ${settings.bpp_nip || ''}</td>
-            <td>${settings.kpa_pangkat || 'Pembina'}<br>NIP. ${settings.kpa_nip || ''}</td>
+            <td style="text-align: center;">${settings.bpp_pangkat || 'Penata Tingkat I'}<br>NIP. ${settings.bpp_nip || ''}</td>
+            <td style="text-align: center;">${settings.kpa_pangkat || 'Pembina'}<br>NIP. ${settings.kpa_nip || ''}</td>
           </tr>
         </table>
       </div>
@@ -647,18 +648,18 @@ export function exportBukuPembantuPdf(groups) {
   doc.save(`Buku_Pembantu_${new Date().getTime()}.pdf`)
 }
 
-export function exportRealisasiPdf(subKegiatan, realisasiPerRek) {
+export function exportRealisasiPdf(subKegiatan, realisasiPerRek, year = new Date().getFullYear()) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' }); const settings = useStore.getState().settings
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text('LAPORAN REALISASI ANGGARAN', 105, 15, { align: 'center' }); doc.text(`TAHUN ANGGARAN ${new Date().getFullYear()}`, 105, 21, { align: 'center' }); doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.text(`Unit Kerja : ${settings.unit_kerja}`, 14, 30)
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text('LAPORAN REALISASI ANGGARAN', 105, 15, { align: 'center' }); doc.text(`TAHUN ANGGARAN ${year}`, 105, 21, { align: 'center' }); doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.text(`Unit Kerja : ${settings.unit_kerja}`, 14, 30)
   const head = [['Kode', 'Uraian / Nama Kegiatan', 'Pagu (Rp)', 'Realisasi (Rp)', 'Sisa (Rp)', '%']]; const body = []
   subKegiatan.forEach(sk => { const skReal = (sk.kode_rekening ?? []).reduce((s, r) => s + (realisasiPerRek[r.id] ?? 0), 0); const skPagu = (sk.kode_rekening ?? []).reduce((s, r) => s + (r.pagu_anggaran ?? 0), 0); body.push([{ content: sk.kode, styles: { fontStyle: 'bold' } }, { content: sk.nama, styles: { fontStyle: 'bold' } }, { content: formatRupiah(skPagu).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } }, { content: formatRupiah(skReal).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } }, { content: formatRupiah(skPagu - skReal).replace('Rp', '').trim(), styles: { fontStyle: 'bold', halign: 'right' } }, { content: `${persen(skReal, skPagu)}%`, styles: { fontStyle: 'bold', halign: 'center' } }]); (sk.kode_rekening ?? []).forEach(rek => { const real = realisasiPerRek[rek.id] ?? 0; body.push([`  ${rek.kode}`, `  ${rek.uraian}`, { content: formatRupiah(rek.pagu_anggaran).replace('Rp', '').trim(), styles: { halign: 'right' } }, { content: formatRupiah(real).replace('Rp', '').trim(), styles: { halign: 'right' } }, { content: formatRupiah(rek.pagu_anggaran - real).replace('Rp', '').trim(), styles: { halign: 'right' } }, { content: `${persen(real, rek.pagu_anggaran)}%`, styles: { halign: 'center' } }]) }) })
   autoTable(doc, { startY: 38, head: head, body: body, theme: 'grid', styles: { fontSize: 7, cellPadding: 1.2, lineColor: [0, 0, 0], lineWidth: 0.1 }, headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], halign: 'center' }, columnStyles: { 0: { cellWidth: 25 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 25 }, 3: { cellWidth: 25 }, 4: { cellWidth: 25 }, 5: { cellWidth: 12 } } })
   doc.save('Laporan_Realisasi_Anggaran.pdf')
 }
 
-export function exportRekapBulananPdf(data) {
+export function exportRekapBulananPdf(data, year = new Date().getFullYear()) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' }); const settings = useStore.getState().settings
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text('REKAPITULASI PENERIMAAN DAN PENGELUARAN', 105, 15, { align: 'center' }); doc.text(`TAHUN ANGGARAN ${new Date().getFullYear()}`, 105, 21, { align: 'center' })
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text('REKAPITULASI PENERIMAAN DAN PENGELUARAN', 105, 15, { align: 'center' }); doc.text(`TAHUN ANGGARAN ${year}`, 105, 21, { align: 'center' })
   autoTable(doc, { startY: 35, head: [['Bulan', 'Penerimaan (Rp)', 'Pengeluaran (Rp)', 'Saldo (Rp)']], body: data.map(r => [r.bulan, formatRupiah(r.penerimaan).replace('Rp', '').trim(), formatRupiah(r.pengeluaran).replace('Rp', '').trim(), formatRupiah(r.penerimaan - r.pengeluaran).replace('Rp', '').trim()]), theme: 'striped', headStyles: { fillColor: [124, 58, 237], halign: 'center' }, columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right', fontStyle: 'bold' } } })
   doc.save('Rekap_Bulanan.pdf')
 }
@@ -2169,11 +2170,14 @@ export const exportBAPenutupanKasPdf = async (data, settings) => {
         clearTimeout(timeout)
         try {
           const canvas = document.createElement('canvas')
-          canvas.width = img.width
-          canvas.height = img.height
+          const MAX_WIDTH = 300
+          const scale = MAX_WIDTH / img.width
+          canvas.width = MAX_WIDTH
+          canvas.height = img.height * scale
+
           const ctx = canvas.getContext('2d')
-          ctx.drawImage(img, 0, 0)
-          resolve(canvas.toDataURL('image/png'))
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          resolve(canvas.toDataURL('image/png', 0.8))
         } catch (error) { resolve('') }
       }
       img.onerror = () => {
@@ -2187,13 +2191,13 @@ export const exportBAPenutupanKasPdf = async (data, settings) => {
   }
 
   const logoBase64 = await getBase64(logoJabar)
-  const now = new Date()
-  const year = now.getFullYear()
-  const monthIndex = now.getMonth()
   const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
-  const monthName = months[monthIndex]
-  const fullDate = `${now.getDate()} ${monthName} ${year}`
-  const lastDay = new Date(year, monthIndex + 1, 0).getDate()
+  const monthName = months[data.month - 1]
+  const year = data.year
+  
+  // Gunakan tanggal manual jika ada, jika tidak gunakan akhir bulan
+  const dateObj = settings.ba_tanggal ? new Date(settings.ba_tanggal) : new Date(year, data.month, 0)
+  const fullDate = `${dateObj.getDate()} ${months[dateObj.getMonth()]} ${dateObj.getFullYear()}`
 
   const fmt = (val) => {
     if (!val || val === 0) return '0,00'
@@ -2211,7 +2215,7 @@ export const exportBAPenutupanKasPdf = async (data, settings) => {
       <style>
         @page {
           size: 215mm 330mm;
-          margin: 0.5cm;
+          margin: 0.3cm 0.5cm 0.5cm 0.5cm;
         }
         * {
           box-sizing: border-box;
@@ -2296,7 +2300,9 @@ export const exportBAPenutupanKasPdf = async (data, settings) => {
             <p style="font-size: 16pt; font-weight: bold;">BADAN PENDAPATAN DAERAH</p>
             <p style="font-size: 15pt; font-weight: bold;">PUSAT PENGELOLAAN PENDAPATAN DAERAH</p>
             <p style="font-size: 15pt; font-weight: bold;">WILAYAH ${(settings.lokasi_wilayah || 'KABUPATEN TASIKMALAYA').toUpperCase()}</p>
-            <p style="font-size: 10pt; margin-top: 5px; font-weight: normal;">${settings.alamat_kantor || ''}</p>
+            <p style="font-size: 11pt; margin-top: 3px; font-weight: normal;">${settings.alamat_kantor || 'Jalan Raya Cikatomas Sukaraja Telepon (0265) 565149'}</p>
+            <p style="font-size: 11pt; font-weight: normal;">${settings.fax_email || 'Faksimil : (0265) 566917 E-mail : p3dwkabtsm@gmail.com'}</p>
+            <p style="font-size: 11pt; font-weight: normal;">${settings.kode_pos_line || 'Kabupaten Tasikmalaya – 46183'}</p>
           </td>
         </tr>
       </table>
