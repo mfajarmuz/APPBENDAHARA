@@ -126,7 +126,10 @@ export default function Laporan() {
   const [filterBulan, setFilterBulan] = useState(new Date().getMonth())
   const [filterTahun, setFilterTahun] = useState(new Date().getFullYear())
   const [tipeLaporan, setTipeLaporan] = useState('akhir') // 'akhir' atau 'pertengahan'
-  const [customTanggal, setCustomTanggal] = useState(new Date().toISOString().split('T')[0])
+  const [customDates, setCustomDates] = useState({
+    akhir: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0],
+    pertengahan: new Date().toISOString().split('T')[0]
+  })
   const [collapsedSk, setCollapsedSk] = useState({})
   const [penerimaanCollapsed, setPenerimaanCollapsed] = useState(true)
   const [pengeluaranCollapsed, setPengeluaranCollapsed] = useState(true)
@@ -178,7 +181,11 @@ export default function Laporan() {
   useEffect(() => {
     setLocalBku(filteredBku)
     setSelectedIds([]) // Reset selection when filter changes
-  }, [filteredBku])
+    
+    // Update end of month date when filter changes
+    const lastDay = new Date(filterTahun, filterBulan + 1, 0).toISOString().split('T')[0]
+    setCustomDates(prev => ({ ...prev, akhir: lastDay }))
+  }, [filteredBku, filterBulan, filterTahun])
 
   const toggleSelect = (id) => {
     setSelectedIds(prev => 
@@ -525,62 +532,56 @@ export default function Laporan() {
   }, [realisasiLpj])
 
   const lpjSummary = useMemo(() => {
-    const filterByJenisTime = (items, jenisList, isIni) => items.filter(p => {
-      const d = new Date(p.tanggal); const m = d.getMonth(); const y = d.getFullYear()
-      const matchesJenis = jenisList.includes(p.jenis)
-      return matchesJenis && (isIni ? (y === filterTahun && m === filterBulan) : (y < filterTahun || (y === filterTahun && m < filterBulan)))
-    })
-    const sumJ = (items) => items.reduce((s, p) => s + p.jumlah, 0)
-    const sumP = (items, jenisList, isIni) => sumJ(filterByJenisTime(items, jenisList, isIni))
+    const midDate = new Date(customDates.pertengahan); midDate.setHours(23, 59, 59, 999);
+    const endDate = new Date(customDates.akhir); endDate.setHours(23, 59, 59, 999);
+    const startDate = new Date(filterTahun, filterBulan, 1);
 
-    // 1. PENERIMAAN
-    const penLS = {
-      lalu: sumP(penerimaan, ['LS'], false),
-      ini: sumP(penerimaan, ['LS'], true),
-      sd: sumP(penerimaan, ['LS'], false) + sumP(penerimaan, ['LS'], true)
-    }
-    const penGU = {
-      lalu: sumP(penerimaan, ['UP', 'GU', 'TU', 'KKPD'], false),
-      ini: sumP(penerimaan, ['UP', 'GU', 'TU', 'KKPD'], true),
-      sd: sumP(penerimaan, ['UP', 'GU', 'TU', 'KKPD'], false) + sumP(penerimaan, ['UP', 'GU', 'TU', 'KKPD'], true)
-    }
-
-    const getPenerimaanSub = (jenisList) => ({
-      lalu: sumP(penerimaan, jenisList, false),
-      ini: sumP(penerimaan, jenisList, true),
-      sd: sumP(penerimaan, jenisList, false) + sumP(penerimaan, jenisList, true)
-    })
-
-    const upPen = getPenerimaanSub(['UP'])
-    const guPen = getPenerimaanSub(['GU'])
-    const tuPen = getPenerimaanSub(['TU'])
-    const lsPen = getPenerimaanSub(['LS'])
-    const kkpdPen = getPenerimaanSub(['KKPD'])
-
-    const isTaxFromLS = (p) => {
-      if (p.jenis === 'Pajak') return false
-      if (p.jenis === 'Pajak LS' || p.jenis === 'LS') return true
-      if (p.no_sp2d || p.nomor_ls) return true
+    const filterByTime = (items, timeKey) => items.filter(p => {
+      const d = new Date(p.tanggal)
+      if (timeKey === 'lalu') return d < startDate
+      if (timeKey === 'p1') return d >= startDate && d <= midDate
+      if (timeKey === 'p2') return d > midDate && d <= endDate
       return false
+    })
+
+    const sumJ = (items) => items.reduce((s, p) => s + p.jumlah, 0)
+    const sumP = (items, jenisList, timeKey) => {
+      const list = items.filter(p => jenisList.includes(p.jenis))
+      return sumJ(filterByTime(list, timeKey))
     }
+
+    const getPenerimaanAgg = (jenisList) => {
+      const lalu = sumP(penerimaan, jenisList, 'lalu')
+      const p1 = sumP(penerimaan, jenisList, 'p1')
+      const p2 = sumP(penerimaan, jenisList, 'p2')
+      return { lalu, p1, p2, ini: p1 + p2, sd: lalu + p1 + p2 }
+    }
+
+    const penLS = getPenerimaanAgg(['LS'])
+    const penGU = getPenerimaanAgg(['UP', 'GU', 'TU', 'KKPD'])
+    const upPen = getPenerimaanAgg(['UP'])
+    const guPen = getPenerimaanAgg(['GU'])
+    const tuPen = getPenerimaanAgg(['TU'])
+    const lsPen = getPenerimaanAgg(['LS'])
+    const kkpdPen = getPenerimaanAgg(['KKPD'])
+
+    const isTaxFromLS = (p) => (p.jenis === 'Pajak LS' || p.jenis === 'LS' || !!p.no_sp2d || !!p.nomor_ls)
 
     const getTaxAgg = (regex) => {
       const items = penerimaan.filter(p => (p.jenis === 'Pajak' || p.jenis === 'Pajak LS') && regex.test(p.keterangan || ''))
       const lsItems = items.filter(p => isTaxFromLS(p))
       const guItems = items.filter(p => !isTaxFromLS(p))
       
-      return {
-        ls: {
-          lalu: sumJ(filterByJenisTime(lsItems, ['Pajak', 'Pajak LS'], false)), 
-          ini: sumJ(filterByJenisTime(lsItems, ['Pajak', 'Pajak LS'], true)), 
-          sd: sumJ(filterByJenisTime(lsItems, ['Pajak', 'Pajak LS'], false)) + sumJ(filterByJenisTime(lsItems, ['Pajak', 'Pajak LS'], true))
-        },
-        gu: { 
-          lalu: sumJ(filterByJenisTime(guItems, ['Pajak', 'Pajak LS'], false)), 
-          ini: sumJ(filterByJenisTime(guItems, ['Pajak', 'Pajak LS'], true)), 
-          sd: sumJ(filterByJenisTime(guItems, ['Pajak', 'Pajak LS'], false)) + sumJ(filterByJenisTime(guItems, ['Pajak', 'Pajak LS'], true)) 
-        }
-      }
+      const res = (list) => ({
+        lalu: sumJ(filterByTime(list, 'lalu')),
+        p1: sumJ(filterByTime(list, 'p1')),
+        p2: sumJ(filterByTime(list, 'p2')),
+        ini: 0, sd: 0
+      })
+      
+      const ls = res(lsItems); ls.ini = ls.p1 + ls.p2; ls.sd = ls.lalu + ls.ini
+      const gu = res(guItems); gu.ini = gu.p1 + gu.p2; gu.sd = gu.lalu + gu.ini
+      return { ls, gu }
     }
 
     const taxPPN = getTaxAgg(/PPN/i)
@@ -615,29 +616,20 @@ export default function Laporan() {
       }
     }
 
-    // 2. PENGELUARAN
-    const pengLS = {
-      lalu: sumP(pengeluaran, ['LS'], false),
-      ini: sumP(pengeluaran, ['LS'], true),
-      sd: sumP(pengeluaran, ['LS'], false) + sumP(pengeluaran, ['LS'], true)
-    }
-    const pengGU = {
-      lalu: sumP(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], false),
-      ini: sumP(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], true),
-      sd: sumP(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], false) + sumP(pengeluaran, ['UP', 'GU', 'TU', 'KKPD'], true)
+    const getPengeluaranAgg = (jenisList) => {
+      const lalu = sumP(pengeluaran, jenisList, 'lalu')
+      const p1 = sumP(pengeluaran, jenisList, 'p1')
+      const p2 = sumP(pengeluaran, jenisList, 'p2')
+      return { lalu, p1, p2, ini: p1 + p2, sd: lalu + p1 + p2 }
     }
 
-    const getPengeluaranSub = (jenisList) => ({
-      lalu: sumP(pengeluaran, jenisList, false),
-      ini: sumP(pengeluaran, jenisList, true),
-      sd: sumP(pengeluaran, jenisList, false) + sumP(pengeluaran, jenisList, true)
-    })
-
-    const upPeng = getPengeluaranSub(['UP'])
-    const guPeng = getPengeluaranSub(['GU'])
-    const tuPeng = getPengeluaranSub(['TU'])
-    const lsPeng = getPengeluaranSub(['LS'])
-    const kkpdPeng = getPengeluaranSub(['KKPD'])
+    const pengLS = getPengeluaranAgg(['LS'])
+    const pengGU = getPengeluaranAgg(['UP', 'GU', 'TU', 'KKPD'])
+    const upPeng = getPengeluaranAgg(['UP'])
+    const guPeng = getPengeluaranAgg(['GU'])
+    const tuPeng = getPengeluaranAgg(['TU'])
+    const lsPeng = getPengeluaranAgg(['LS'])
+    const kkpdPeng = getPengeluaranAgg(['KKPD'])
 
     const getTaxSetoranAgg = (regex) => {
       const items = pengeluaran.filter(p => {
@@ -647,18 +639,16 @@ export default function Laporan() {
       const lsItems = items.filter(p => isTaxFromLS(p))
       const guItems = items.filter(p => !isTaxFromLS(p))
 
-      return {
-        ls: {
-          lalu: sumJ(filterByJenisTime(lsItems, ['GU', 'UP', 'TU', 'KKPD', 'Pajak', 'Pajak LS', 'LS'], false)), 
-          ini: sumJ(filterByJenisTime(lsItems, ['GU', 'UP', 'TU', 'KKPD', 'Pajak', 'Pajak LS', 'LS'], true)), 
-          sd: sumJ(filterByJenisTime(lsItems, ['GU', 'UP', 'TU', 'KKPD', 'Pajak', 'Pajak LS', 'LS'], false)) + sumJ(filterByJenisTime(lsItems, ['GU', 'UP', 'TU', 'KKPD', 'Pajak', 'Pajak LS', 'LS'], true))
-        },
-        gu: { 
-          lalu: sumJ(filterByJenisTime(guItems, ['GU', 'UP', 'TU', 'KKPD', 'Pajak', 'Pajak LS', 'LS'], false)), 
-          ini: sumJ(filterByJenisTime(guItems, ['GU', 'UP', 'TU', 'KKPD', 'Pajak', 'Pajak LS', 'LS'], true)), 
-          sd: sumJ(filterByJenisTime(guItems, ['GU', 'UP', 'TU', 'KKPD', 'Pajak', 'Pajak LS', 'LS'], false)) + sumJ(filterByJenisTime(guItems, ['GU', 'UP', 'TU', 'KKPD', 'Pajak', 'Pajak LS', 'LS'], true)) 
-        }
-      }
+      const res = (list) => ({
+        lalu: sumJ(filterByTime(list, 'lalu')),
+        p1: sumJ(filterByTime(list, 'p1')),
+        p2: sumJ(filterByTime(list, 'p2')),
+        ini: 0, sd: 0
+      })
+
+      const ls = res(lsItems); ls.ini = ls.p1 + ls.p2; ls.sd = ls.lalu + ls.ini
+      const gu = res(guItems); gu.ini = gu.p1 + gu.p2; gu.sd = gu.lalu + gu.ini
+      return { ls, gu }
     }
 
     const setPPN = getTaxSetoranAgg(/PPN/i)
@@ -891,8 +881,8 @@ export default function Laporan() {
                   {(tab === 'lra' || tipeLaporan === 'akhir' || tipeLaporan === 'pertengahan') && <span className="text-[10px] font-black text-slate-400 uppercase whitespace-nowrap">Tanggal Laporan:</span>}
                   <input
                     type="date"
-                    value={customTanggal}
-                    onChange={e => setCustomTanggal(e.target.value)}
+                    value={customDates[tipeLaporan]}
+                    onChange={e => setCustomDates(prev => ({ ...prev, [tipeLaporan]: e.target.value }))}
                     className="text-xs font-bold border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 text-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none cursor-pointer"
                   />
                 </div>
@@ -925,7 +915,7 @@ export default function Laporan() {
             <Button 
               variant="primary" 
               onClick={() => {
-                const customDate = customTanggal
+                const customDate = customDates[tipeLaporan]
                 exportBKUSubKegPdf(localBku, filterBulan, filterTahun, totalsBulanLalu, subKegiatan, customDate)
               }}
               className="h-[42px] px-5 rounded-full group flex items-center justify-center gap-2.5 font-semibold shadow-md shadow-indigo-600/20 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 hover:scale-[1.03]"
@@ -942,7 +932,7 @@ export default function Laporan() {
             <>
               <Button 
                 variant="primary" 
-                onClick={() => exportLPJAdministratifPdf(filterBulan, filterTahun, subKegiatan, pengeluaran, penerimaan, customTanggal)}
+                onClick={() => exportLPJAdministratifPdf(filterBulan, filterTahun, subKegiatan, pengeluaran, penerimaan, customDates[tipeLaporan])}
                 className="h-[42px] px-5 rounded-full group flex items-center justify-center gap-2.5 font-semibold shadow-md shadow-indigo-600/20 transition-all duration-300 hover:scale-[1.03]"
               >
                 <Printer size={15} className="group-hover:scale-110 transition-transform text-white opacity-90 flex-shrink-0" />
@@ -954,7 +944,7 @@ export default function Laporan() {
               
               <Button 
                 variant="primary" 
-                onClick={() => exportLPJPeriodePdf(filterBulan, filterTahun, subKegiatan, pengeluaran, penerimaan, customTanggal)}
+                onClick={() => exportLPJPeriodePdf(filterBulan, filterTahun, subKegiatan, pengeluaran, penerimaan, customDates.pertengahan, customDates.akhir)}
                 className="h-[42px] px-5 rounded-full group flex items-center justify-center gap-2.5 font-semibold shadow-md shadow-indigo-600/20 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 hover:scale-[1.03]"
               >
                 <Printer size={15} className="group-hover:scale-110 transition-transform text-white opacity-90 flex-shrink-0" />
@@ -1551,7 +1541,7 @@ export default function Laporan() {
 
               <table className="w-full mb-6 text-[11px] font-medium text-slate-700">
                 <tbody>
-                  <tr><td className="w-60 py-0.5">Tanggal Penutupan Kas</td><td className="w-4 py-0.5">:</td><td className="font-bold text-slate-900">{customTanggal ? new Date(customTanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</td></tr>
+                  <tr><td className="w-60 py-0.5">Tanggal Penutupan Kas</td><td className="w-4 py-0.5">:</td><td className="font-bold text-slate-900">{customDates[tipeLaporan] ? new Date(customDates[tipeLaporan]).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</td></tr>
                   <tr><td className="py-0.5">Nama Penutup Kas</td><td className="py-0.5">:</td><td className="font-bold text-slate-900">{useStore.getState().settings.bpp_nama || '-'}</td></tr>
                   <tr><td className="py-0.5">Tanggal Penutupan Kas yang lalu</td><td className="py-0.5">:</td><td>-</td></tr>
                   <tr><td className="py-0.5">Jumlah Transaksi s/d bulan</td><td className="py-0.5">:</td><td className="font-bold text-slate-900">{BULAN[filterBulan]} {filterTahun}</td></tr>
@@ -1696,7 +1686,7 @@ export default function Laporan() {
               {/* Signatures */}
               <div className="mt-auto font-sans">
                 <div className="flex justify-end text-[11px] mb-8 text-slate-900 font-bold">
-                  {useStore.getState().settings.lokasi || 'Tasikmalaya'}, {customTanggal ? new Date(customTanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {useStore.getState().settings.lokasi || 'Tasikmalaya'}, {customDates[tipeLaporan] ? new Date(customDates[tipeLaporan]).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </div>
                 <div className="grid grid-cols-2 text-[11px] gap-12">
                   <div>
@@ -1781,7 +1771,7 @@ export default function Laporan() {
               <div className="flex justify-end mb-6 no-print">
                 <Button 
                   variant="primary" 
-                  onClick={() => exportBAPemeriksaanKasPdf(filterBulan, filterTahun, bkuCalculations.saldo, customTanggal)}
+                  onClick={() => exportBAPemeriksaanKasPdf(filterBulan, filterTahun, bkuCalculations.saldo, customDates[tipeLaporan])}
                   className="h-10 px-6 rounded-full group flex items-center gap-2 font-bold shadow-lg shadow-indigo-600/20"
                 >
                   <Printer size={16} /> Cetak BA Pemeriksaan Kas
@@ -1813,7 +1803,7 @@ export default function Laporan() {
 
               <div className="text-[11px] space-y-4 text-justify font-serif">
                 <p className="leading-relaxed">
-                  Pada hari ini <strong>{customTanggal ? new Date(customTanggal).toLocaleDateString('id-ID', { weekday: 'long' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { weekday: 'long' })}</strong> tanggal <strong>{terbilang(customTanggal ? new Date(customTanggal).getDate() : new Date(filterTahun, filterBulan + 1, 0).getDate())}</strong> Bulan <strong>{customTanggal ? BULAN[new Date(customTanggal).getMonth()] : BULAN[filterBulan]}</strong> Tahun <strong>{terbilang(filterTahun)}</strong> yang bertanda dibawah ini :
+                  Pada hari ini <strong>{customDates[tipeLaporan] ? new Date(customDates[tipeLaporan]).toLocaleDateString('id-ID', { weekday: 'long' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { weekday: 'long' })}</strong> tanggal <strong>{terbilang(customDates[tipeLaporan] ? new Date(customDates[tipeLaporan]).getDate() : new Date(filterTahun, filterBulan + 1, 0).getDate())}</strong> Bulan <strong>{customDates[tipeLaporan] ? BULAN[new Date(customDates[tipeLaporan]).getMonth()] : BULAN[filterBulan]}</strong> Tahun <strong>{terbilang(filterTahun)}</strong> yang bertanda dibawah ini :
                 </p>
 
                 <table className="w-full ml-4">
@@ -1879,7 +1869,7 @@ export default function Laporan() {
                   </div>
                 </div>
                 <div className="text-center">
-                  <p>{useStore.getState().settings.lokasi || 'Sukaraja'}, {customTanggal ? new Date(customTanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                  <p>{useStore.getState().settings.lokasi || 'Sukaraja'}, {customDates[tipeLaporan] ? new Date(customDates[tipeLaporan]).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                   <p className="uppercase">{useStore.getState().settings.bpp_jabatan || 'Bendahara Pengeluaran Pembantu'},</p>
                   <div className="mt-16">
                     <p className="font-black underline uppercase text-sm">{useStore.getState().settings.bpp_nama || '-'}</p>
@@ -1935,7 +1925,7 @@ export default function Laporan() {
 
               <div className="text-[11px] space-y-4 text-justify font-serif">
                 <p className="leading-relaxed">
-                  Dengan memperhatikan Peraturan Gubernur Jawa Barat Nomor 5 Tahun 2017 tentang Sistem dan Prosedur Pengelolaan Keuangan Daerah, dengan ini kami sampaikan Laporan Penutupan Kas per tanggal {customTanggal ? new Date(customTanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} sebagai berikut :
+                  Dengan memperhatikan Peraturan Gubernur Jawa Barat Nomor 5 Tahun 2017 tentang Sistem dan Prosedur Pengelolaan Keuangan Daerah, dengan ini kami sampaikan Laporan Penutupan Kas per tanggal {customDates[tipeLaporan] ? new Date(customDates[tipeLaporan]).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} sebagai berikut :
                 </p>
 
                 <div>
@@ -1969,7 +1959,7 @@ export default function Laporan() {
                     <tbody>
                       <tr><td className="w-6">1.</td><td className="w-80">Saldo Kas di Bendahara Pengeluaran</td><td className="w-4 text-center">:</td><td className="w-8">Rp.</td><td className="text-right font-bold w-32">Nihil</td></tr>
                       <tr><td>2.</td><td>Saldo Kas di Bendahara Pengeluaran Pembantu</td><td>:</td><td>Rp.</td><td className="text-right font-bold">{formatRupiah(registerKasData.saldo).replace('Rp', '').trim()}</td></tr>
-                      <tr><td>3.</td><td>Saldo Kas s/d Tanggal {customTanggal ? new Date(customTanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</td><td>:</td><td>Rp.</td><td className="text-right font-bold">{formatRupiah(registerKasData.saldo).replace('Rp', '').trim()}</td></tr>
+                      <tr><td>3.</td><td>Saldo Kas s/d Tanggal {customDates[tipeLaporan] ? new Date(customDates[tipeLaporan]).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</td><td>:</td><td>Rp.</td><td className="text-right font-bold">{formatRupiah(registerKasData.saldo).replace('Rp', '').trim()}</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -1980,7 +1970,7 @@ export default function Laporan() {
               <div className="mt-auto pt-16 grid grid-cols-2 text-[11px] font-sans">
                 <div className="text-center"></div>
                 <div className="text-center">
-                  <p>{useStore.getState().settings.lokasi || 'Sukaraja'}, {customTanggal ? new Date(customTanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                  <p>{useStore.getState().settings.lokasi || 'Sukaraja'}, {customDates[tipeLaporan] ? new Date(customDates[tipeLaporan]).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                   <p>Yang membuat laporan,</p>
                 </div>
                 <div className="text-center mt-6">
