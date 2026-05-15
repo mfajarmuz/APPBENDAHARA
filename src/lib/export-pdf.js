@@ -490,7 +490,7 @@ export async function exportBAPemeriksaanKasPdf(monthIndex, year, saldoBuku, cus
         <div class="judul">
           <h3>BERITA ACARA PEMERIKSAAN KAS</h3>
           <p>BULAN ${bulanNama.toUpperCase()} ${year}</p>
-          <p>NOMOR : ${settings.ba_nomor || '___/___'}</p>
+          <p>NOMOR : ${settings.ba_nomor || '_____/KU.03.01-TU'}</p>
         </div>
 
         <p class="content-text">
