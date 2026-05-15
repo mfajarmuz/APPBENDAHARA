@@ -355,8 +355,7 @@ export async function exportBAPemeriksaanKasPdf(monthIndex, year, saldoBuku, cus
   const logoBase64 = await getBase64(logoJabar)
   // alert('2. Logo Base64: ' + (logoBase64 ? 'Tersedia' : 'Gagal/Kosong'))
 
-  const html = `
-    <!DOCTYPE html>
+  const html = `<!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8">
@@ -365,7 +364,11 @@ export async function exportBAPemeriksaanKasPdf(monthIndex, year, saldoBuku, cus
           size: 215mm 330mm;
           margin: 0.5cm;
         }
+        * {
+          box-sizing: border-box;
+        }
         body {
+          width: 210mm; /* A4 width as fallback */
           font-family: 'Times New Roman', Times, serif;
           font-size: 11pt;
           line-height: 1.35;
@@ -581,7 +584,7 @@ export async function exportBAPemeriksaanKasPdf(monthIndex, year, saldoBuku, cus
       const res = await window.api.printToPdf({ 
         html, 
         defaultPath: `BA_Pemeriksaan_Kas_${bulanNama}_${year}.pdf`,
-        pageSize: { width: 215000, height: 330000 }
+        pageSize: 'Legal'
       })
       if (res && res.success) {
         // Berhasil disimpan, log atau tampilkan notifikasi jika perlu
@@ -2152,3 +2155,237 @@ export function exportRPPUPPdf(data, filterBulan, year = new Date().getFullYear(
   doc.save(`RPPUP_${year}.pdf`)
 }
 
+export const exportBAPenutupanKasPdf = async (data, settings) => {
+  const getBase64 = async (url) => {
+    return new Promise((resolve) => {
+      let isResolved = false
+      const timeout = setTimeout(() => {
+        if (!isResolved) { isResolved = true; resolve('') }
+      }, 2000)
+      const img = new Image()
+      img.onload = () => {
+        if (isResolved) return
+        isResolved = true
+        clearTimeout(timeout)
+        try {
+          const canvas = document.createElement('canvas')
+          canvas.width = img.width
+          canvas.height = img.height
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0)
+          resolve(canvas.toDataURL('image/png'))
+        } catch (error) { resolve('') }
+      }
+      img.onerror = () => {
+        if (isResolved) return
+        isResolved = true
+        clearTimeout(timeout)
+        resolve('')
+      }
+      img.src = url
+    })
+  }
+
+  const logoBase64 = await getBase64(logoJabar)
+  const now = new Date()
+  const year = now.getFullYear()
+  const monthIndex = now.getMonth()
+  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+  const monthName = months[monthIndex]
+  const fullDate = `${now.getDate()} ${monthName} ${year}`
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate()
+
+  const fmt = (val) => {
+    if (!val || val === 0) return '0,00'
+    return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2 }).format(val)
+  }
+
+  const saldoAwal = (data.saldo || 0) - (data.totalDebetIni || 0) + (data.totalKreditIni || 0)
+  const totalCash = data.tunai || 0
+  const saldoBank = data.bank || 0
+
+  const html = `<!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        @page {
+          size: 215mm 330mm;
+          margin: 0.5cm;
+        }
+        * {
+          box-sizing: border-box;
+        }
+        body {
+          width: 210mm;
+          font-family: 'Times New Roman', Times, serif;
+          font-size: 11pt;
+          line-height: 1.4;
+          color: #000;
+          margin: 0;
+          padding: 0;
+          background: #fff;
+        }
+        .kop-table {
+          width: 100%;
+          border-bottom: 3px solid #000;
+          margin-bottom: 2px;
+          padding-bottom: 8px;
+        }
+        .kop-line-2 {
+          border-bottom: 1px solid #000;
+          margin-bottom: 20px;
+        }
+        .kop-logo {
+          width: 80px;
+          vertical-align: middle;
+        }
+        .kop-text {
+          text-align: center;
+          vertical-align: middle;
+        }
+        .kop-text p {
+          margin: 0;
+          padding: 0;
+          font-family: Arial, Helvetica, sans-serif;
+        }
+        .judul {
+          text-align: center;
+          margin: 25px 0;
+        }
+        .judul h3 {
+          margin: 0;
+          font-size: 13pt;
+          text-decoration: underline;
+          font-weight: bold;
+        }
+        .data-tbl {
+          width: 100%;
+          margin-bottom: 15px;
+          border-collapse: collapse;
+        }
+        .data-tbl td {
+          vertical-align: top;
+          padding: 3px 0;
+        }
+        .col-num { width: 30px; }
+        .col-label { width: 340px; }
+        .col-sep { width: 20px; text-align: center; }
+        .col-curr { width: 40px; }
+        .col-val { width: 140px; text-align: right; font-weight: bold; }
+        
+        .tanda-tangan {
+          margin-top: 40px;
+          width: 100%;
+        }
+        .tanda-tangan td {
+          width: 50%;
+          text-align: center;
+          vertical-align: top;
+        }
+      </style>
+    </head>
+    <body>
+      <table class="kop-table">
+        <tr>
+          <td width="90">
+            ${logoBase64 ? `<img src="${logoBase64}" class="kop-logo" />` : ''}
+          </td>
+          <td class="kop-text">
+            <p style="font-size: 14pt;">PEMERINTAH DAERAH PROVINSI JAWA BARAT</p>
+            <p style="font-size: 16pt; font-weight: bold;">BADAN PENDAPATAN DAERAH</p>
+            <p style="font-size: 15pt; font-weight: bold;">PUSAT PENGELOLAAN PENDAPATAN DAERAH</p>
+            <p style="font-size: 15pt; font-weight: bold;">WILAYAH ${(settings.lokasi_wilayah || 'KABUPATEN TASIKMALAYA').toUpperCase()}</p>
+            <p style="font-size: 10pt; margin-top: 5px; font-weight: normal;">${settings.alamat_kantor || ''}</p>
+          </td>
+        </tr>
+      </table>
+      <div class="kop-line-2"></div>
+
+      <div style="margin-bottom: 25px;">
+        Kepada Yth,<br>
+        Bapak Kepala Pusat Pengelolaan Pendapatan Daerah<br>
+        Wilayah ${settings.lokasi_wilayah || 'Kabupaten Tasikmalaya'}<br>
+        di - <br>
+        <span style="padding-left: 25px;">${(settings.lokasi || 'Sukaraja').toUpperCase()}</span>
+      </div>
+
+      <div class="judul">
+        <h3>BERITA ACARA LAPORAN PENUTUPAN KAS</h3>
+      </div>
+
+      <p style="text-align: justify; margin-bottom: 15px;">
+        Dengan memperhatikan Peraturan Gubernur Jawa Barat Nomor 5 Tahun 2017 tentang Sistem dan Prosedur Pengelolaan Keuangan Daerah, dengan ini kami sampaikan Laporan Penutupan Kas per tanggal ${fullDate} sebagai berikut :
+      </p>
+
+      <div style="margin-bottom: 15px;">
+        <strong style="text-decoration: underline;">A. Kas di Bendahara Pengeluaran</strong>
+        <table class="data-tbl">
+          <tr><td class="col-num">1.</td><td class="col-label">Saldo awal bulan</td><td class="col-sep">:</td><td class="col-curr">Rp.</td><td class="col-val">Nihil</td></tr>
+          <tr><td>2.</td><td>Jumlah Penerimaan s.d ${lastDay} ${monthName}</td><td>:</td><td>Rp.</td><td class="col-val">Nihil</td></tr>
+          <tr><td>3.</td><td>Jumlah Pengeluaran s.d ${lastDay} ${monthName}</td><td>:</td><td>Rp.</td><td class="col-val">Nihil</td></tr>
+          <tr><td>4.</td><td>Saldo akhir bulan</td><td>:</td><td>Rp.</td><td class="col-val">Nihil</td></tr>
+        </table>
+      </div>
+
+      <div style="margin-bottom: 15px;">
+        <strong style="text-decoration: underline;">B. Kas di Bendahara Pengeluaran Pembantu</strong>
+        <table class="data-tbl">
+          <tr><td class="col-num">1.</td><td class="col-label">Saldo awal bulan ${monthName} ${year}</td><td class="col-sep">:</td><td class="col-curr">Rp.</td><td class="col-val">${fmt(saldoAwal)}</td></tr>
+          <tr><td>2.</td><td>Jumlah Penerimaan s.d ${lastDay} ${monthName} ${year}</td><td>:</td><td>Rp.</td><td class="col-val">${fmt(data.totalDebetIni)}</td></tr>
+          <tr><td>3.</td><td>Jumlah Pengeluaran s.d ${lastDay} ${monthName} ${year}</td><td>:</td><td>Rp.</td><td class="col-val">${fmt(data.totalKreditIni)}</td></tr>
+          <tr><td>4.</td><td>Saldo akhir bulan ${monthName} ${year}</td><td>:</td><td>Rp.</td><td class="col-val">${fmt(data.saldo)}</td></tr>
+        </table>
+        <p style="margin-left: 30px; font-style: italic; font-size: 10pt;">Keterangan : Terdiri dari saldo kas tunai Rp. ${fmt(totalCash)} dan saldo bank Rp. ${fmt(saldoBank)}</p>
+      </div>
+
+      <div style="margin-bottom: 15px;">
+        <strong style="text-decoration: underline;">C. Rekapitulasi Posisi Kas</strong>
+        <table class="data-tbl">
+          <tr><td class="col-num">1.</td><td class="col-label">Saldo Kas di Bendahara Pengeluaran</td><td class="col-sep">:</td><td class="col-curr">Rp.</td><td class="col-val">Nihil</td></tr>
+          <tr><td>2.</td><td>Saldo Kas di Bendahara Pengeluaran Pembantu</td><td>:</td><td>Rp.</td><td class="col-val">${fmt(data.saldo)}</td></tr>
+          <tr><td>3.</td><td>Saldo Kas s/d Tanggal ${fullDate}</td><td>:</td><td>Rp.</td><td class="col-val">${fmt(data.saldo)}</td></tr>
+        </table>
+      </div>
+
+      <p style="margin-top: 15px;">
+        Demikian Berita Acara Laporan Penutupan Kas ini dibuat dengan sebenarnya untuk dapat dipergunakan sebagaimana mestinya.
+      </p>
+
+      <table class="tanda-tangan">
+        <tr>
+          <td></td>
+          <td>${settings.lokasi || 'Sukaraja'}, ${fullDate}<br>Yang membuat laporan,</td>
+        </tr>
+        <tr>
+          <td style="padding-top: 15px;">Mengetahui,<br>${settings.kpa_jabatan || 'KUASA PENGGUNA ANGGARAN,'}</td>
+          <td style="padding-top: 15px;"><br>${settings.bpp_jabatan || 'BENDAHARA PENGELUARAN PEMBANTU,'}</td>
+        </tr>
+        <tr>
+          <td style="padding-top: 60px;"><strong><u>${settings.kpa_nama || ''}</u></strong></td>
+          <td style="padding-top: 60px;"><strong><u>${settings.bpp_nama || ''}</u></strong></td>
+        </tr>
+        <tr>
+          <td>${settings.kpa_pangkat || ''}<br>NIP. ${settings.kpa_nip || ''}</td>
+          <td>${settings.bpp_pangkat || ''}<br>NIP. ${settings.bpp_nip || ''}</td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `
+
+  if (window.api && window.api.printToPdf) {
+    try {
+      const res = await window.api.printToPdf({ 
+        html, 
+        defaultPath: `BA_Penutupan_Kas_${monthName}_${year}.pdf`,
+        pageSize: 'Legal'
+      })
+      if (res && !res.success) {
+        alert('Gagal mencetak: ' + (res.error || 'Unknown error'))
+      }
+    } catch (e) {
+      alert('Error: ' + e.message)
+    }
+  }
+}

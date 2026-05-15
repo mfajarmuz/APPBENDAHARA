@@ -421,18 +421,23 @@ ipcMain.handle('print-to-pdf', async (event, { html, defaultPath, pageSize }) =>
   const tempPath = path.join(os.tmpdir(), `print_${Date.now()}.html`)
   fs.writeFileSync(tempPath, html, 'utf-8')
 
-  const win = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: true } })
+  const win = new BrowserWindow({ 
+    show: false, 
+    width: 1200, 
+    height: 1600,
+    webPreferences: { nodeIntegration: true, contextIsolation: false } 
+  })
   
   try {
     await win.loadURL(url.pathToFileURL(tempPath).href)
     
-    // Tunggu sebentar untuk memastikan gambar termuat
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // Tunggu lebih lama untuk memastikan gambar/layout termuat sempurna
+    await new Promise(resolve => setTimeout(resolve, 3000))
 
     const pdfData = await win.webContents.printToPDF({
       printBackground: true,
       pageSize: pageSize || 'A4',
-      margins: { marginType: 'custom', top: 0, bottom: 0, left: 0, right: 0 }
+      margins: { marginType: 'none' }
     })
     
     const { filePath } = await dialog.showSaveDialog({
