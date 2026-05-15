@@ -1,5 +1,9 @@
 import { create } from 'zustand'
 
+/**
+ * [FITUR: MASTER DATA - SUB KEGIATAN & PROGRAM]
+ * Mengelola struktur program, kegiatan, dan sub kegiatan termasuk sinkronisasi anggaran.
+ */
 const createSubKegiatanSlice = (set, get) => ({
   subKegiatan: [],
   fetchSubKegiatan: async () => {
@@ -65,6 +69,10 @@ const createSubKegiatanSlice = (set, get) => ({
   }
 })
 
+/**
+ * [FITUR: MASTER DATA - KODE REKENING]
+ * Mengelola daftar kode rekening untuk klasifikasi transaksi.
+ */
 const createKodeRekeningSlice = (set, get) => ({
   addKodeRekening: async (payload) => {
     try {
@@ -89,6 +97,10 @@ const createKodeRekeningSlice = (set, get) => ({
   }
 })
 
+/**
+ * [FITUR: TRANSAKSI - PENERIMAAN KAS]
+ * Mencatat semua uang masuk ke Buku Kas Umum (BKU).
+ */
 const createPenerimaanSlice = (set, get) => ({
   penerimaan: [],
   fetchPenerimaan: async () => {
@@ -128,6 +140,10 @@ const createPenerimaanSlice = (set, get) => ({
   }
 })
 
+/**
+ * [FITUR: TRANSAKSI - PENGELUARAN KAS]
+ * Mencatat pengeluaran, SPJ, dan sinkronisasi dengan sisa anggaran.
+ */
 const createPengeluaranSlice = (set, get) => ({
   pengeluaran: [],
   fetchPengeluaran: async () => {
@@ -186,6 +202,11 @@ const createPengeluaranSlice = (set, get) => ({
   }
 })
 
+/**
+ * [MAIN STORE: useStore]
+ * Store utama aplikasi yang menggabungkan seluruh modul fungsional.
+ * Menyimpan state global seperti User, Settings, dan IsLoading.
+ */
 export const useStore = create((set, get) => ({
   isLoading: false,
   error: null,

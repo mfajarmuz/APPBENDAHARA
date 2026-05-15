@@ -22,6 +22,11 @@ export function terbilang(angka) {
   return angka.toString()
 }
 
+/**
+ * [FITUR: EXPORT PDF - BUKU KAS UMUM]
+ * Menghasilkan file PDF untuk laporan Buku Kas Umum bulanan.
+ * Menggunakan jsPDF-AutoTable untuk layout tabel.
+ */
 export function exportBKUPdf(rows, monthIndex, year = new Date().getFullYear(), totalsBulanLalu = { debet: 0, kredit: 0 }, customDate = null) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const monthName = getMonthName(monthIndex)
@@ -304,6 +309,11 @@ export function exportBKUSubKegPdf(rows, monthIndex, year, totalsBulanLalu = { d
 
   doc.save(`BKU_SubKeg_${monthName}_${year}.pdf`)
 }
+/**
+ * [FITUR: EXPORT PDF - BERITA ACARA PEMERIKSAAN KAS]
+ * Menghasilkan PDF Berita Acara Pemeriksaan Kas (BA Kas).
+ * Mendukung rendering HTML-to-PDF melalui Electron printToPDF untuk hasil presisi tinggi.
+ */
 export async function exportBAPemeriksaanKasPdf(monthIndex, year, saldoBuku, customDate = null) {
   const monthName = getMonthName(monthIndex)
   const settings = useStore.getState().settings
@@ -390,7 +400,7 @@ export async function exportBAPemeriksaanKasPdf(monthIndex, year, saldoBuku, cus
           margin-bottom: 15px;
         }
         .kop-logo {
-          width: 80px;
+          width: 104px;
           vertical-align: middle;
         }
         .kop-text {
@@ -471,7 +481,7 @@ export async function exportBAPemeriksaanKasPdf(monthIndex, year, saldoBuku, cus
     <body>
       <table class="kop-table">
         <tr>
-          <td width="90">
+          <td width="117" style="padding-left: 2cm;">
             ${logoBase64 ? `<img src="${logoBase64}" class="kop-logo" />` : ''}
           </td>
           <td class="kop-text">
@@ -1799,6 +1809,10 @@ export function exportBukuSimpananBankPdf(rows, monthIndex, year = new Date().ge
   doc.save(`Buku_Simpanan_Bank_${monthName}_${year}.pdf`)
 }
 
+/**
+ * [FITUR: EXPORT PDF - REGISTER PENUTUPAN KAS]
+ * Menghasilkan PDF Register Kas bulanan yang mencatat rincian fisik uang (lembar/keping).
+ */
 export function exportRegisterKasPdf(data, cashUnits, monthIndex, year, customDate = null) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const settings = useStore.getState().settings
@@ -2156,6 +2170,10 @@ export function exportRPPUPPdf(data, filterBulan, year = new Date().getFullYear(
   doc.save(`RPPUP_${year}.pdf`)
 }
 
+/**
+ * [FITUR: EXPORT PDF - BERITA ACARA PENUTUPAN KAS]
+ * Menghasilkan PDF Berita Acara Penutupan Kas Akhir Bulan.
+ */
 export const exportBAPenutupanKasPdf = async (data, settings) => {
   const getBase64 = async (url) => {
     return new Promise((resolve) => {
@@ -2238,10 +2256,10 @@ export const exportBAPenutupanKasPdf = async (data, settings) => {
         }
         .kop-line-2 {
           border-bottom: 1px solid #000;
-          margin-bottom: 20px;
+          margin-bottom: 15px;
         }
         .kop-logo {
-          width: 80px;
+          width: 104px;
           vertical-align: middle;
         }
         .kop-text {
@@ -2292,7 +2310,7 @@ export const exportBAPenutupanKasPdf = async (data, settings) => {
     <body>
       <table class="kop-table">
         <tr>
-          <td width="90">
+          <td width="117" style="padding-left: 2cm;">
             ${logoBase64 ? `<img src="${logoBase64}" class="kop-logo" />` : ''}
           </td>
           <td class="kop-text">

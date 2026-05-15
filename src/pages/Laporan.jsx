@@ -103,6 +103,15 @@ function SortableRow({ r, i, formatTanggal, formatRupiah, isSelected, onToggleSe
   )
 }
 
+/**
+ * [HALAMAN: LAPORAN]
+ * Modul pusat untuk mencetak seluruh laporan keuangan (BKU, BA Kas, Register Kas, dll).
+ * Mendukung fitur:
+ * 1. Filter periode (Bulan & Tahun).
+ * 2. Pratinjau (Preview) UI yang responsif.
+ * 3. Ekspor PDF (Native & jsPDF) dan Excel.
+ * 4. Pengaturan urutan baris BKU (Drag & Drop).
+ */
 export default function Laporan() {
   const subKegiatan = useStore(s => s.subKegiatan)
   const penerimaan = useStore(s => s.penerimaan)
@@ -969,6 +978,7 @@ export default function Laporan() {
 
       {/* Content */}
       <Card className="p-0 overflow-hidden border-slate-200 shadow-xl ring-1 ring-slate-200/50">
+        {/* [TAB: BUKU KAS UMUM (BKU)] */}
         {tab === 'bku' && (
           <div className="overflow-x-auto">
             <DndContext
@@ -1526,6 +1536,7 @@ export default function Laporan() {
           </div>
         )}
 
+        {/* [TAB: REGISTER PENUTUPAN KAS] */}
         {tab === 'register_kas' && (
           <div className="bg-slate-100 min-h-[800px] flex justify-center py-8 px-4 sm:py-16 overflow-x-auto">
             <div className="bg-white shadow-2xl w-[21.5cm] min-h-[33cm] p-[0.8cm] pt-[0.4cm] text-slate-900 relative flex flex-col rounded border border-slate-300/50">
@@ -1763,6 +1774,7 @@ export default function Laporan() {
           </div>
         )}
 
+        {/* [TAB: BERITA ACARA PEMERIKSAAN KAS] */}
         {tab === 'ba_pemeriksaan' && (
           <div className="bg-slate-100 min-h-[800px] flex justify-center py-8 px-4 sm:py-16 overflow-x-auto">
             <div className="bg-white shadow-2xl w-[21.5cm] min-h-[33cm] p-[0.8cm] pt-[0.4cm] text-slate-900 relative flex flex-col rounded border border-slate-300/50">
@@ -1777,7 +1789,7 @@ export default function Laporan() {
               </div>
 
               <div className="flex items-start justify-between border-b-[3px] border-slate-900 pb-1 mb-[1px]">
-                <div className="w-20">
+                <div className="w-[calc(104px+2cm)] pl-[2cm]">
                   <img src={logoJabar} alt="Logo" className="w-full h-auto" />
                 </div>
                 <div className="flex-1 text-center font-sans">
@@ -1789,7 +1801,7 @@ export default function Laporan() {
                   <p className="text-[9px] font-medium">{useStore.getState().settings.fax_email || 'Faksimil : (0265) 566917 E-mail : p3dwkabtsm@gmail.com'}</p>
                   <p className="text-[9px] font-medium">{useStore.getState().settings.kode_pos_line || 'Kabupaten Tasikmalaya – 46183'}</p>
                 </div>
-                <div className="w-20"></div>
+                <div className="w-[calc(104px+2cm)]"></div>
               </div>
               <div className="border-b border-slate-900 mb-6"></div>
 
@@ -1878,9 +1890,10 @@ export default function Laporan() {
             </div>
           </div>
         )}
+        {/* [TAB: BERITA ACARA PENUTUPAN KAS] */}
         {tab === 'ba_penutupan' && (
           <div className="bg-slate-100 min-h-[800px] flex justify-center py-8 px-4 sm:py-16 overflow-x-auto">
-            <div className="bg-white shadow-2xl w-[21.5cm] min-h-[33cm] p-[0.8cm] pt-[0.4cm] text-slate-900 relative flex flex-col rounded border border-slate-300/50">
+            <div className="bg-white shadow-2xl w-[21.5cm] min-h-[33cm] pl-[2.8cm] pr-[0.8cm] pt-[0.4cm] pb-[0.8cm] text-slate-900 relative flex flex-col rounded border border-slate-300/50">
               <div className="flex justify-end mb-6 no-print">
                 <Button 
                   variant="primary" 
@@ -1892,7 +1905,7 @@ export default function Laporan() {
               </div>
 
               <div className="flex items-start justify-between border-b-[3px] border-slate-900 pb-1 mb-[1px]">
-                <div className="w-20">
+                <div className="w-[calc(104px+2cm)] pl-[2cm]">
                   <img src={logoJabar} alt="Logo" className="w-full h-auto" />
                 </div>
                 <div className="flex-1 text-center font-sans">
@@ -1904,7 +1917,7 @@ export default function Laporan() {
                   <p className="text-[9px] font-medium">{useStore.getState().settings.fax_email || 'Faksimil : (0265) 566917 E-mail : p3dwkabtsm@gmail.com'}</p>
                   <p className="text-[9px] font-medium">{useStore.getState().settings.kode_pos_line || 'Kabupaten Tasikmalaya – 46183'}</p>
                 </div>
-                <div className="w-20"></div>
+                <div className="w-[calc(104px+2cm)]"></div>
               </div>
               <div className="border-b border-slate-900 mb-6"></div>
 

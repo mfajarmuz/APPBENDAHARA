@@ -39,6 +39,10 @@ const EMPTY_FORM = {
 }
 const EMPTY_RINCIAN = { uraian: '', jumlah: '' }
 
+/**
+ * [HALAMAN: PENGELUARAN / SPJ]
+ * Mengelola transaksi pengeluaran kas, input SPJ, dan sinkronisasi dengan anggaran.
+ */
 export default function Pengeluaran() {
   const subKegiatan = useStore(s => s.subKegiatan)
   const pengeluaran = useStore(s => s.pengeluaran)

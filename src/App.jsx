@@ -16,6 +16,11 @@ function ProtectedRoute({ children }) {
   return children
 }
 
+/**
+ * [ENTRY POINT: App]
+ * Konfigurasi Routing Utama dan Proteksi Halaman (Auth).
+ * Menggunakan HashRouter untuk kompatibilitas Electron.
+ */
 export default function App() {
   return (
     <HashRouter>

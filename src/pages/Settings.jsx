@@ -6,6 +6,10 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Badge from '@/components/ui/Badge'
 
+/**
+ * [HALAMAN: PENGATURAN]
+ * Kelola identitas dinas, pejabat penandatangan, dan integrasi eksternal (Google Drive).
+ */
 export default function Settings() {
   const settings = useStore(s => s.settings)
   const updateSettings = useStore(s => s.updateSettings)
