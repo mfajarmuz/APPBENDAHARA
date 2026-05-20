@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import * as api from '../lib/api'
 
 /**
  * [FITUR: MASTER DATA - SUB KEGIATAN & PROGRAM]
@@ -9,7 +10,7 @@ const createSubKegiatanSlice = (set, get) => ({
   fetchSubKegiatan: async () => {
     set({ isLoading: true })
     try {
-      const res = await window.api.getSubKegiatan()
+      const res = await api.getSubKegiatan()
       if (res && res.success) {
         set({ subKegiatan: res.data || [] })
       } else if (res) {
@@ -20,49 +21,49 @@ const createSubKegiatanSlice = (set, get) => ({
   },
   addProgram: async (payload) => {
     try {
-      const res = await window.api.addProgram(payload)
+      const res = await api.addProgram(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
   },
   updateProgram: async (id, payload) => {
     try {
-      const res = await window.api.updateProgram(id, payload)
+      const res = await api.updateProgram(id, payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
   },
   addKegiatan: async (payload) => {
     try {
-      const res = await window.api.addKegiatan(payload)
+      const res = await api.addKegiatan(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
   },
   updateKegiatan: async (id, payload) => {
     try {
-      const res = await window.api.updateKegiatan(id, payload)
+      const res = await api.updateKegiatan(id, payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
   },
   addSubKegiatan: async (payload) => {
     try {
-      const res = await window.api.addSubKegiatan(payload)
+      const res = await api.addSubKegiatan(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
   },
   updateSubKegiatan: async (payload) => {
     try {
-      const res = await window.api.updateSubKegiatan(payload)
+      const res = await api.updateSubKegiatan(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
   },
   deleteSubKegiatan: async (id) => {
     try {
-      const res = await window.api.deleteSubKegiatan(id)
+      const res = await api.deleteSubKegiatan(id)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
@@ -76,21 +77,21 @@ const createSubKegiatanSlice = (set, get) => ({
 const createKodeRekeningSlice = (set, get) => ({
   addKodeRekening: async (payload) => {
     try {
-      const res = await window.api.addKodeRekening(payload)
+      const res = await api.addKodeRekening(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
   },
   updateKodeRekening: async (payload) => {
     try {
-      const res = await window.api.updateKodeRekening(payload)
+      const res = await api.updateKodeRekening(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
   },
   deleteKodeRekening: async (id) => {
     try {
-      const res = await window.api.deleteKodeRekening(id)
+      const res = await api.deleteKodeRekening(id)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
@@ -106,7 +107,7 @@ const createPenerimaanSlice = (set, get) => ({
   fetchPenerimaan: async () => {
     set({ isLoading: true })
     try {
-      const res = await window.api.getPenerimaan()
+      const res = await api.getPenerimaan()
       if (res && res.success) set({ penerimaan: res.data || [] })
     } catch (err) { console.error(err) }
     finally { set({ isLoading: false }) }
@@ -114,7 +115,7 @@ const createPenerimaanSlice = (set, get) => ({
   addPenerimaan: async (payload) => {
     set({ isLoading: true })
     try {
-      const res = await window.api.addPenerimaan(payload)
+      const res = await api.addPenerimaan(payload)
       if (res && res.success) await get().fetchPenerimaan()
       return res
     } catch (err) { return { success: false, error: err.message } }
@@ -123,7 +124,7 @@ const createPenerimaanSlice = (set, get) => ({
   updatePenerimaan: async (payload) => {
     set({ isLoading: true })
     try {
-      const res = await window.api.updatePenerimaan(payload)
+      const res = await api.updatePenerimaan(payload)
       if (res && res.success) await get().fetchPenerimaan()
       return res
     } catch (err) { return { success: false, error: err.message } }
@@ -132,7 +133,7 @@ const createPenerimaanSlice = (set, get) => ({
   deletePenerimaan: async (id) => {
     set({ isLoading: true })
     try {
-      const res = await window.api.deletePenerimaan(id)
+      const res = await api.deletePenerimaan(id)
       if (res && res.success) await get().fetchPenerimaan()
       return res
     } catch (err) { return { success: false, error: err.message } }
@@ -149,7 +150,7 @@ const createPengeluaranSlice = (set, get) => ({
   fetchPengeluaran: async () => {
     set({ isLoading: true })
     try {
-      const res = await window.api.getPengeluaran()
+      const res = await api.getPengeluaran()
       if (res && res.success) set({ pengeluaran: res.data || [] })
     } catch (err) { console.error(err) }
     finally { set({ isLoading: false }) }
@@ -157,7 +158,7 @@ const createPengeluaranSlice = (set, get) => ({
   addPengeluaran: async (payload) => {
     set({ isLoading: true })
     try {
-      const res = await window.api.addPengeluaran(payload)
+      const res = await api.addPengeluaran(payload)
       if (res && res.success) {
         await get().fetchPengeluaran()
         await get().fetchSubKegiatan()
@@ -169,7 +170,7 @@ const createPengeluaranSlice = (set, get) => ({
   updatePengeluaran: async (id, payload) => {
     set({ isLoading: true })
     try {
-      const res = await window.api.updatePengeluaran(id, payload)
+      const res = await api.updatePengeluaran(id, payload)
       if (res && res.success) {
         await get().fetchPengeluaran()
         await get().fetchSubKegiatan()
@@ -181,7 +182,7 @@ const createPengeluaranSlice = (set, get) => ({
   deletePengeluaran: async (id) => {
     set({ isLoading: true })
     try {
-      const res = await window.api.deletePengeluaran(id)
+      const res = await api.deletePengeluaran(id)
       if (res && res.success) {
         await get().fetchPengeluaran()
         await get().fetchSubKegiatan()
@@ -192,7 +193,7 @@ const createPengeluaranSlice = (set, get) => ({
   },
   updateBkuUrutan: async (items) => {
     try {
-      const res = await window.api.updateBkuUrutan(items)
+      const res = await api.updateBkuUrutan(items)
       if (res && res.success) {
         await get().fetchPenerimaan()
         await get().fetchPengeluaran()
@@ -263,7 +264,6 @@ export const useStore = create((set, get) => ({
   },
 
   login: async (username, password) => {
-    // Simulasi login sederhana (bisa diganti dengan IPC call ke backend jika diperlukan)
     if (username === 'p3dwkabtasikmalaya' && password === 'Sukaraj4') {
       const user = { username: 'p3dwkabtasikmalaya', role: 'admin' }
       localStorage.setItem('user', JSON.stringify(user))

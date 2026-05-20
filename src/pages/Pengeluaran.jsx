@@ -508,7 +508,7 @@ export default function Pengeluaran() {
 
   const handleDownloadTemplate = async () => {
     try {
-      const res = await window.api.downloadTemplate('template-pengeluaran.xlsx')
+      const res = await (window.api ? window.api.downloadTemplate('template-pengeluaran.xlsx') : { success: false, error: 'Fitur ini hanya tersedia di aplikasi desktop.' })
       if (res && res.success) {
         // Success (user saved the file)
       }
