@@ -793,6 +793,8 @@ export default function Laporan() {
     else if (tab === 'register_kas') exportRegisterKasPdf(registerKasData, cashUnits, filterBulan, filterTahun, customDate)
     else if (tab === 'rppua') exportRPPUAPdf(rekapBulanan, filterBulan, filterTahun, customDate)
     else if (tab === 'rppup') exportRPPUPPdf(rekapPajakBulanan, filterBulan, filterTahun, customDate)
+    else if (tab === 'ba_pemeriksaan') await exportBAPemeriksaanKasPdf(filterBulan, filterTahun, bkuCalculations.saldo, customDate)
+    else if (tab === 'ba_penutupan') await exportBAPenutupanKasPdf(registerKasData, useStore.getState().settings, customDate)
   }
 
   function handleExportExcel() {
@@ -1806,15 +1808,7 @@ export default function Laporan() {
         {tab === 'ba_pemeriksaan' && (
           <div className="bg-slate-100 min-h-[800px] flex justify-center py-8 px-4 sm:py-16 overflow-x-auto">
             <div className="bg-white shadow-2xl w-[21.5cm] min-h-[33cm] p-[0.8cm] pt-[0.4cm] text-slate-900 relative flex flex-col rounded border border-slate-300/50">
-              <div className="flex justify-end mb-6 no-print">
-                <Button 
-                  variant="primary" 
-                  onClick={() => exportBAPemeriksaanKasPdf(filterBulan, filterTahun, bkuCalculations.saldo, customDates[tipeLaporan])}
-                  className="h-10 px-6 rounded-full group flex items-center gap-2 font-bold shadow-lg shadow-indigo-600/20"
-                >
-                  <Printer size={16} /> Cetak BA Pemeriksaan Kas
-                </Button>
-              </div>
+
 
               <div className="flex items-start justify-between border-b-[3px] border-slate-900 pb-1 mb-[1px]">
                 <div className="w-[calc(104px+2cm)] pl-[2cm]">
@@ -1919,120 +1913,124 @@ export default function Laporan() {
           </div>
         )}
         {/* [TAB: BERITA ACARA PENUTUPAN KAS] */}
-        {tab === 'ba_penutupan' && (
-          <div className="bg-slate-100 min-h-[800px] flex justify-center py-8 px-4 sm:py-16 overflow-x-auto">
-            <div className="bg-white shadow-2xl w-[21.5cm] min-h-[33cm] pl-[2.8cm] pr-[0.8cm] pt-[0.4cm] pb-[0.8cm] text-slate-900 relative flex flex-col rounded border border-slate-300/50">
-              <div className="flex justify-end mb-6 no-print">
-                <Button 
-                  variant="primary" 
-                  onClick={() => exportBAPenutupanKasPdf(registerKasData, useStore.getState().settings, customDates[tipeLaporan])}
-                  className="h-10 px-6 rounded-full group flex items-center gap-2 font-bold shadow-lg shadow-indigo-600/20"
-                >
-                  <Printer size={16} /> Cetak BA Penutupan Kas
-                </Button>
-              </div>
+        {tab === 'ba_penutupan' && (() => {
+          const _months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+          const _settings = useStore.getState().settings
+          const _customRaw = customDates[tipeLaporan]
+          let _dateObj = new Date(filterTahun, filterBulan + 1, 0)
+          if (_customRaw) { const _p = new Date(_customRaw); if (!isNaN(_p.getTime())) _dateObj = _p }
+          const _fullDate = `${_dateObj.getDate()} ${_months[_dateObj.getMonth()]} ${_dateObj.getFullYear()}`
+          const _monthName = _months[filterBulan]
+          const _year = filterTahun
+          const _fmt = (val) => (!val || val === 0) ? '-' : new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2 }).format(val)
+          const _saldoAwal = (registerKasData.saldo || 0) - (registerKasData.totalDebetIni || 0) + (registerKasData.totalKreditIni || 0)
 
-              <div className="flex items-start justify-between border-b-[3px] border-slate-900 pb-1 mb-[1px]">
-                <div className="w-[calc(104px+2cm)] pl-[2cm]">
-                  <img src={logoJabar} alt="Logo" className="w-full h-auto" />
+          return (
+            <div className="bg-slate-100 min-h-[800px] flex justify-center py-8 px-4 sm:py-16 overflow-x-auto">
+              <div className="bg-white shadow-2xl w-[21.5cm] min-h-[33cm] text-slate-900 relative flex flex-col rounded border border-slate-300/50"
+                style={{fontFamily: "'Times New Roman', Times, serif", fontSize: '11pt', lineHeight: '1.3', padding: '0.3cm 1.5cm 1cm 1.5cm'}}>
+
+                {/* Kop Surat */}
+                <table style={{width: '100%', borderBottom: '3.5px solid black', marginBottom: '1.5px', paddingBottom: '3px'}}>
+                  <tbody><tr>
+                    <td style={{width: '117px', paddingLeft: '2cm', verticalAlign: 'middle'}}>
+                      <img src={logoJabar} alt="Logo" style={{width: '104px'}} />
+                    </td>
+                    <td style={{textAlign: 'center', verticalAlign: 'middle', fontFamily: 'Arial, sans-serif'}}>
+                      <p style={{margin: 0, fontSize: '14pt'}}>PEMERINTAH DAERAH PROVINSI JAWA BARAT</p>
+                      <p style={{margin: 0, fontSize: '16pt', fontWeight: 'bold'}}>BADAN PENDAPATAN DAERAH</p>
+                      <p style={{margin: 0, fontSize: '15pt', fontWeight: 'bold'}}>PUSAT PENGELOLAAN PENDAPATAN DAERAH</p>
+                      <p style={{margin: 0, fontSize: '15pt', fontWeight: 'bold'}}>WILAYAH {(_settings.lokasi_wilayah || 'KABUPATEN TASIKMALAYA').toUpperCase()}</p>
+                      <p style={{margin: 0, fontSize: '11pt', marginTop: '3px'}}>{_settings.alamat_kantor || 'Jalan Raya Cikatomas Sukaraja Telepon (0265) 565149'}</p>
+                      <p style={{margin: 0, fontSize: '11pt'}}>{_settings.fax_email || 'Faksimil : (0265) 566917 E-mail : p3dwkabtsm@gmail.com'}</p>
+                      <p style={{margin: 0, fontSize: '11pt'}}>{_settings.kode_pos_line || 'Kabupaten Tasikmalaya – 46183'}</p>
+                    </td>
+                  </tr></tbody>
+                </table>
+                <div style={{borderBottom: '1px solid black', marginBottom: '15px'}}></div>
+
+                {/* Judul */}
+                <div style={{textAlign: 'center', marginTop: '10px', marginBottom: '25px', fontFamily: 'Arial, sans-serif'}}>
+                  <h3 style={{margin: 0, fontSize: '13pt', fontWeight: 'bold', textTransform: 'uppercase'}}>BERITA ACARA LAPORAN PENUTUPAN KAS</h3>
+                  <div style={{fontWeight: 'bold', fontSize: '11pt'}}>Bulan : {_monthName} {_year}</div>
                 </div>
-                <div className="flex-1 text-center font-sans">
-                  <p className="text-[11px] font-bold">PEMERINTAH DAERAH PROVINSI JAWA BARAT</p>
-                  <p className="text-[13px] font-black">BADAN PENDAPATAN DAERAH</p>
-                  <p className="text-[12px] font-black">PUSAT PENGELOLAAN PENDAPATAN DAERAH</p>
-                  <p className="text-[12px] font-black uppercase">WILAYAH {useStore.getState().settings.lokasi_wilayah || 'KABUPATEN TASIKMALAYA'}</p>
-                  <p className="text-[9px] mt-1 font-medium">{useStore.getState().settings.alamat_kantor || 'Jalan Raya Cikatomas Sukaraja Telepon (0265) 565149'}</p>
-                  <p className="text-[9px] font-medium">{useStore.getState().settings.fax_email || 'Faksimil : (0265) 566917 E-mail : p3dwkabtsm@gmail.com'}</p>
-                  <p className="text-[9px] font-medium">{useStore.getState().settings.kode_pos_line || 'Kabupaten Tasikmalaya – 46183'}</p>
+
+                {/* Alamat Tujuan */}
+                <div style={{marginBottom: '25px', fontSize: '11pt', lineHeight: '1.5'}}>
+                  Kepada Yth.<br />
+                  Kepala Pusat Pengelolaan Pendapatan Daerah Wilayah {_settings.lokasi_wilayah || 'Kabupaten Tasikmalaya'}<br />
+                  Selaku<br />
+                  Kuasa Pengguna Anggaran<br />
+                  Di Tempat
                 </div>
-                <div className="w-[calc(104px+2cm)]"></div>
-              </div>
-              <div className="border-b border-slate-900 mb-6"></div>
 
-              <div className="text-[11px] space-y-1 mb-8">
-                <p>Kepada Yth,</p>
-                <p>Bapak Kepala Pusat Pengelolaan Pendapatan Daerah</p>
-                <p>Wilayah {useStore.getState().settings.lokasi_wilayah || 'Kabupaten Tasikmalaya'}</p>
-                <p>di -</p>
-                <p className="pl-6 font-bold uppercase">{useStore.getState().settings.lokasi || 'Sukaraja'}</p>
-              </div>
-
-              <div className="text-center mb-8">
-                <h3 className="text-sm font-black underline uppercase tracking-tight">Berita Acara Laporan Penutupan Kas</h3>
-              </div>
-
-              <div className="text-[11px] space-y-4 text-justify font-serif">
-                <p className="leading-relaxed">
-                  Dengan memperhatikan Peraturan Gubernur Jawa Barat Nomor 5 Tahun 2017 tentang Sistem dan Prosedur Pengelolaan Keuangan Daerah, dengan ini kami sampaikan Laporan Penutupan Kas per tanggal {customDates[tipeLaporan] ? new Date(customDates[tipeLaporan]).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} sebagai berikut :
+                {/* Opening Text */}
+                <p style={{textAlign: 'justify', marginBottom: '20px', fontSize: '11pt'}}>
+                  Dengan memperhatikan Perturan Gubernur Jawa Barat Nomor 5 Tahun 2017 tentang Perubahan Atas Peraturan Gubernur Jawa Barat Nomor 3 Tahun 2016 Tentang Sistem dan Prosedur Pengelolaan keuangan Daerah Provinsi Jawa Barat. Bersama ini kami sampaikan Laporan Penutupan Kas Bulanan yang terdapat di Bendahara Pengeluaran Badan Pendapatan Daerah adalah sejumlah {_fmt(registerKasData.saldo)} dengan perincian sebagai berikut :
                 </p>
 
+                {/* Section A — Kas di Bendahara Pengeluaran */}
                 <div>
-                  <p className="font-bold underline mb-2 italic">A. Kas di Bendahara Pengeluaran</p>
-                  <table className="w-full ml-2">
+                  <span style={{fontWeight: 'bold', display: 'block', marginBottom: '5px'}}>A. &nbsp;&nbsp;&nbsp; Kas di Bendahara Pengeluaran</span>
+                  <table style={{width: 'calc(100% - 25px)', marginLeft: '25px', borderCollapse: 'collapse', fontSize: '11pt', tableLayout: 'fixed', marginBottom: '5px'}}>
                     <tbody>
-                      <tr><td className="w-6">1.</td><td className="w-80">Saldo awal bulan</td><td className="w-4 text-center">:</td><td className="w-8">Rp.</td><td className="text-right font-bold w-32">Nihil</td></tr>
-                      <tr><td>2.</td><td>Jumlah Penerimaan s.d {new Date(filterTahun, filterBulan + 1, 0).getDate()} {BULAN[filterBulan]}</td><td>:</td><td>Rp.</td><td className="text-right font-bold">Nihil</td></tr>
-                      <tr><td>3.</td><td>Jumlah Pengeluaran s.d {new Date(filterTahun, filterBulan + 1, 0).getDate()} {BULAN[filterBulan]}</td><td>:</td><td>Rp.</td><td className="text-right font-bold">Nihil</td></tr>
-                      <tr><td>4.</td><td>Saldo akhir bulan</td><td>:</td><td>Rp.</td><td className="text-right font-bold">Nihil</td></tr>
+                      <tr><td style={{width: '38px', padding: '1px 0'}}>A.1</td><td style={{padding: '1px 8px 1px 0'}}>Saldo awal bulan tanggal 01 {_monthName} {_year}</td><td style={{width: '28px', padding: '1px 0'}}>Rp</td><td style={{width: '170px', textAlign: 'right', padding: '1px 0'}}>-</td></tr>
+                      <tr><td style={{padding: '1px 0'}}>A.2</td><td style={{padding: '1px 8px 1px 0'}}>Jumlah Penerimaan</td><td style={{padding: '1px 0'}}>Rp</td><td style={{textAlign: 'right', padding: '1px 0'}}>-</td></tr>
+                      <tr><td style={{padding: '1px 0'}}>A.3</td><td style={{padding: '1px 8px 1px 0'}}>Jumlah Pengeluaran</td><td style={{padding: '1px 0'}}>Rp</td><td style={{textAlign: 'right', borderBottom: '1px solid black', padding: '1px 0'}}>-</td></tr>
+                      <tr style={{fontWeight: 'bold'}}><td style={{padding: '1px 0'}}>A.4</td><td style={{padding: '1px 8px 1px 0'}}>Saldo akhir bulan tanggal {_fullDate}</td><td style={{padding: '1px 0'}}>Rp</td><td style={{textAlign: 'right', padding: '1px 0'}}>-</td></tr>
+                    </tbody>
+                  </table>
+                  <div style={{marginLeft: '25px', marginBottom: '20px', fontSize: '11pt'}}>
+                    Saldo akhir bulan tanggal {_fullDate} Terdiri dari saldo di kas tunai sebesar Rp. 0,00 dan saldo bank Sebesar Rp. 0,00
+                  </div>
+                </div>
+
+                {/* Section B — Kas di Bendahara Pengeluaran Pembantu */}
+                <div>
+                  <span style={{fontWeight: 'bold', display: 'block', marginBottom: '5px'}}>B. &nbsp;&nbsp;&nbsp; Kas di Bendahara Pengeluaran Pembantu</span>
+                  <table style={{width: 'calc(100% - 25px)', marginLeft: '25px', borderCollapse: 'collapse', fontSize: '11pt', tableLayout: 'fixed', marginBottom: '5px'}}>
+                    <tbody>
+                      <tr><td style={{width: '38px', padding: '1px 0'}}>B.1</td><td style={{padding: '1px 8px 1px 0'}}>Saldo awal bulan tanggal 01 {_monthName} {_year}</td><td style={{width: '28px', padding: '1px 0'}}>Rp</td><td style={{width: '170px', textAlign: 'right', padding: '1px 0'}}>{_fmt(_saldoAwal)}</td></tr>
+                      <tr><td style={{padding: '1px 0'}}>B.2</td><td style={{padding: '1px 8px 1px 0'}}>Jumlah Penerimaan</td><td style={{padding: '1px 0'}}>Rp</td><td style={{textAlign: 'right', padding: '1px 0'}}>{_fmt(registerKasData.totalDebetIni)}</td></tr>
+                      <tr><td style={{padding: '1px 0'}}>B.3</td><td style={{padding: '1px 8px 1px 0'}}>Jumlah Pengeluaran</td><td style={{padding: '1px 0'}}>Rp</td><td style={{textAlign: 'right', borderBottom: '1px solid black', padding: '1px 0'}}>{_fmt(registerKasData.totalKreditIni)}</td></tr>
+                      <tr style={{fontWeight: 'bold'}}><td style={{padding: '1px 0'}}>B.4</td><td style={{padding: '1px 8px 1px 0'}}>Saldo akhir bulan tanggal {_fullDate}</td><td style={{padding: '1px 0'}}>Rp</td><td style={{textAlign: 'right', padding: '1px 0'}}>{_fmt(registerKasData.saldo)}</td></tr>
+                    </tbody>
+                  </table>
+                  <div style={{marginLeft: '25px', marginBottom: '20px', fontSize: '11pt'}}>
+                    Saldo akhir tanggal bulan : {_fullDate} Terdiri dari saldo di kas tunai sebesar Rp. 0,00 dan saldo bank Sebesar Rp. {_fmt(registerKasData.saldo)}
+                  </div>
+                </div>
+
+                {/* Section C — Rekapitulasi Posisi Kas */}
+                <div>
+                  <span style={{fontWeight: 'bold', display: 'block', marginBottom: '5px'}}>C. &nbsp;&nbsp;&nbsp; Rekapitulasi Posisi Kas di Bendahara Pengeluaran</span>
+                  <table style={{width: 'calc(100% - 25px)', marginLeft: '25px', borderCollapse: 'collapse', fontSize: '11pt', tableLayout: 'fixed', marginBottom: '5px'}}>
+                    <tbody>
+                      <tr><td style={{width: '38px', padding: '1px 0'}}>C.1</td><td style={{padding: '1px 8px 1px 0'}}>Saldo Kas Tunai</td><td style={{width: '28px', padding: '1px 0'}}>Rp</td><td style={{width: '170px', textAlign: 'right', padding: '1px 0'}}>-</td></tr>
+                      <tr><td style={{padding: '1px 0'}}>C.2</td><td style={{padding: '1px 8px 1px 0'}}>Saldo Bank</td><td style={{padding: '1px 0'}}>Rp</td><td style={{textAlign: 'right', borderBottom: '1px solid black', padding: '1px 0'}}>-</td></tr>
+                      <tr style={{fontWeight: 'bold'}}><td style={{padding: '1px 0'}}>C.3</td><td style={{padding: '1px 8px 1px 0'}}>Saldo Total</td><td style={{padding: '1px 0'}}>Rp</td><td style={{textAlign: 'right', padding: '1px 0'}}>-</td></tr>
                     </tbody>
                   </table>
                 </div>
 
-                <div>
-                  <p className="font-bold underline mb-2 italic">B. Kas di Bendahara Pengeluaran Pembantu</p>
-                  <table className="w-full ml-2">
-                    <tbody>
-                      <tr><td className="w-6">1.</td><td className="w-80">Saldo awal bulan {BULAN[filterBulan]} {filterTahun}</td><td className="w-4 text-center">:</td><td className="w-8">Rp.</td><td className="text-right font-bold w-32">{formatRupiah((registerKasData.saldo || 0) - (registerKasData.totalDebetIni || 0) + (registerKasData.totalKreditIni || 0)).replace('Rp', '').trim()}</td></tr>
-                      <tr><td>2.</td><td>Jumlah Penerimaan s.d {new Date(filterTahun, filterBulan + 1, 0).getDate()} {BULAN[filterBulan]} {filterTahun}</td><td>:</td><td>Rp.</td><td className="text-right font-bold">{formatRupiah(registerKasData.totalDebetIni).replace('Rp', '').trim()}</td></tr>
-                      <tr><td>3.</td><td>Jumlah Pengeluaran s.d {new Date(filterTahun, filterBulan + 1, 0).getDate()} {BULAN[filterBulan]} {filterTahun}</td><td>:</td><td>Rp.</td><td className="text-right font-bold">{formatRupiah(registerKasData.totalKreditIni).replace('Rp', '').trim()}</td></tr>
-                      <tr><td>4.</td><td>Saldo akhir bulan {BULAN[filterBulan]} {filterTahun}</td><td>:</td><td>Rp.</td><td className="text-right font-bold">{formatRupiah(registerKasData.saldo).replace('Rp', '').trim()}</td></tr>
-                    </tbody>
-                  </table>
-                  <p className="text-[10px] italic ml-8 mt-1 text-slate-500 font-sans">Keterangan : Terdiri dari saldo kas tunai Rp. {formatRupiah(registerKasCalcs.totalCash).replace('Rp', '').trim()} dan saldo bank Rp. {formatRupiah(registerKasCalcs.item3Balance).replace('Rp', '').trim()}</p>
-                </div>
+                {/* Tanda Tangan — BPP saja di kanan, sesuai PDF */}
+                <table style={{width: '100%', marginTop: '40px', fontSize: '11pt'}}>
+                  <tbody><tr>
+                    <td style={{width: '50%'}}></td>
+                    <td style={{textAlign: 'center'}}>
+                      <br />
+                      Bendahara Pengeluaran Pembantu
+                      <br /><br /><br /><br /><br />
+                      <strong><u>{_settings.bpp_nama || ''}</u></strong><br />
+                      NIP. {_settings.bpp_nip || ''}
+                    </td>
+                  </tr></tbody>
+                </table>
 
-                <div>
-                  <p className="font-bold underline mb-2 italic">C. Rekapitulasi Posisi Kas</p>
-                  <table className="w-full ml-2">
-                    <tbody>
-                      <tr><td className="w-6">1.</td><td className="w-80">Saldo Kas di Bendahara Pengeluaran</td><td className="w-4 text-center">:</td><td className="w-8">Rp.</td><td className="text-right font-bold w-32">Nihil</td></tr>
-                      <tr><td>2.</td><td>Saldo Kas di Bendahara Pengeluaran Pembantu</td><td>:</td><td>Rp.</td><td className="text-right font-bold">{formatRupiah(registerKasData.saldo).replace('Rp', '').trim()}</td></tr>
-                      <tr><td>3.</td><td>Saldo Kas s/d Tanggal {customDates[tipeLaporan] ? new Date(customDates[tipeLaporan]).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</td><td>:</td><td>Rp.</td><td className="text-right font-bold">{formatRupiah(registerKasData.saldo).replace('Rp', '').trim()}</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <p className="mt-8">Demikian Berita Acara Laporan Penutupan Kas ini dibuat dengan sebenarnya untuk dapat dipergunakan sebagaimana mestinya.</p>
-              </div>
-
-              <div className="mt-auto pt-16 grid grid-cols-2 text-[11px] font-sans">
-                <div className="text-center"></div>
-                <div className="text-center">
-                  <p>{useStore.getState().settings.lokasi || 'Sukaraja'}, {customDates[tipeLaporan] ? new Date(customDates[tipeLaporan]).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(filterTahun, filterBulan + 1, 0).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                  <p>Yang membuat laporan,</p>
-                </div>
-                <div className="text-center mt-6">
-                  <p>Mengetahui,</p>
-                  <p className="uppercase">{useStore.getState().settings.kpa_jabatan || 'Kuasa Pengguna Anggaran'},</p>
-                </div>
-                <div className="text-center mt-6">
-                  <br />
-                  <p className="uppercase">{useStore.getState().settings.bpp_jabatan || 'Bendahara Pengeluaran Pembantu'},</p>
-                </div>
-                <div className="text-center mt-12">
-                  <p className="font-black underline uppercase text-sm">{useStore.getState().settings.kpa_nama || '-'}</p>
-                  <p className="text-[10px] mt-0.5">{useStore.getState().settings.kpa_pangkat || ''}</p>
-                  <p className="text-[10px]">NIP. {useStore.getState().settings.kpa_nip || '-'}</p>
-                </div>
-                <div className="text-center mt-12">
-                  <p className="font-black underline uppercase text-sm">{useStore.getState().settings.bpp_nama || '-'}</p>
-                  <p className="text-[10px] mt-0.5">{useStore.getState().settings.bpp_pangkat || ''}</p>
-                  <p className="text-[10px]">NIP. {useStore.getState().settings.bpp_nip || '-'}</p>
-                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
         {tab === 'rppup' && (
           <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden p-6 sm:p-8 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">

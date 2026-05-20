@@ -4,6 +4,9 @@
 The project is in the refinement phase. Core features (Dashboard, Anggaran, Penerimaan, Pengeluaran) are implemented. Recent focus has been on fixing bugs in expenditure rincian and report accuracy.
 
 ## Recent Achievements
+- [x] **Bug Fix**: Memperbaiki kegagalan fungsionalitas tombol **Export PDF** pada tab **Berita Acara Pemeriksaan Kas** (BA Kas) dengan menerapkan pengamanan parsing tanggal (`customDate`) untuk mencegah RangeError serta standardisasi konversi numerik `saldoBuku`.
+- [x] **Testing & Verification**: Menambahkan 5 kasus pengujian baru di `src/test/export-pdf.test.js` untuk memverifikasi fungsionalitas ekspor PDF BA Kas pada mode browser (Web Mode) dan mode desktop (Electron) dengan berbagai variasi input tanggal (valid, kosong, tidak valid) — seluruh 44 unit test Vitest kini 100% lulus.
+- [x] **Environment Sync**: Sinkronisasi variabel lingkungan Supabase berprefiks `VITE_` (`VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY`) di file `.env` dan `.env.example` untuk menjamin koneksi database berjalan mulus pada mode browser Web tanpa warning.
 - [x] **Bug Fix**: Restorasi dan perbaikan modul PDF ekspor (`npd.js`, `buku-pembantu-pajak.js`, dan `rekap-bulanan.js`) yang hilang dari refaktor modularisasi dengan mengekstrak secara akurat dari riwayat commit git, memperbaiki resolusi parameter default, serta meloloskan 100% (40/40) pengujian unit Vitest.
 - [x] **Release v1.1.3**: Rilis versi 1.1.3 dengan perbaikan indexing kolom, penyelarasan breakdown GU pada tabel ringkasan LPJ, dan unifikasi total tabel anggaran dengan breakdown SPJ/Pajak lengkap.
 - [x] **Bug Fix**: Menambahkan metode CRUD manajemen anggaran yang hilang pada Zustand store untuk memperbaiki fitur penghapusan anggaran.

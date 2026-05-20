@@ -13,15 +13,28 @@ import html2canvas from 'html2canvas'
 export async function exportBAPemeriksaanKasPdf(monthIndex, year, saldoBuku, customDate = null) {
   const monthName = getMonthName(monthIndex)
   const settings = useStore.getState().settings
-  const lastDay = customDate ? new Date(customDate).getDate() : new Date(year, monthIndex + 1, 0).getDate()
 
-  const fmt = (val) => val > 0 ? formatRupiah(val).replace('Rp', '').trim() : 'Nihil'
+  // Parsing tanggal dengan aman agar tidak memicu RangeError pada toLocaleDateString
+  let dateObj = new Date(year, monthIndex + 1, 0) // Default ke akhir bulan
+  if (customDate) {
+    const parseAttempt = new Date(customDate)
+    if (!isNaN(parseAttempt.getTime())) {
+      dateObj = parseAttempt
+    }
+  }
 
-  const dateObj = customDate ? new Date(customDate) : new Date(year, monthIndex + 1, 0)
+  const lastDay = dateObj.getDate()
   const dayName = dateObj.toLocaleDateString('id-ID', { weekday: 'long' })
   const tglTerbilang = terbilang(lastDay)
   const bulanNama = getMonthName(monthIndex)
   const tahunTerbilang = terbilang(year)
+
+  // Memastikan saldoBuku dikonversi menjadi number sebelum digunakan
+  const saldoBukuNum = Number(saldoBuku || 0)
+  const fmt = (val) => {
+    const num = Number(val || 0)
+    return num > 0 ? formatRupiah(num).replace('Rp', '').trim() : 'Nihil'
+  }
 
   const getBase64 = async (url) => {
     return new Promise((resolve) => {

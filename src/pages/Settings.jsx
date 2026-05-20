@@ -12,6 +12,7 @@ import * as api from '@/lib/api'
  * Kelola identitas dinas, pejabat penandatangan, dan integrasi eksternal (Google Drive).
  */
 export default function Settings() {
+  const isElectron = typeof window !== 'undefined' && !!window.api
   const settings = useStore(s => s.settings)
   const updateSettings = useStore(s => s.updateSettings)
   const resetSettings = useStore(s => s.resetSettings)
@@ -28,7 +29,6 @@ export default function Settings() {
 
   // Google Drive connection states
   const [driveStatus, setDriveStatus] = useState({ loading: false, result: null })
-  const isElectron = typeof window !== 'undefined' && !!window.api
 
   // Sync form when settings change (e.g. after reset)
   useEffect(() => {

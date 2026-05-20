@@ -9,6 +9,7 @@ const mockText = vi.fn().mockReturnThis()
 const mockLine = vi.fn().mockReturnThis()
 const mockSetLineWidth = vi.fn().mockReturnThis()
 const mockSplitTextToSize = vi.fn().mockImplementation((text) => [text])
+const mockAddImage = vi.fn()
 
 vi.mock('jspdf', () => {
   return {
@@ -22,6 +23,7 @@ vi.mock('jspdf', () => {
         line: mockLine,
         setLineWidth: mockSetLineWidth,
         splitTextToSize: mockSplitTextToSize,
+        addImage: mockAddImage,
         getTextWidth: vi.fn().mockReturnValue(10),
         lastAutoTable: { finalY: 100 },
         internal: {
@@ -40,6 +42,17 @@ vi.mock('jspdf-autotable', () => {
   return {
     default: vi.fn((doc) => {
       doc.lastAutoTable = { finalY: 100 }
+    })
+  }
+})
+
+// Mock html2canvas
+vi.mock('html2canvas', () => {
+  return {
+    default: vi.fn().mockResolvedValue({
+      width: 800,
+      height: 1000,
+      toDataURL: () => 'data:image/png;base64,mockImageData'
     })
   }
 })
@@ -66,7 +79,7 @@ vi.mock('@/store/useStore', () => {
 
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { exportBKUPdf, exportBukuPembantuPdf, exportNPDPdf, exportNPDBatchPdf, exportLPJAdministratifPdf } from '../lib/export-pdf'
+import { exportBKUPdf, exportBukuPembantuPdf, exportNPDPdf, exportNPDBatchPdf, exportLPJAdministratifPdf, exportBAPemeriksaanKasPdf } from '../lib/export-pdf'
 
 describe('export-pdf', () => {
   beforeEach(() => {
@@ -150,6 +163,61 @@ describe('export-pdf', () => {
     expect(mockAddPage).toHaveBeenCalledTimes(1) // Second group adds a page
     expect(mockSave).toHaveBeenCalled()
     expect(autoTable).toHaveBeenCalledTimes(2)
+  })
+
+  it('exportBAPemeriksaanKasPdf should render successfully in browser mode with valid date', async () => {
+    // Pastikan window.api undefined untuk menguji mode browser
+    const originalApi = window.api
+    delete window.api
+
+    await exportBAPemeriksaanKasPdf(0, 2026, 15000000, '2026-01-15')
+
+    expect(jsPDF).toHaveBeenCalled()
+    expect(mockSave).toHaveBeenCalledWith(expect.stringContaining('BA_Pemeriksaan_Kas_JANUARI_2026.pdf'))
+
+    window.api = originalApi
+  })
+
+  it('exportBAPemeriksaanKasPdf should fallback to end of month with empty date string without crashing', async () => {
+    const originalApi = window.api
+    delete window.api
+
+    // Kirim tanggal kosong ""
+    await exportBAPemeriksaanKasPdf(0, 2026, 15000000, '')
+
+    expect(jsPDF).toHaveBeenCalled()
+    expect(mockSave).toHaveBeenCalledWith(expect.stringContaining('BA_Pemeriksaan_Kas_JANUARI_2026.pdf'))
+
+    window.api = originalApi
+  })
+
+  it('exportBAPemeriksaanKasPdf should fallback to end of month with invalid date string without crashing', async () => {
+    const originalApi = window.api
+    delete window.api
+
+    // Kirim tanggal tidak valid
+    await exportBAPemeriksaanKasPdf(0, 2026, 15000000, 'invalid-date-string')
+
+    expect(jsPDF).toHaveBeenCalled()
+    expect(mockSave).toHaveBeenCalledWith(expect.stringContaining('BA_Pemeriksaan_Kas_JANUARI_2026.pdf'))
+
+    window.api = originalApi
+  })
+
+  it('exportBAPemeriksaanKasPdf should use Electron API printToPdf when available', async () => {
+    const mockPrintToPdf = vi.fn().mockResolvedValue({ success: true })
+    window.api = {
+      printToPdf: mockPrintToPdf
+    }
+
+    await exportBAPemeriksaanKasPdf(0, 2026, 15000000, '2026-01-20')
+
+    expect(mockPrintToPdf).toHaveBeenCalledWith(expect.objectContaining({
+      pageSize: 'Legal',
+      defaultPath: 'BA_Pemeriksaan_Kas_JANUARI_2026.pdf'
+    }))
+
+    delete window.api
   })
 })
 
