@@ -208,7 +208,6 @@ ipcMain.handle('get-penerimaan', async () => {
     const { data, error } = await supabase
       .from('penerimaan')
       .select('*, sub_kegiatan(*), kode_rekening(*)')
-      .order('tanggal', { ascending: true })
       .order('urutan', { ascending: true })
     if (error) throw error
     return data
@@ -253,7 +252,6 @@ ipcMain.handle('get-pengeluaran', async () => {
         kode_rekening (*),
         pengeluaran_rincian (*)
       `)
-      .order('tanggal', { ascending: true })
       .order('urutan', { ascending: true })
     if (error) throw error
     return data
@@ -321,7 +319,11 @@ ipcMain.handle('update-pengeluaran', async (event, id, { pengeluaran, rincian, p
     if (pError) throw pError
 
     // Delete existing rincian and re-insert
-    await supabase.from('pengeluaran_rincian').delete().eq('pengeluaran_id', id)
+    const { error: delError } = await supabase.from('pengeluaran_rincian').delete().eq('pengeluaran_id', id)
+    if (delError) {
+      console.error('Delete Rincian Error:', delError)
+      throw delError
+    }
     
     if (rincian && rincian.length > 0) {
       const rincianPayload = rincian.map((r) => ({ 

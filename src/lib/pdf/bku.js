@@ -131,6 +131,8 @@ export function exportBKUPdf(rows, monthIndex, year = new Date().getFullYear(), 
   doc.setFont('helvetica', 'normal')
   doc.text(wrappedClosing, 14, finalY)
   let rincianY = finalY + 5 + (wrappedClosing.length * 3.5)
+  // [CATATAN]: Saldo tunai sementara di-hardcode 0 karena aplikasi belum memisahkan arus kas tunai/bank.
+  // Jika di masa depan ada input saldo tunai, ambil dari store.
   const saldoTunai = 0; const saldoBank = saldo; const jumlahSaldo = saldoTunai + saldoBank
   doc.text('a. Saldo Tunai', 14, rincianY); doc.text(': Rp', 45, rincianY); doc.text(formatRupiah(saldoTunai).replace('Rp', '').trim(), 75, rincianY, { align: 'right' }); rincianY += 5
   doc.text('b. Saldo Bank', 14, rincianY); doc.text(': Rp', 45, rincianY); doc.text(formatRupiah(saldoBank).replace('Rp', '').trim(), 75, rincianY, { align: 'right' })
