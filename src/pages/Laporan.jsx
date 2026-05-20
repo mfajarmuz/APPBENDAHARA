@@ -297,7 +297,9 @@ export default function Laporan() {
       totalKreditIni: bkuCalculations.totalKreditIni,
       totalDebetSemua: bkuCalculations.totalDebetSemua,
       totalKreditSemua: bkuCalculations.totalKreditSemua,
-      saldo: bkuCalculations.saldo
+      saldo: bkuCalculations.saldo,
+      month: filterBulan + 1,
+      year: filterTahun
     }
   }, [bkuRows, bkuCalculations, filterBulan, filterTahun])
 

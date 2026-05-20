@@ -4,6 +4,7 @@
 The project is in the refinement phase. Core features (Dashboard, Anggaran, Penerimaan, Pengeluaran) are implemented. Recent focus has been on fixing bugs in expenditure rincian and report accuracy.
 
 ## Recent Achievements
+- [x] **Bug Fix**: Restorasi dan perbaikan modul PDF ekspor (`npd.js`, `buku-pembantu-pajak.js`, dan `rekap-bulanan.js`) yang hilang dari refaktor modularisasi dengan mengekstrak secara akurat dari riwayat commit git, memperbaiki resolusi parameter default, serta meloloskan 100% (40/40) pengujian unit Vitest.
 - [x] **Release v1.1.3**: Rilis versi 1.1.3 dengan perbaikan indexing kolom, penyelarasan breakdown GU pada tabel ringkasan LPJ, dan unifikasi total tabel anggaran dengan breakdown SPJ/Pajak lengkap.
 - [x] **Bug Fix**: Menambahkan metode CRUD manajemen anggaran yang hilang pada Zustand store untuk memperbaiki fitur penghapusan anggaran.
 - [x] **New Feature**: Implementasi tabel ringkasan LPJ yang detail dengan integrasi struktur kolom anggaran yang sinkron.

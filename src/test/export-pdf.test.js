@@ -23,7 +23,13 @@ vi.mock('jspdf', () => {
         setLineWidth: mockSetLineWidth,
         splitTextToSize: mockSplitTextToSize,
         getTextWidth: vi.fn().mockReturnValue(10),
-        lastAutoTable: { finalY: 100 }
+        lastAutoTable: { finalY: 100 },
+        internal: {
+          pageSize: {
+            getHeight: () => 297,
+            getWidth: () => 210
+          }
+        }
       }
     })
   }
