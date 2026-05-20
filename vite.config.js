@@ -6,9 +6,11 @@ export default defineConfig({
   plugins: [react()],
   base: './',
   server: {
+    host: '127.0.0.1',
     port: 5173,
     strictPort: true,
     open: false,
+    allowedHosts: ['celesteclaw.tailb2cb3c.ts.net'],
   },
   resolve: {
     alias: {

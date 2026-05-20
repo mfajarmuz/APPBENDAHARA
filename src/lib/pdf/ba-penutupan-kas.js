@@ -1,6 +1,8 @@
 import { useStore } from '@/store/useStore'
 import logoJabar from '@/assets/logo-jabar.png'
 import { formatRupiah } from '../format'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 
 /**
  * [FITUR: EXPORT PDF - BERITA ACARA PENUTUPAN KAS]
@@ -123,22 +125,29 @@ export const exportBAPenutupanKasPdf = async (data, settings, customDate = null)
           display: block;
         }
         .data-table {
-          width: 100%;
+          width: calc(100% - 25px);
           border-collapse: collapse;
           margin-bottom: 5px;
           margin-left: 25px;
+          table-layout: fixed;
         }
         .data-table td {
           padding: 1px 0;
           vertical-align: top;
+          box-sizing: border-box;
         }
-        .col-num { width: 45px; }
-        .col-label { width: 320px; }
-        .col-curr { width: 40px; text-align: left; }
+        .col-num { width: 38px; }
+        .col-label {
+          width: auto;
+          padding-right: 8px;
+        }
+        .col-curr { width: 28px; text-align: left; }
         .col-val, .col-val-line {
-          width: 155px;
+          width: 170px;
           text-align: right;
           white-space: nowrap;
+          overflow: visible;
+          padding-left: 8px;
         }
         .col-val-line { border-bottom: 1px solid #000; }
         
@@ -257,6 +266,48 @@ export const exportBAPenutupanKasPdf = async (data, settings, customDate = null)
       }
     } catch (e) {
       alert('Error: ' + e.message)
+    }
+  } else {
+    try {
+      const container = document.createElement('div')
+      container.style.position = 'fixed'
+      container.style.left = '-10000px'
+      container.style.top = '0'
+      container.style.width = '210mm'
+      container.style.background = '#fff'
+      container.innerHTML = html
+      document.body.appendChild(container)
+
+      const target = container.querySelector('body > *') ? container : container
+      const canvas = await html2canvas(target, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      })
+
+      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'legal' })
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const imgWidth = pageWidth
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      const imgData = canvas.toDataURL('image/png')
+
+      let heightLeft = imgHeight
+      let position = 0
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
+      }
+
+      pdf.save(`BA_Penutupan_Kas_${monthName}_${year}.pdf`)
+      document.body.removeChild(container)
+    } catch (e) {
+      alert('Gagal membuat PDF di browser: ' + e.message)
     }
   }
 }

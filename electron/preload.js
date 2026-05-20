@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('api', {
   updateBkuUrutan: (items) => ipcRenderer.invoke('update-bku-urutan', items),
 
   // Auto-updater
+  appVersion: process.versions.electron ? require('electron').ipcRenderer.sendSync('get-app-version') : null,
   checkForUpdate: () => ipcRenderer.invoke('check-for-update'),
   downloadUpdate: () => ipcRenderer.invoke('download-update'),
   quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),

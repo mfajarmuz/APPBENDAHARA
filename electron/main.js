@@ -58,10 +58,19 @@ function createWindow() {
   }
 }
 
+function sendUpdateMessage(payload) {
+  const windows = BrowserWindow.getAllWindows()
+  if (windows.length > 0) {
+    windows[0].webContents.send('update-message', payload)
+  }
+}
+
 app.whenReady().then(() => {
   createWindow()
-  
-  autoUpdater.checkForUpdatesAndNotify()
+
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdatesAndNotify()
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -72,15 +81,64 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
-// Auto-updater Handlers
-ipcMain.handle('check-for-update', () => autoUpdater.checkForUpdates())
-ipcMain.handle('download-update', () => autoUpdater.downloadUpdate())
-ipcMain.handle('quit-and-install', () => autoUpdater.quitAndInstall())
+ipcMain.on('get-app-version', (event) => {
+  event.returnValue = app.getVersion()
+})
 
-autoUpdater.on('message', (text) => {
-  const windows = BrowserWindow.getAllWindows()
-  if (windows.length > 0) {
-    windows[0].webContents.send('update-message', text)
+// Auto-updater Handlers
+autoUpdater.autoDownload = false
+
+autoUpdater.on('checking-for-update', () => {
+  sendUpdateMessage({ type: 'checking', text: 'Sedang memeriksa pembaruan...' })
+})
+
+autoUpdater.on('update-available', (info) => {
+  sendUpdateMessage({ type: 'available', text: 'Pembaruan tersedia.', data: info })
+})
+
+autoUpdater.on('update-not-available', (info) => {
+  sendUpdateMessage({ type: 'not-available', text: 'Aplikasi sudah versi terbaru.', data: info })
+})
+
+autoUpdater.on('download-progress', (progressObj) => {
+  sendUpdateMessage({ type: 'download-progress', text: 'Sedang mengunduh...', data: progressObj })
+})
+
+autoUpdater.on('update-downloaded', (info) => {
+  sendUpdateMessage({ type: 'downloaded', text: 'Pembaruan selesai diunduh. Restart untuk memasang.', data: info })
+})
+
+autoUpdater.on('error', (error) => {
+  sendUpdateMessage({ type: 'error', text: `Error update: ${error == null ? 'unknown' : error.message}` })
+})
+
+ipcMain.handle('check-for-update', async () => {
+  if (!app.isPackaged) {
+    return { success: false, error: 'Pembaruan aplikasi hanya tersedia pada versi desktop yang sudah dibuild.' }
+  }
+  try {
+    const result = await autoUpdater.checkForUpdates()
+    return { success: true, data: result?.updateInfo || null }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('download-update', async () => {
+  try {
+    await autoUpdater.downloadUpdate()
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('quit-and-install', async () => {
+  try {
+    autoUpdater.quitAndInstall()
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error.message }
   }
 })
 

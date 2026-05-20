@@ -180,6 +180,16 @@ export async function exportBukuSimpananBankPdf(rows, monthIndex, year, totalsBu
       alert('Error saat mencetak PDF: ' + e.message)
     }
   } else {
-    alert('Fungsi cetak PDF tidak tersedia di browser ini.')
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      alert('Popup diblokir browser. Izinkan popup untuk preview/cetak PDF.')
+      return
+    }
+    printWindow.document.write(html)
+    printWindow.document.close()
+    printWindow.focus()
+    setTimeout(() => {
+      printWindow.print()
+    }, 500)
   }
 }

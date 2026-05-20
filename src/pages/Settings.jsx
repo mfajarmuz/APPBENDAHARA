@@ -5,6 +5,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Badge from '@/components/ui/Badge'
+import * as api from '@/lib/api'
 
 /**
  * [HALAMAN: PENGATURAN]
@@ -20,12 +21,14 @@ export default function Settings() {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
 
   // Auto-update states
-  const [updateStatus, setUpdateStatus] = useState('Standby')
+  const [updateStatus, setUpdateStatus] = useState(isElectron ? 'Standby' : 'Mode web aktif')
   const [updateInfo, setUpdateInfo] = useState(null)
   const [downloadProgress, setDownloadProgress] = useState(0)
+  const [updatePhase, setUpdatePhase] = useState('idle')
 
   // Google Drive connection states
   const [driveStatus, setDriveStatus] = useState({ loading: false, result: null })
+  const isElectron = typeof window !== 'undefined' && !!window.api
 
   // Sync form when settings change (e.g. after reset)
   useEffect(() => {
@@ -33,37 +36,52 @@ export default function Settings() {
   }, [settings])
 
   useEffect(() => {
-    // Listen to update messages from main process
     if (window.api?.onUpdateMessage) {
       window.api.onUpdateMessage((msg) => {
-        setUpdateStatus(msg.text)
-        if (msg.data) {
-          if (msg.text === 'Pembaruan tersedia.') {
-            setUpdateInfo(msg.data)
-          } else if (msg.text === 'Sedang mengunduh...') {
-            setDownloadProgress(Math.round(msg.data.percent || 0))
-          }
+        setUpdateStatus(msg.text || 'Standby')
+        setUpdatePhase(msg.type || 'idle')
+        if (msg.type === 'available') {
+          setUpdateInfo(msg.data || null)
+        } else if (msg.type === 'download-progress') {
+          setDownloadProgress(Math.round(msg.data?.percent || 0))
         }
       })
     }
   }, [])
 
-  const handleCheckUpdate = () => {
-    window.api?.checkForUpdate()
+  const handleCheckUpdate = async () => {
+    if (!window.api?.checkForUpdate) {
+      setUpdatePhase('error')
+      setUpdateStatus('Pembaruan desktop hanya tersedia di aplikasi Electron.')
+      return
+    }
+    const res = await window.api.checkForUpdate()
+    if (res && !res.success && res.error) {
+      setUpdatePhase('error')
+      setUpdateStatus(`Error update: ${res.error}`)
+    }
   }
 
-  const handleDownloadUpdate = () => {
-    window.api?.downloadUpdate()
+  const handleDownloadUpdate = async () => {
+    const res = await window.api?.downloadUpdate()
+    if (res && !res.success && res.error) {
+      setUpdatePhase('error')
+      setUpdateStatus(`Error update: ${res.error}`)
+    }
   }
 
-  const handleInstallUpdate = () => {
-    window.api?.quitAndInstall()
+  const handleInstallUpdate = async () => {
+    const res = await window.api?.quitAndInstall()
+    if (res && !res.success && res.error) {
+      setUpdatePhase('error')
+      setUpdateStatus(`Error update: ${res.error}`)
+    }
   }
 
   const handleLoginDrive = async () => {
     setDriveStatus({ loading: true, result: null })
     try {
-      const res = await window.api?.loginGoogleDrive()
+      const res = await api.loginGoogleDrive()
       if (res?.success) {
         handleTestDrive()
       } else {
@@ -78,7 +96,7 @@ export default function Settings() {
     if (confirm('Apakah Anda yakin ingin memutus koneksi Google Drive?')) {
       setDriveStatus({ loading: true, result: null })
       try {
-        await window.api?.logoutGoogleDrive()
+        await api.logoutGoogleDrive()
         setDriveStatus({ loading: false, result: null })
       } catch (error) {
         setDriveStatus({ loading: false, result: { success: false, error: error.message } })
@@ -89,7 +107,7 @@ export default function Settings() {
   const handleTestDrive = async () => {
     setDriveStatus({ loading: true, result: null })
     try {
-      const res = await window.api?.testGoogleDrive()
+      const res = await api.testGoogleDrive()
       setDriveStatus({ loading: false, result: res })
     } catch (error) {
       setDriveStatus({ loading: false, result: { success: false, error: error.message } })
@@ -366,6 +384,13 @@ export default function Settings() {
             Pastikan berkas <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-indigo-600 border border-slate-200 text-[10px]">oauth-credentials.json</code> sudah diletakkan di direktori aplikasi sebelum memulai login.
           </p>
 
+          {!isElectron && (
+            <div className="p-4 rounded-2xl text-xs border bg-amber-50 border-amber-200 text-amber-800">
+              <p className="font-black uppercase tracking-wider text-[10px] mb-1">Mode Web Terdeteksi</p>
+              <p>Login Google Drive tidak bisa dijalankan dari browser/Tailscale karena fitur ini bergantung pada Electron main process, browser lokal, dan callback OAuth di mesin desktop. Untuk login Google, jalankan app versi desktop Electron.</p>
+            </div>
+          )}
+
           {driveStatus.result && (
             <div className={`p-4 rounded-2xl text-xs flex items-start gap-3 border transition-all animate-in fade-in slide-in-from-top-2 ${
               driveStatus.result.success 
@@ -416,7 +441,7 @@ export default function Settings() {
               <>
                 <Button 
                   onClick={handleTestDrive} 
-                  disabled={driveStatus.loading}
+                  disabled={driveStatus.loading || !isElectron}
                   variant="secondary"
                   className="text-xs font-bold h-10 px-4 border-slate-200 text-slate-600 hover:bg-slate-50 shadow-none"
                 >
@@ -424,8 +449,8 @@ export default function Settings() {
                 </Button>
                 <Button 
                   onClick={handleLoginDrive} 
-                  disabled={driveStatus.loading}
-                  className="text-xs font-bold h-10 px-5 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/10 transition-all active:scale-95"
+                  disabled={driveStatus.loading || !isElectron}
+                  className="text-xs font-bold h-10 px-5 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/10 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {driveStatus.loading ? (
                     <span className="flex items-center gap-2"><RefreshCcw size={14} className="animate-spin" /> Membuka Login...</span>
@@ -449,19 +474,24 @@ export default function Settings() {
             <Laptop size={18} />
             <h3 className="font-bold text-sm uppercase tracking-wider">Pembaruan Aplikasi</h3>
           </div>
-          <Badge variant="secondary" className="bg-slate-100 text-slate-600">v1.0.0</Badge>
+          <Badge variant="secondary" className="bg-slate-100 text-slate-600">v{window.api?.appVersion || 'desktop'}</Badge>
         </div>
 
         <div className="flex flex-col md:flex-row items-center gap-6">
           <div className="flex-1 space-y-2">
             <p className="text-sm font-bold text-slate-700">Status: <span className="text-indigo-600">{updateStatus}</span></p>
-            {updateInfo && updateStatus === 'Pembaruan tersedia.' && (
+            {!isElectron && (
+              <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-100">
+                Menu pembaruan ini aktif penuh hanya di versi desktop Electron yang sudah di-install.
+              </p>
+            )}
+            {updateInfo && updatePhase === 'available' && (
               <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100">
                 Versi baru ditemukan: <span className="font-bold">{updateInfo.version}</span> ({updateInfo.releaseDate})
               </p>
             )}
             
-            {updateStatus === 'Sedang mengunduh...' && (
+            {updatePhase === 'download-progress' && (
               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-2">
                 <div 
                   className="bg-indigo-600 h-full transition-all duration-300" 
@@ -472,20 +502,20 @@ export default function Settings() {
           </div>
 
           <div className="flex gap-3">
-            {updateStatus === 'Standby' || updateStatus === 'Aplikasi sudah versi terbaru.' || updateStatus.startsWith('Error') ? (
-              <Button onClick={handleCheckUpdate} variant="secondary" className="text-xs">
+            {(updatePhase === 'idle' || updatePhase === 'not-available' || updatePhase === 'error') ? (
+              <Button onClick={handleCheckUpdate} variant="secondary" className="text-xs" disabled={!isElectron}>
                 <RefreshCcw size={14} className="mr-2" /> Cek Pembaruan
               </Button>
             ) : null}
 
-            {updateStatus === 'Pembaruan tersedia.' && (
-              <Button onClick={handleDownloadUpdate} className="text-xs bg-emerald-600 hover:bg-emerald-700">
+            {updatePhase === 'available' && (
+              <Button onClick={handleDownloadUpdate} className="text-xs bg-emerald-600 hover:bg-emerald-700" disabled={!isElectron}>
                 <Download size={14} className="mr-2" /> Unduh Sekarang
               </Button>
             )}
 
-            {updateStatus === 'Pembaruan selesai diunduh. Restart untuk memasang.' && (
-              <Button onClick={handleInstallUpdate} className="text-xs bg-indigo-600 hover:bg-indigo-700">
+            {updatePhase === 'downloaded' && (
+              <Button onClick={handleInstallUpdate} className="text-xs bg-indigo-600 hover:bg-indigo-700" disabled={!isElectron}>
                 <Power size={14} className="mr-2" /> Pasang & Restart
               </Button>
             )}
