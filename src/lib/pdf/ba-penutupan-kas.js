@@ -133,9 +133,13 @@ export const exportBAPenutupanKasPdf = async (data, settings, customDate = null)
           vertical-align: top;
         }
         .col-num { width: 45px; }
-        .col-label { width: 350px; }
+        .col-label { width: 320px; }
         .col-curr { width: 40px; text-align: left; }
-        .col-val { width: 120px; text-align: right; }
+        .col-val, .col-val-line {
+          width: 155px;
+          text-align: right;
+          white-space: nowrap;
+        }
         .col-val-line { border-bottom: 1px solid #000; }
         
         .keterangan-detail {
@@ -206,10 +210,10 @@ export const exportBAPenutupanKasPdf = async (data, settings, customDate = null)
       <div>
         <span class="section-title">B. &nbsp;&nbsp;&nbsp; Kas di Bendahara Pengeluaran Pembantu</span>
         <table class="data-table">
-          <tr><td class="col-num">A.1</td><td class="col-label">Saldo awal bulan tanggal 01 ${monthName} ${year}</td><td class="col-curr">Rp</td><td class="col-val">${fmt(saldoAwal)}</td></tr>
-          <tr><td>A.2</td><td>Jumlah Penerimaan</td><td class="col-curr">Rp</td><td class="col-val">${fmt(data.totalDebetIni)}</td></tr>
-          <tr><td>A.3</td><td>Jumlah Pengeluaran</td><td class="col-curr">Rp</td><td class="col-val-line">${fmt(data.totalKreditIni)}</td></tr>
-          <tr><td style="font-weight: bold;">A.4</td><td style="font-weight: bold;">Saldo akhir bulan tanggal ${fullDate}</td><td style="font-weight: bold;" class="col-curr">Rp</td><td style="font-weight: bold;" class="col-val">${fmt(data.saldo)}</td></tr>
+          <tr><td class="col-num">B.1</td><td class="col-label">Saldo awal bulan tanggal 01 ${monthName} ${year}</td><td class="col-curr">Rp</td><td class="col-val">${fmt(saldoAwal)}</td></tr>
+          <tr><td>B.2</td><td>Jumlah Penerimaan</td><td class="col-curr">Rp</td><td class="col-val">${fmt(data.totalDebetIni)}</td></tr>
+          <tr><td>B.3</td><td>Jumlah Pengeluaran</td><td class="col-curr">Rp</td><td class="col-val-line">${fmt(data.totalKreditIni)}</td></tr>
+          <tr><td style="font-weight: bold;">B.4</td><td style="font-weight: bold;">Saldo akhir bulan tanggal ${fullDate}</td><td style="font-weight: bold;" class="col-curr">Rp</td><td style="font-weight: bold;" class="col-val">${fmt(data.saldo)}</td></tr>
         </table>
         <div class="keterangan-detail">
           Saldo akhir tanggal bulan : ${fullDate} Terdiri dari saldo di kas tunai sebesar Rp. 0,00 dan saldo bank Sebesar Rp. ${fmt(data.saldo)}
