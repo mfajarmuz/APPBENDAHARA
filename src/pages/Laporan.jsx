@@ -24,7 +24,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
 import Spinner from '@/components/ui/Spinner'
-import { exportBKUPdf, exportBKUSubKegPdf, exportBAPemeriksaanKasPdf, exportBukuPembantuPdf, exportRealisasiPdf, exportRekapBulananPdf, exportLPJAdministratifPdf, exportLPJPeriodePdf, exportBukuPembantuPajakPdf, exportBukuSimpananBankPdf, exportRegisterKasPdf, exportRPPUAPdf, exportRPPUPPdf, exportBAPenutupanKasPdf, terbilang } from '@/lib/export-pdf'
+import { exportBKUPdf, exportBKUSubKegPdf, exportBKUTriwulanPdf, exportBAPemeriksaanKasPdf, exportBukuPembantuPdf, exportRealisasiPdf, exportRekapBulananPdf, exportLPJAdministratifPdf, exportLPJPeriodePdf, exportBukuPembantuPajakPdf, exportBukuSimpananBankPdf, exportRegisterKasPdf, exportRPPUAPdf, exportRPPUPPdf, exportBAPenutupanKasPdf, terbilang } from '@/lib/export-pdf'
 import { exportBKUExcel, exportRealisasiExcel } from '@/lib/export-excel'
 import { getBkuRows } from '@/lib/bku'
 import logoJabar from '@/assets/logo-jabar.png'
@@ -809,166 +809,184 @@ export default function Laporan() {
   return (
     <div className="space-y-6 pb-12">
       {/* Tab Switcher */}
-      <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200 shadow-sm w-fit overflow-x-auto no-scrollbar">
-        {[
-          { id: 'bku', label: 'Buku Kas Umum' },
-          { id: 'bank', label: 'Buku Simpanan Bank' },
-          { id: 'pajak', label: 'Buku Pembantu Pajak' },
-          { id: 'pembantu_rek', label: 'Buku Pembantu Rekening' },
-          { id: 'lra', label: 'Realisasi / SPJ' },
-          { id: 'register_kas', label: 'Register Kas' },
-          { id: 'rppua', label: 'RPPUA' },
-          { id: 'rppup', label: 'RPPUP' },
-          { id: 'ba_pemeriksaan', label: 'BA Pemeriksaan Kas' },
-          { id: 'ba_penutupan', label: 'BA Penutupan Kas' },
-        ].map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`px-5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
-              tab === t.id ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="bg-white p-2 rounded-3xl border border-slate-200 shadow-sm overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1 min-w-max">
+          {[
+            { id: 'bku', label: 'Buku Kas Umum' },
+            { id: 'bank', label: 'Buku Simpanan Bank' },
+            { id: 'pajak', label: 'Buku Pembantu Pajak' },
+            { id: 'pembantu_rek', label: 'Buku Pembantu Rekening' },
+            { id: 'lra', label: 'Realisasi / SPJ' },
+            { id: 'register_kas', label: 'Register Kas' },
+            { id: 'rppua', label: 'RPPUA' },
+            { id: 'rppup', label: 'RPPUP' },
+            { id: 'ba_pemeriksaan', label: 'BA Pemeriksaan Kas' },
+            { id: 'ba_penutupan', label: 'BA Penutupan Kas' },
+          ].map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`px-4 py-2.5 text-xs font-bold rounded-2xl transition-all whitespace-nowrap ${
+                tab === t.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-        <div className="flex items-center gap-3">
+      <div className="grid grid-cols-1 2xl:grid-cols-[1fr_360px] gap-4">
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-4">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <h3 className="text-sm font-black text-slate-800 tracking-tight">Filter Laporan</h3>
+              <p className="text-[11px] text-slate-400 font-medium">Atur periode, tanggal, dan mode laporan.</p>
+            </div>
+            {tab === 'bku' && (
+              <button
+                onClick={() => setIsDragEnabled(!isDragEnabled)}
+                className={`flex items-center gap-2 text-[10px] font-black px-3.5 py-2 rounded-full uppercase tracking-tighter ring-1 transition-all duration-200 active:scale-95 select-none ${
+                  isDragEnabled 
+                    ? 'bg-emerald-50 text-emerald-600 ring-emerald-200 hover:bg-emerald-100' 
+                    : 'bg-slate-50 text-slate-500 ring-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {isDragEnabled ? <Unlock size={12} /> : <Lock size={12} />}
+                <span>{isDragEnabled ? 'Urut Manual Aktif' : 'Urut Manual Terkunci'}</span>
+              </button>
+            )}
+          </div>
+
           {(tab === 'bku' || tab === 'bank' || tab === 'lra' || tab === 'pajak' || tab === 'pembantu_rek' || tab === 'register_kas' || tab === 'rppua' || tab === 'rppup' || tab === 'ba_pemeriksaan' || tab === 'ba_penutupan') && (
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Calendar size={16} className="text-slate-400" />
-                <select
-                  value={filterBulan}
-                  onChange={e => setFilterBulan(parseInt(e.target.value, 10))}
-                  className="text-sm border-none focus:ring-0 bg-transparent font-bold text-slate-700 cursor-pointer"
-                >
-                  {BULAN.map((b, i) => <option key={i} value={i}>{b}</option>)}
-                </select>
-              </div>
-              <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
-                <select
-                  value={filterTahun}
-                  onChange={e => setFilterTahun(parseInt(e.target.value, 10))}
-                  className="text-sm border-none focus:ring-0 bg-transparent font-bold text-slate-700 cursor-pointer"
-                >
-                  {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-4 border-l border-slate-200 pl-4">
-                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="tipeLaporan"
-                    checked={tipeLaporan === 'akhir'}
-                    onChange={() => setTipeLaporan('akhir')}
-                    className="text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer"
-                  />
-                  Akhir Bulan
-                </label>
-                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="tipeLaporan"
-                    checked={tipeLaporan === 'pertengahan'}
-                    onChange={() => setTipeLaporan('pertengahan')}
-                    className="text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer"
-                  />
-                  Pertengahan Bulan
-                </label>
-              </div>
-
-              {(tipeLaporan === 'pertengahan' || tipeLaporan === 'akhir' || tab === 'lra') && (
-                <div className="flex items-center gap-2 border-l border-slate-200 pl-4 transition-all">
-                  {(tab === 'lra' || tipeLaporan === 'akhir' || tipeLaporan === 'pertengahan') && <span className="text-[10px] font-black text-slate-400 uppercase whitespace-nowrap">Tanggal Laporan:</span>}
-                  <input
-                    type="date"
-                    value={customDates[tipeLaporan]}
-                    onChange={e => setCustomDates(prev => ({ ...prev, [tipeLaporan]: e.target.value }))}
-                    className="text-xs font-bold border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 text-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none cursor-pointer"
-                  />
-                </div>
-              )}
-
-              {tab === 'bku' && (
-                <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
-                  <button
-                    onClick={() => setIsDragEnabled(!isDragEnabled)}
-                    className={`flex items-center gap-1.5 text-[10px] font-black px-3.5 py-1.5 rounded-full uppercase tracking-tighter ring-1 transition-all duration-200 active:scale-95 select-none ${
-                      isDragEnabled 
-                        ? 'bg-emerald-50 text-emerald-600 ring-emerald-200 hover:bg-emerald-100' 
-                        : 'bg-slate-50 text-slate-500 ring-slate-200 hover:bg-slate-100'
-                    }`}
+            <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1.1fr_1fr] gap-3">
+              <label className="block rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                <span className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">
+                  <Calendar size={12} /> Periode
+                </span>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={filterBulan}
+                    onChange={e => setFilterBulan(parseInt(e.target.value, 10))}
+                    className="min-w-0 flex-1 text-sm border-none focus:ring-0 bg-transparent font-bold text-slate-700 cursor-pointer p-0"
                   >
-                    {isDragEnabled ? <Unlock size={12} /> : <Lock size={12} />}
-                    <span>{isDragEnabled ? 'Urut Manual: AKTIF' : 'Urut Manual: TERKUNCI'}</span>
-                  </button>
+                    {BULAN.map((b, i) => <option key={i} value={i}>{b}</option>)}
+                  </select>
+                  <select
+                    value={filterTahun}
+                    onChange={e => setFilterTahun(parseInt(e.target.value, 10))}
+                    className="w-20 text-sm border-none focus:ring-0 bg-transparent font-bold text-slate-700 cursor-pointer p-0"
+                  >
+                    {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
                 </div>
-              )}
+              </label>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                <span className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Jenis Laporan</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className={`flex items-center justify-center gap-1.5 text-[11px] font-bold cursor-pointer rounded-xl px-2.5 py-2 ring-1 transition-all ${tipeLaporan === 'akhir' ? 'bg-indigo-50 text-indigo-700 ring-indigo-200' : 'bg-white text-slate-500 ring-slate-200 hover:text-slate-700'}`}>
+                    <input
+                      type="radio"
+                      name="tipeLaporan"
+                      checked={tipeLaporan === 'akhir'}
+                      onChange={() => setTipeLaporan('akhir')}
+                      className="text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                    Akhir Bulan
+                  </label>
+                  <label className={`flex items-center justify-center gap-1.5 text-[11px] font-bold cursor-pointer rounded-xl px-2.5 py-2 ring-1 transition-all ${tipeLaporan === 'pertengahan' ? 'bg-indigo-50 text-indigo-700 ring-indigo-200' : 'bg-white text-slate-500 ring-slate-200 hover:text-slate-700'}`}>
+                    <input
+                      type="radio"
+                      name="tipeLaporan"
+                      checked={tipeLaporan === 'pertengahan'}
+                      onChange={() => setTipeLaporan('pertengahan')}
+                      className="text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                    Pertengahan
+                  </label>
+                </div>
+              </div>
+
+              <label className="block rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                <span className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Tanggal Laporan</span>
+                <input
+                  type="date"
+                  value={customDates[tipeLaporan]}
+                  onChange={e => setCustomDates(prev => ({ ...prev, [tipeLaporan]: e.target.value }))}
+                  className="w-full text-xs font-bold border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none cursor-pointer"
+                />
+              </label>
             </div>
           )}
-          {false && (
-            <div className="flex items-center gap-2"></div>
-          )}
         </div>
-        
-        <div className="flex items-center gap-3">
-          {tab === 'bku' && (
-            <Button 
-              variant="primary" 
-              onClick={() => {
-                const customDate = customDates[tipeLaporan]
-                exportBKUSubKegPdf(localBku, filterBulan, filterTahun, totalsBulanLalu, subKegiatan, customDate)
-              }}
-              className="h-[42px] px-5 rounded-full group flex items-center justify-center gap-2.5 font-semibold shadow-md shadow-indigo-600/20 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 hover:scale-[1.03]"
-            >
-              <Printer size={15} className="group-hover:scale-110 transition-transform text-white opacity-90 flex-shrink-0" />
-              <div className="flex flex-col items-start text-left leading-[1.1]">
-                <span className="text-[11px] font-bold text-white tracking-tight">Cetak</span>
-                <span className="text-[9px] font-semibold tracking-wider text-indigo-100 uppercase whitespace-nowrap">BKU-SubKeg</span>
-              </div>
-            </Button>
-          )}
 
-          {tab === 'lra' && (
-            <>
-              <Button 
-                variant="primary" 
-                onClick={() => exportLPJAdministratifPdf(filterBulan, filterTahun, subKegiatan, pengeluaran, penerimaan, customDates[tipeLaporan])}
-                className="h-[42px] px-5 rounded-full group flex items-center justify-center gap-2.5 font-semibold shadow-md shadow-indigo-600/20 transition-all duration-300 hover:scale-[1.03]"
-              >
-                <Printer size={15} className="group-hover:scale-110 transition-transform text-white opacity-90 flex-shrink-0" />
-                <div className="flex flex-col items-start text-left leading-[1.1]">
-                  <span className="text-[11px] font-bold text-white tracking-tight">Cetak</span>
-                  <span className="text-[9px] font-semibold tracking-wider text-indigo-100 uppercase whitespace-nowrap">LPJ F4</span>
-                </div>
-              </Button>
-              
-              <Button 
-                variant="primary" 
-                onClick={() => exportLPJPeriodePdf(filterBulan, filterTahun, subKegiatan, pengeluaran, penerimaan, customDates.pertengahan, customDates.akhir)}
-                className="h-[42px] px-5 rounded-full group flex items-center justify-center gap-2.5 font-semibold shadow-md shadow-indigo-600/20 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 hover:scale-[1.03]"
-              >
-                <Printer size={15} className="group-hover:scale-110 transition-transform text-white opacity-90 flex-shrink-0" />
-                <div className="flex flex-col items-start text-left leading-[1.1]">
-                  <span className="text-[11px] font-bold text-white tracking-tight">Cetak</span>
-                  <span className="text-[9px] font-semibold tracking-wider text-indigo-100 uppercase whitespace-nowrap">LPJ Periode</span>
-                </div>
-              </Button>
-            </>
-          )}
-          <Button variant="secondary" onClick={handleExportExcel} className="h-10 px-4 text-xs font-bold border-slate-200 group">
-            <Download size={14} className="mr-2 group-hover:translate-y-0.5 transition-transform" /> Excel
-          </Button>
-          {tab !== 'lra' && (
-            <Button onClick={handleExportPdf} className="h-10 px-6 text-xs font-bold shadow-lg shadow-indigo-600/10 group">
-              <Download size={14} className="mr-2 group-hover:translate-y-0.5 transition-transform" /> Export PDF
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-4">
+          <div className="mb-3">
+            <h3 className="text-sm font-black text-slate-800 tracking-tight">Aksi Laporan</h3>
+            <p className="text-[11px] text-slate-400 font-medium">Cetak PDF atau ekspor data.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-1 gap-2.5">
+            {tab === 'bku' && (
+              <>
+                <Button 
+                  variant="primary" 
+                  onClick={() => {
+                    const customDate = customDates[tipeLaporan]
+                    exportBKUTriwulanPdf(localBku, filterBulan, filterTahun, totalsBulanLalu, customDate)
+                  }}
+                  className="h-11 w-full rounded-2xl justify-start px-4 group font-bold shadow-md shadow-emerald-600/20 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
+                >
+                  <Printer size={15} className="text-white opacity-90 flex-shrink-0" />
+                  <span className="text-xs text-white">Cetak BKU Triwulan</span>
+                </Button>
+
+                <Button 
+                  variant="primary" 
+                  onClick={() => {
+                    const customDate = customDates[tipeLaporan]
+                    exportBKUSubKegPdf(localBku, filterBulan, filterTahun, totalsBulanLalu, subKegiatan, customDate)
+                  }}
+                  className="h-11 w-full rounded-2xl justify-start px-4 group font-bold shadow-md shadow-indigo-600/20 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700"
+                >
+                  <Printer size={15} className="text-white opacity-90 flex-shrink-0" />
+                  <span className="text-xs text-white">Cetak BKU-SubKeg</span>
+                </Button>
+              </>
+            )}
+
+            {tab === 'lra' && (
+              <>
+                <Button 
+                  variant="primary" 
+                  onClick={() => exportLPJAdministratifPdf(filterBulan, filterTahun, subKegiatan, pengeluaran, penerimaan, customDates[tipeLaporan])}
+                  className="h-11 w-full rounded-2xl justify-start px-4 group font-bold shadow-md shadow-indigo-600/20"
+                >
+                  <Printer size={15} className="text-white opacity-90 flex-shrink-0" />
+                  <span className="text-xs text-white">Cetak LPJ F4</span>
+                </Button>
+                <Button 
+                  variant="primary" 
+                  onClick={() => exportLPJPeriodePdf(filterBulan, filterTahun, subKegiatan, pengeluaran, penerimaan, customDates.pertengahan, customDates.akhir)}
+                  className="h-11 w-full rounded-2xl justify-start px-4 group font-bold shadow-md shadow-indigo-600/20 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700"
+                >
+                  <Printer size={15} className="text-white opacity-90 flex-shrink-0" />
+                  <span className="text-xs text-white">Cetak LPJ Periode</span>
+                </Button>
+              </>
+            )}
+
+            <Button variant="secondary" onClick={handleExportExcel} className="h-11 w-full rounded-2xl justify-start px-4 text-xs font-bold border-slate-200 group">
+              <Download size={14} className="group-hover:translate-y-0.5 transition-transform" /> Export Excel
             </Button>
-          )}
+            {tab !== 'lra' && (
+              <Button onClick={handleExportPdf} className="h-11 w-full rounded-2xl justify-start px-4 text-xs font-bold shadow-lg shadow-indigo-600/10 group">
+                <Download size={14} className="group-hover:translate-y-0.5 transition-transform" /> Export PDF Bulanan
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 

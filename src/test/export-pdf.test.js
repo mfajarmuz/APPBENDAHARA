@@ -79,7 +79,7 @@ vi.mock('@/store/useStore', () => {
 
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { exportBKUPdf, exportBukuPembantuPdf, exportNPDPdf, exportNPDBatchPdf, exportLPJAdministratifPdf, exportBAPemeriksaanKasPdf } from '../lib/export-pdf'
+import { exportBKUPdf, exportBKUTriwulanPdf, exportBukuPembantuPdf, exportNPDPdf, exportNPDBatchPdf, exportLPJAdministratifPdf, exportBAPemeriksaanKasPdf } from '../lib/export-pdf'
 
 describe('export-pdf', () => {
   beforeEach(() => {
@@ -114,6 +114,46 @@ describe('export-pdf', () => {
     expect(jsPDF).toHaveBeenCalled()
     expect(mockSave).toHaveBeenCalledWith(expect.stringContaining('BKU_JANUARI_2026.pdf'))
     expect(autoTable).toHaveBeenCalled()
+  })
+
+  it('exportBKUTriwulanPdf should use monthly BKU base and add temporary closing row before totals', () => {
+    const rows = [
+      { tanggal: '2026-04-01', uraian: 'April', debet: 2000, kredit: 0 },
+      { tanggal: '2026-05-01', uraian: 'Mei', debet: 0, kredit: 500 }
+    ]
+
+    exportBKUTriwulanPdf(rows, 3, 2026, { debet: 1000, kredit: 0 }, '2026-04-30')
+
+    expect(jsPDF).toHaveBeenCalled()
+    expect(mockSave).toHaveBeenCalledWith('BKU_APRIL_2026.pdf')
+    expect(autoTable).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      body: expect.arrayContaining([
+        expect.arrayContaining(['April']),
+        expect.arrayContaining(['Mei']),
+        expect.arrayContaining([
+          expect.objectContaining({
+            content: expect.stringContaining('Buku Kas Umum Kami tutup sementara'),
+            colSpan: 6
+          })
+        ])
+      ]),
+      foot: expect.arrayContaining([
+        expect.arrayContaining([
+          expect.objectContaining({ content: 'Jumlah bulan ini' }),
+          expect.objectContaining({ content: '2.000' }),
+          expect.objectContaining({ content: '500' })
+        ]),
+        expect.arrayContaining([
+          expect.objectContaining({ content: 'Jumlah s/d bulan lalu' }),
+          expect.objectContaining({ content: '1.000' }),
+          expect.objectContaining({ content: '0' })
+        ]),
+        expect.arrayContaining([
+          expect.objectContaining({ content: 'Saldo Buku' }),
+          expect.objectContaining({ content: '2.500' })
+        ])
+      ])
+    }))
   })
 
   it('exportNPDPdf should use correct filename format', () => {

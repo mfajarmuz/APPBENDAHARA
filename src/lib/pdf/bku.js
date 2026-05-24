@@ -4,6 +4,20 @@ import { formatRupiah, formatTanggal } from '../format'
 import { useStore } from '@/store/useStore'
 import { getMonthName, terbilang } from './utils'
 
+const getQuarterRange = (monthIndex) => {
+  const startMonth = Math.floor(monthIndex / 3) * 3
+  const endMonth = startMonth + 2
+  const quarter = Math.floor(monthIndex / 3) + 1
+  return { quarter, startMonth, endMonth }
+}
+
+const getDateValue = (value) => {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+const stripRupiah = (value) => formatRupiah(value).replace('Rp', '').trim()
+
 /**
  * [FITUR: EXPORT PDF - BUKU KAS UMUM]
  * Menghasilkan file PDF untuk laporan Buku Kas Umum bulanan.
@@ -123,6 +137,177 @@ export function exportBKUPdf(rows, monthIndex, year = new Date().getFullYear(), 
     doc.addPage()
     finalY = 20
   }
+
+  doc.setFontSize(8)
+  const dayName = customDate ? new Date(customDate).toLocaleDateString('id-ID', { weekday: 'long' }) : new Date(year, monthIndex + 1, 0).toLocaleDateString('id-ID', { weekday: 'long' })
+  const closingText = `Pada hari ${dayName} tanggal ${terbilang(lastDay)} bulan ${monthName} tahun ${terbilang(year)}, oleh kami Buku Kas Umum ditutup.`
+  const wrappedClosing = doc.splitTextToSize(closingText, 180)
+  doc.setFont('helvetica', 'normal')
+  doc.text(wrappedClosing, 14, finalY)
+  let rincianY = finalY + 5 + (wrappedClosing.length * 3.5)
+  // [CATATAN]: Saldo tunai sementara di-hardcode 0 karena aplikasi belum memisahkan arus kas tunai/bank.
+  // Jika di masa depan ada input saldo tunai, ambil dari store.
+  const saldoTunai = 0; const saldoBank = saldo; const jumlahSaldo = saldoTunai + saldoBank
+  doc.text('a. Saldo Tunai', 14, rincianY); doc.text(': Rp', 45, rincianY); doc.text(formatRupiah(saldoTunai).replace('Rp', '').trim(), 75, rincianY, { align: 'right' }); rincianY += 5
+  doc.text('b. Saldo Bank', 14, rincianY); doc.text(': Rp', 45, rincianY); doc.text(formatRupiah(saldoBank).replace('Rp', '').trim(), 75, rincianY, { align: 'right' })
+  doc.setLineWidth(0.2); doc.line(45, rincianY + 1.5, 77, rincianY + 1.5); doc.text('+', 79, rincianY + 1.5); rincianY += 5
+  doc.text('Jumlah', 14, rincianY); doc.text(': Rp', 45, rincianY); doc.text(formatRupiah(jumlahSaldo).replace('Rp', '').trim(), 75, rincianY, { align: 'right' }); rincianY += 5
+  doc.text('Kelebihan Rp,-.', 14, rincianY)
+  let signY = rincianY + 15
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text('Mengetahui :', 14, signY)
+  const kpaJabatanLines = doc.splitTextToSize(`${settings.kpa_jabatan},`, 80); doc.text(kpaJabatanLines, 14, signY + 5)
+  doc.text(`${settings.lokasi}, ${lastDay} ${monthName.toLowerCase()} ${year}`, 140, signY)
+  const bppJabatanLines = doc.splitTextToSize(`${settings.bpp_jabatan},`, 60); doc.text(bppJabatanLines, 140, signY + 5)
+  const signOffset = Math.max(kpaJabatanLines.length, bppJabatanLines.length) * 5 + 20
+  doc.setFont('helvetica', 'bold'); doc.text(settings.kpa_nama, 14, signY + signOffset); doc.text(settings.bpp_nama, 140, signY + signOffset)
+  doc.setFont('helvetica', 'normal'); doc.text(`NIP. ${settings.kpa_nip}`, 14, signY + signOffset + 4); doc.text(`NIP. ${settings.bpp_nip}`, 140, signY + signOffset + 4)
+  doc.save(`BKU_${monthName}_${year}.pdf`)
+}
+
+/**
+ * [FITUR: EXPORT PDF - BKU TRIWULAN]
+ * Base BKU bulanan dengan tambahan baris tutup sementara sebelum Jumlah Bulan ini.
+ */
+export function exportBKUTriwulanPdf(rows, monthIndex, year = new Date().getFullYear(), totalsBulanLalu = { debet: 0, kredit: 0 }, customDate = null) {
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [215, 330] })
+  const monthName = getMonthName(monthIndex)
+  const settings = useStore.getState().settings
+
+  const lastDay = customDate ? new Date(customDate).getDate() : new Date(year, monthIndex + 1, 0).getDate()
+
+  // --- HEADER SECTION ---
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(13)
+  doc.text('BUKU KAS UMUM', 105, 15, { align: 'center' })
+  doc.text(`BULAN ${monthName} ${year}`, 105, 21, { align: 'center' })
+
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  
+  const startY = 30
+  const leftCol = 14
+  const midCol = 65
+  
+  doc.text('Unit Kerja', leftCol, startY)
+  doc.text(`: ${settings.unit_kerja || ''}`, midCol, startY)
+  
+  doc.text('Kuasa Pengguna Anggaran', leftCol, startY + 5)
+  doc.text(`: ${settings.kpa_nama || ''}`, midCol, startY + 5)
+  
+  doc.text('Bendahara Pengeluaran Pembantu', leftCol, startY + 10)
+  doc.text(`: ${settings.bpp_nama || ''}`, midCol, startY + 10)
+
+  // --- TABLE SECTION ---
+  const head = [
+    [
+      { content: 'No.', rowSpan: 1 },
+      { content: 'Tanggal', rowSpan: 1 },
+      { content: 'Kode Rekening', rowSpan: 1 },
+      { content: 'Uraian', rowSpan: 1 },
+      { content: 'Penerimaan', rowSpan: 1 },
+      { content: 'Pengeluaran', rowSpan: 1 }
+    ],
+    ['1', '2', '3', '4', '5', '6']
+  ]
+
+  const tableData = rows.map((r, i) => [
+    i + 1,
+    formatTanggal(r.tanggal),
+    r.kode_rekening || '',
+    r.uraian || '',
+    r.debet > 0 ? formatRupiah(r.debet).replace('Rp', '').trim() : '',
+    r.kredit > 0 ? formatRupiah(r.kredit).replace('Rp', '').trim() : ''
+  ])
+
+  tableData.push([
+    {
+      content: 'Pada hari ini, Selasa tanggal 31 Maret 2026 Jam 11.00 WIB. Buku Kas Umum Kami tutup sementara (Selaku Kuasa Pengguna Anggaran) sesuai dengan Peraturan Menteri Dalam Negeri Nomor 13 Tahun 2006 jo. Peraturan Menteri Dalam Negeri Nomor 59 Tahun 2007 dan Surat Keputusan Gubernur Nomor. 900/Kep.06-Keu/2015 Tanggal 02 Januari 2016.',
+      colSpan: 6,
+      styles: { halign: 'left', fontStyle: 'normal', cellPadding: 2 }
+    }
+  ])
+
+  const totalDebetIni = rows.reduce((s, r) => s + (r.debet || 0), 0)
+  const totalKreditIni = rows.reduce((s, r) => s + (r.kredit || 0), 0)
+  
+  const totalDebetLalu = totalsBulanLalu.debet || 0
+  const totalKreditLalu = totalsBulanLalu.kredit || 0
+
+  const totalDebetSemua = totalDebetIni + totalDebetLalu
+  const totalKreditSemua = totalKreditIni + totalKreditLalu
+
+  const saldo = totalDebetSemua - totalKreditSemua
+
+  const foot = [
+    [
+      { content: 'Jumlah bulan ini', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
+      { content: formatRupiah(totalDebetIni).replace('Rp', '').trim(), styles: { halign: 'right', fontStyle: 'bold' } },
+      { content: formatRupiah(totalKreditIni).replace('Rp', '').trim(), styles: { halign: 'right', fontStyle: 'bold' } }
+    ],
+    [
+      { content: 'Jumlah s/d bulan lalu', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
+      { content: formatRupiah(totalDebetLalu).replace('Rp', '').trim(), styles: { halign: 'right', fontStyle: 'bold' } },
+      { content: formatRupiah(totalKreditLalu).replace('Rp', '').trim(), styles: { halign: 'right', fontStyle: 'bold' } }
+    ],
+    [
+      { content: `Jumlah Semua s/d Tanggal ${lastDay} ${monthName} ${year}`, colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
+      { content: formatRupiah(totalDebetSemua).replace('Rp', '').trim(), styles: { halign: 'right', fontStyle: 'bold' } },
+      { content: formatRupiah(totalKreditSemua).replace('Rp', '').trim(), styles: { halign: 'right', fontStyle: 'bold' } }
+    ],
+    [
+      { content: 'Saldo Buku', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
+      { content: '', styles: { halign: 'right', fontStyle: 'bold' } },
+      { content: formatRupiah(saldo).replace('Rp', '').trim(), styles: { halign: 'right', fontStyle: 'bold' } }
+    ]
+  ]
+
+  autoTable(doc, {
+    startY: startY + 18,
+    head: head,
+    body: tableData,
+    foot: foot,
+    showFoot: 'lastPage',
+    theme: 'grid',
+    styles: { fontSize: 7.5, cellPadding: 1.5, lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0] },
+    headStyles: { fillColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', valign: 'middle' },
+    footStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: 8, halign: 'center' },
+      1: { cellWidth: 20, halign: 'center' },
+      2: { cellWidth: 35, fontStyle: 'bold' },
+      3: { cellWidth: 'auto', overflow: 'linebreak' },
+      4: { cellWidth: 25, halign: 'right' },
+      5: { cellWidth: 25, halign: 'right' }
+    }
+  })
+
+  let finalY = doc.lastAutoTable.finalY + 8
+
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const drawTriwulanSignature = (startY) => {
+    const leftSignX = 14
+    const rightSignX = 140
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.text(`${settings.lokasi || ''}, ${lastDay} ${monthName.toLowerCase()} ${year}`, rightSignX, startY)
+    doc.text(`${settings.bpp_jabatan || 'Bendahara Pengeluaran Pembantu'},`, leftSignX, startY + 5)
+    doc.text('Pemeriksa,', rightSignX, startY + 5)
+    doc.setFont('helvetica', 'bold')
+    doc.text(settings.bpp_nama || '', leftSignX, startY + 28)
+    doc.text(settings.kpa_nama || '', rightSignX, startY + 28)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`NIP. ${settings.bpp_nip || ''}`, leftSignX, startY + 32)
+    doc.text(`NIP. ${settings.kpa_nip || ''}`, rightSignX, startY + 32)
+    return startY + 36
+  }
+
+  const signatureHeight = 40
+  if (finalY + signatureHeight > pageHeight - 10) {
+    doc.addPage()
+    finalY = 20
+  }
+
+  finalY = drawTriwulanSignature(finalY) + 6
 
   doc.setFontSize(8)
   const dayName = customDate ? new Date(customDate).toLocaleDateString('id-ID', { weekday: 'long' }) : new Date(year, monthIndex + 1, 0).toLocaleDateString('id-ID', { weekday: 'long' })
