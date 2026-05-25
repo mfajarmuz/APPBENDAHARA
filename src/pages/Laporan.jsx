@@ -685,7 +685,9 @@ export default function Laporan() {
       }
     }
 
-    const saldoKasRiil = totalPenerimaan.gu.sd - totalPengeluaran.gu.sd
+    const totalPenerimaanSd = totalPenerimaan.ls.sd + totalPenerimaan.gu.sd
+    const totalPengeluaranSd = totalPengeluaran.ls.sd + totalPengeluaran.gu.sd
+    const saldoKasRiil = totalPenerimaanSd - totalPengeluaranSd
 
     return {
       penLS, penGU, upPen, guPen, tuPen, lsPen, kkpdPen,

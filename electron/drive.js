@@ -10,15 +10,39 @@ let oauth2Client = null
 
 // Lokasi penyimpanan token akses setelah login (aman di folder UserData OS)
 const TOKEN_PATH = path.join(app.getPath('userData'), 'gdrive_oauth_token.json')
+const OAUTH_CREDENTIALS_FILE = 'oauth-credentials.json'
 
 /**
- * Membaca kredensial klien OAuth dari oauth-credentials.json di root folder
+ * Daftar kandidat lokasi kredensial OAuth.
+ *
+ * Root cause regression 1.2.2: setelah auto-update / packaging, file manual
+ * oauth-credentials.json bisa tidak berada di process.resourcesPath. Pencarian
+ * satu lokasi membuat integrasi Google Drive gagal walau credential lama masih ada.
+ */
+function getOAuthCredentialsCandidatePaths() {
+  const candidates = [
+    // Lokasi stabil untuk konfigurasi user; tidak tertimpa auto-update.
+    path.join(app.getPath('userData'), OAUTH_CREDENTIALS_FILE),
+
+    // Lokasi bundled oleh electron-builder extraResources.
+    path.join(process.resourcesPath || '', OAUTH_CREDENTIALS_FILE),
+
+    // Lokasi development / unpacked source.
+    path.join(__dirname, '..', OAUTH_CREDENTIALS_FILE),
+    path.join(app.getAppPath(), OAUTH_CREDENTIALS_FILE),
+
+    // Backward compatibility: jika app dijalankan dari folder lama/current working dir.
+    path.join(process.cwd(), OAUTH_CREDENTIALS_FILE)
+  ]
+
+  return [...new Set(candidates.filter(Boolean))]
+}
+
+/**
+ * Membaca kredensial klien OAuth dari lokasi yang tersedia.
  */
 function getOAuthCredentialsPath() {
-  const isDev = !app.isPackaged
-  return isDev
-    ? path.join(__dirname, '../oauth-credentials.json')
-    : path.join(process.resourcesPath, 'oauth-credentials.json')
+  return getOAuthCredentialsCandidatePaths().find((candidatePath) => fs.existsSync(candidatePath)) || null
 }
 
 /**
@@ -29,8 +53,9 @@ function initOAuth2Client() {
 
   const credentialsPath = getOAuthCredentialsPath()
 
-  if (!fs.existsSync(credentialsPath)) {
-    throw new Error(`Berkas 'oauth-credentials.json' tidak ditemukan. Silakan unduh dari Google Cloud Console dan letakkan di direktori aplikasi.`)
+  if (!credentialsPath) {
+    const searchedPaths = getOAuthCredentialsCandidatePaths().join(', ')
+    throw new Error(`Berkas '${OAUTH_CREDENTIALS_FILE}' tidak ditemukan. Letakkan berkas tersebut di folder data aplikasi (${app.getPath('userData')}) atau salah satu lokasi berikut: ${searchedPaths}`)
   }
 
   try {
