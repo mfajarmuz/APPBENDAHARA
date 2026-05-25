@@ -24,7 +24,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
 import Spinner from '@/components/ui/Spinner'
-import { exportBKUPdf, exportBKUSubKegPdf, exportBKUTriwulanPdf, exportBAPemeriksaanKasPdf, exportBukuPembantuPdf, exportRealisasiPdf, exportRekapBulananPdf, exportLPJAdministratifPdf, exportLPJPeriodePdf, exportBukuPembantuPajakPdf, exportBukuSimpananBankPdf, exportRegisterKasPdf, exportRPPUAPdf, exportRPPUPPdf, exportBAPenutupanKasPdf, terbilang } from '@/lib/export-pdf'
+import { exportBKUPdf, exportBKUSubKegPdf, exportBKUTriwulanPdf, exportBAPemeriksaanKasPdf, exportBukuPembantuPdf, exportRealisasiPdf, exportRekapBulananPdf, exportLPJAdministratifPdf, exportLPJPeriodePdf, exportBukuPembantuPajakPdf, exportBukuSimpananBankPdf, exportRegisterKasPdf, exportRegisterKasPdf2, exportRPPUAPdf, exportRPPUAPdf2, exportRPPUPPdf, exportRPPUPPdf2, exportBAPenutupanKasPdf, terbilang } from '@/lib/export-pdf'
 import { exportBKUExcel, exportRealisasiExcel } from '@/lib/export-excel'
 import { getBkuRows } from '@/lib/bku'
 import logoJabar from '@/assets/logo-jabar.png'
@@ -957,6 +957,48 @@ export default function Laporan() {
                   <span className="text-xs text-white">Cetak BKU-SubKeg</span>
                 </Button>
               </>
+            )}
+
+            {tab === 'rppua' && (
+              <Button 
+                variant="primary" 
+                onClick={() => {
+                  const customDate = customDates[tipeLaporan]
+                  exportRPPUAPdf2(rekapBulanan, filterBulan, filterTahun, customDate)
+                }}
+                className="h-11 w-full rounded-2xl justify-start px-4 group font-bold shadow-md shadow-indigo-600/20 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700"
+              >
+                <Printer size={15} className="text-white opacity-90 flex-shrink-0" />
+                <span className="text-xs text-white">Export PDF Bulanan 2</span>
+              </Button>
+            )}
+
+            {tab === 'rppup' && (
+              <Button 
+                variant="primary" 
+                onClick={() => {
+                  const customDate = customDates[tipeLaporan]
+                  exportRPPUPPdf2(rekapPajakBulanan, filterBulan, filterTahun, customDate)
+                }}
+                className="h-11 w-full rounded-2xl justify-start px-4 group font-bold shadow-md shadow-indigo-600/20 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700"
+              >
+                <Printer size={15} className="text-white opacity-90 flex-shrink-0" />
+                <span className="text-xs text-white">Export PDF Bulanan 2</span>
+              </Button>
+            )}
+
+            {tab === 'register_kas' && (
+              <Button 
+                variant="primary" 
+                onClick={() => {
+                  const customDate = customDates[tipeLaporan]
+                  exportRegisterKasPdf2(registerKasData, cashUnits, filterBulan, filterTahun, customDate)
+                }}
+                className="h-11 w-full rounded-2xl justify-start px-4 group font-bold shadow-md shadow-indigo-600/20 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700"
+              >
+                <Printer size={15} className="text-white opacity-90 flex-shrink-0" />
+                <span className="text-xs text-white">Export PDF Bulanan 2</span>
+              </Button>
             )}
 
             {tab === 'lra' && (

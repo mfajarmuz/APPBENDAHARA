@@ -174,6 +174,7 @@ export function exportBKUTriwulanPdf(rows, monthIndex, year = new Date().getFull
   const settings = useStore.getState().settings
 
   const lastDay = customDate ? new Date(customDate).getDate() : new Date(year, monthIndex + 1, 0).getDate()
+  const dayName = customDate ? new Date(customDate).toLocaleDateString('id-ID', { weekday: 'long' }) : new Date(year, monthIndex + 1, 0).toLocaleDateString('id-ID', { weekday: 'long' })
 
   // --- HEADER SECTION ---
   doc.setFont('helvetica', 'bold')
@@ -219,9 +220,11 @@ export function exportBKUTriwulanPdf(rows, monthIndex, year = new Date().getFull
     r.kredit > 0 ? formatRupiah(r.kredit).replace('Rp', '').trim() : ''
   ])
 
+  const closingTextTriwulan = `Pada hari ini, ${dayName} tanggal ${terbilang(lastDay)} bulan ${monthName} tahun ${terbilang(year)} Jam 11.00 WIB. Buku Kas Umum Kami tutup sementara (Selaku Kuasa Pengguna Anggaran) sesuai dengan Peraturan Menteri Dalam Negeri Nomor 13 Tahun 2006 jo. Peraturan Menteri Dalam Negeri Nomor 59 Tahun 2007 dan Surat Keputusan Gubernur Nomor. 900/Kep.06-Keu/2015 Tanggal 02 Januari 2016.`
+
   tableData.push([
     {
-      content: 'Pada hari ini, Selasa tanggal 31 Maret 2026 Jam 11.00 WIB. Buku Kas Umum Kami tutup sementara (Selaku Kuasa Pengguna Anggaran) sesuai dengan Peraturan Menteri Dalam Negeri Nomor 13 Tahun 2006 jo. Peraturan Menteri Dalam Negeri Nomor 59 Tahun 2007 dan Surat Keputusan Gubernur Nomor. 900/Kep.06-Keu/2015 Tanggal 02 Januari 2016.',
+      content: closingTextTriwulan,
       colSpan: 6,
       styles: { halign: 'left', fontStyle: 'normal', cellPadding: 2 }
     }
@@ -309,8 +312,82 @@ export function exportBKUTriwulanPdf(rows, monthIndex, year = new Date().getFull
 
   finalY = drawTriwulanSignature(finalY) + 6
 
+  const openBlockHeight = 65
+  if (finalY + openBlockHeight > pageHeight - 10) {
+    doc.addPage()
+    finalY = 20
+  }
+
   doc.setFontSize(8)
-  const dayName = customDate ? new Date(customDate).toLocaleDateString('id-ID', { weekday: 'long' }) : new Date(year, monthIndex + 1, 0).toLocaleDateString('id-ID', { weekday: 'long' })
+  const formatMonthTitle = (name) => name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
+  const monthNameFormatted = formatMonthTitle(monthName)
+
+  const prevMonthIndex = monthIndex === 0 ? 11 : monthIndex - 1
+  const prevMonthYear = monthIndex === 0 ? year - 1 : year
+  const prevMonthLastDay = new Date(prevMonthYear, prevMonthIndex + 1, 0).getDate()
+  const prevMonthName = getMonthName(prevMonthIndex)
+  const prevMonthNameFormatted = formatMonthTitle(prevMonthName)
+
+  const openText = `Pada hari ini, ${dayName} tanggal ${lastDay} ${monthNameFormatted} ${year} Jam 13.00 WIB. Buku Kas Umum Kami Buka Kembali (Selaku Kuasa Pengguna Anggaran) dengan menunjukkan keadaan kas sebagai berikut :`
+  const wrappedOpen = doc.splitTextToSize(openText, 180)
+  doc.setFont('helvetica', 'normal')
+  doc.text(wrappedOpen, 14, finalY)
+  finalY += 3 + (wrappedOpen.length * 3.5)
+
+  const formatNum = (num) => num > 0 ? formatRupiah(num).replace('Rp', '').trim() : '-'
+  const formatNumBold = (num) => num > 0 ? formatRupiah(num).replace('Rp', '').trim() : '-'
+
+  const bukaKembaliRows = [
+    [
+      `Penerimaan dan pengeluaran dari tanggal 01 ${monthNameFormatted} ${year - 1} s/d ${lastDay} ${monthNameFormatted} ${year}`,
+      formatNum(totalDebetIni),
+      formatNum(totalKreditIni)
+    ],
+    [
+      `Penerimaan dan pengeluaran dari tanggal 02 Januari ${year} s/d ${prevMonthLastDay} ${prevMonthNameFormatted} ${prevMonthYear}`,
+      formatNum(totalDebetLalu),
+      formatNum(totalKreditLalu)
+    ],
+    [
+      `Penerimaan dan pengeluaran dari tanggal 02 Januari ${year - 1} s/d ${lastDay} ${monthNameFormatted} ${year}`,
+      formatNum(totalDebetSemua),
+      formatNum(totalKreditSemua)
+    ],
+    [
+      `Saldo Buku sampai dengan tanggal ${lastDay} ${monthNameFormatted} ${year}`,
+      '',
+      formatNum(saldo)
+    ],
+    [
+      { content: `Saldo Kas sampai dengan tanggal ${lastDay} ${monthNameFormatted} ${year}`, styles: { fontStyle: 'bold' } },
+      '',
+      { content: formatNumBold(saldo), styles: { fontStyle: 'bold' } }
+    ],
+    [
+      { content: 'Perbedaan Positif / Negatif : Rp. nihil ,-', colSpan: 3, styles: { halign: 'left', fontStyle: 'normal' } }
+    ]
+  ]
+
+  autoTable(doc, {
+    startY: finalY,
+    body: bukaKembaliRows,
+    theme: 'grid',
+    styles: { fontSize: 7, cellPadding: 1.2, lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0] },
+    columnStyles: {
+      0: { cellWidth: 'auto', halign: 'left' },
+      1: { cellWidth: 30, halign: 'right' },
+      2: { cellWidth: 30, halign: 'right' }
+    }
+  })
+
+  finalY = doc.lastAutoTable.finalY + 8
+
+  if (finalY + 45 > pageHeight - 10) {
+    doc.addPage()
+    finalY = 20
+  }
+
+  doc.setFontSize(8)
   const closingText = `Pada hari ${dayName} tanggal ${terbilang(lastDay)} bulan ${monthName} tahun ${terbilang(year)}, oleh kami Buku Kas Umum ditutup.`
   const wrappedClosing = doc.splitTextToSize(closingText, 180)
   doc.setFont('helvetica', 'normal')
