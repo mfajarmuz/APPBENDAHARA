@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('api', {
   addKodeRekening: (payload) => ipcRenderer.invoke('add-kode-rekening', payload),
   updateKodeRekening: (payload) => ipcRenderer.invoke('update-kode-rekening', payload),
   deleteKodeRekening: (id) => ipcRenderer.invoke('delete-kode-rekening', id),
+  parseRakPdf: (filePath) => ipcRenderer.invoke('parse-rak-pdf', filePath),
+  saveBulkRekening: (payload) => ipcRenderer.invoke('save-bulk-rekening', payload),
 
   // Penerimaan
   getPenerimaan: () => ipcRenderer.invoke('get-penerimaan'),

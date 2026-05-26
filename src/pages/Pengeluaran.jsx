@@ -221,6 +221,47 @@ export default function Pengeluaran() {
 
   const realisasiSk = Object.values(realisasiPerRek).reduce((a, b) => a + b, 0)
 
+  const selectedRek = useMemo(() => {
+    return selectedSk?.kode_rekening?.find(r => r.id === form.kode_rekening_id) ?? null
+  }, [selectedSk, form.kode_rekening_id])
+
+  const rakInfo = useMemo(() => {
+    if (!selectedRek || !form.tanggal) return null
+    const dateObj = new Date(form.tanggal)
+    const month = dateObj.getMonth()
+    
+    const rakMonths = [
+      selectedRek.rak_jan || 0,
+      selectedRek.rak_feb || 0,
+      selectedRek.rak_mar || 0,
+      selectedRek.rak_apr || 0,
+      selectedRek.rak_mei || 0,
+      selectedRek.rak_jun || 0,
+      selectedRek.rak_jul || 0,
+      selectedRek.rak_agu || 0,
+      selectedRek.rak_sep || 0,
+      selectedRek.rak_okt || 0,
+      selectedRek.rak_nov || 0,
+      selectedRek.rak_des || 0
+    ]
+
+    let accumulatedRAK = 0
+    for (let m = 0; m <= month; m++) {
+      accumulatedRAK += rakMonths[m]
+    }
+
+    const realisasiRekPrev = realisasiPerRek[form.kode_rekening_id] ?? 0
+    const sisaRAK = accumulatedRAK - realisasiRekPrev
+
+    return {
+      bulan: BULAN[month],
+      rakBulanIni: rakMonths[month],
+      rakAccumulated: accumulatedRAK,
+      realisasiSebelumnya: realisasiRekPrev,
+      sisaRAK: sisaRAK
+    }
+  }, [selectedRek, form.tanggal, realisasiPerRek, form.kode_rekening_id])
+
   const totalRincian = rincian.reduce((sum, r) => {
     const val = typeof r.jumlah === 'string' ? r.jumlah.replace(/\./g, '') : r.jumlah
     return sum + (parseInt(val, 10) || 0)
@@ -305,6 +346,17 @@ export default function Pengeluaran() {
 
     if (amount > remainingQuota) {
       setErrors({ global: `Jumlah melebihi sisa quota pagu rekening (${formatRupiah(remainingQuota)})` })
+      return
+    }
+
+    // Validasi Rencana Anggaran Kas (RAK) Akumulatif Bulanan (Kecuali Transaksi Pajak)
+    const isTaxPayment = form.jenis === 'Pajak' || form.jenis === 'Pajak LS'
+    if (!isTaxPayment && rakInfo && amount > rakInfo.sisaRAK) {
+      setErrors({ 
+        global: `Jumlah pengeluaran (${formatRupiah(amount)}) melebihi sisa alokasi RAK s.d ${rakInfo.bulan} (${formatRupiah(rakInfo.sisaRAK)}).\n` +
+                `Batas RAK Akumulatif: ${formatRupiah(rakInfo.rakAccumulated)} | ` +
+                `Realisasi Sebelumnya: ${formatRupiah(rakInfo.realisasiSebelumnya)}`
+      })
       return
     }
 
@@ -894,13 +946,42 @@ export default function Pengeluaran() {
               />
 
               {selectedSk && (
-                <div className="bg-indigo-50/50 rounded-xl p-4 text-xs space-y-2 border border-indigo-100">
-                  <p className="font-bold text-indigo-600 uppercase tracking-wider mb-1">{selectedSk.nama}</p>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Sisa Quota Pagu</span>
-                    <span className="font-bold text-slate-700">{formatRupiah(calculatedSkPagu - realisasiSk)}</span>
+                <div className="bg-indigo-50/50 rounded-2xl p-5 text-xs space-y-3 border border-indigo-100/60 shadow-sm animate-in fade-in duration-300">
+                  <p className="font-black text-indigo-600 uppercase tracking-widest text-[9px] border-b border-indigo-100/40 pb-1.5">{selectedSk.nama}</p>
+                  
+                  {/* Sisa Quota Pagu Tahunan DPA */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between font-bold">
+                      <span className="text-slate-500">Sisa Quota Pagu DPA (Tahunan)</span>
+                      <span className="font-extrabold text-slate-800">{formatRupiah(calculatedSkPagu - realisasiSk)}</span>
+                    </div>
+                    <ProgressBar value={persen(realisasiSk, calculatedSkPagu)} />
                   </div>
-                  <ProgressBar value={persen(realisasiSk, calculatedSkPagu)} />
+
+                  {/* Sisa Quota Rencana Anggaran Kas (RAK) Bulanan */}
+                  {rakInfo && (
+                    <div className="border-t border-slate-200/60 pt-3 mt-3 space-y-2">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Monitor RAK Belanja (Akumulatif s.d {rakInfo.bulan})</span>
+                      <div className="grid grid-cols-2 gap-3 text-[10px] font-bold">
+                        <div className="bg-white p-2.5 rounded-xl border border-slate-100">
+                          <span className="text-slate-400 block text-[8px] uppercase font-bold">RAK Bulan Ini</span>
+                          <span className="text-slate-800 font-extrabold">{formatRupiah(rakInfo.rakBulanIni)}</span>
+                        </div>
+                        <div className="bg-white p-2.5 rounded-xl border border-slate-100">
+                          <span className="text-slate-400 block text-[8px] uppercase font-bold">Batas Akumulatif RAK</span>
+                          <span className="text-slate-800 font-extrabold">{formatRupiah(rakInfo.rakAccumulated)}</span>
+                        </div>
+                        <div className="bg-white p-2.5 rounded-xl border border-slate-100">
+                          <span className="text-slate-400 block text-[8px] uppercase font-bold">Realisasi RAK</span>
+                          <span className="text-slate-800 font-extrabold">{formatRupiah(rakInfo.realisasiSebelumnya)}</span>
+                        </div>
+                        <div className={`p-2.5 rounded-xl border ${rakInfo.sisaRAK >= 0 ? 'bg-emerald-50/50 border-emerald-100 text-emerald-700' : 'bg-red-50/50 border-red-100 text-red-700'}`}>
+                          <span className="block text-[8px] uppercase font-black opacity-75">Sisa RAK Tersedia</span>
+                          <span className="font-black text-[11px]">{formatRupiah(rakInfo.sisaRAK)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

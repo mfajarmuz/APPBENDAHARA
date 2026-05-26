@@ -139,7 +139,7 @@ export default function Dashboard() {
 
   // Breakdown Pengeluaran
   const pengeluaranLS = useMemo(() => pengeluaran.filter(p => p.jenis === 'LS').reduce((s, p) => s + p.jumlah, 0), [pengeluaran])
-  const pengeluaranGU = useMemo(() => pengeluaran.filter(p => p.jenis === 'GU').reduce((s, p) => s + p.jumlah, 0), [pengeluaran])
+  const pengeluaranGU = useMemo(() => pengeluaran.filter(p => ['GU', 'UP', 'TU', 'KKPD'].includes(p.jenis)).reduce((s, p) => s + p.jumlah, 0), [pengeluaran])
   const pengeluaranPajak = useMemo(() => {
     return pengeluaran.filter(p => {
       const rincianText = p.pengeluaran_rincian?.length > 0
@@ -149,7 +149,7 @@ export default function Dashboard() {
     }).reduce((s, p) => s + p.jumlah, 0)
   }, [pengeluaran])
 
-  const sisaSaldoKas = penerimaanUPGU - totalPengeluaran
+  const sisaSaldoKas = penerimaanUPGU - pengeluaranGU
   const sisaQuotaAnggaran = totalPagu - totalPengeluaran
   const persenTotal = persen(totalPengeluaran, totalPagu)
 
@@ -282,7 +282,7 @@ export default function Dashboard() {
           subtext="Sisa dana UP/GU di tangan"
           details={[
             { label: 'Total UP/GU', value: formatRupiah(penerimaanUPGU) },
-            { label: 'Total Belanja', value: formatRupiah(totalPengeluaran), className: 'text-red-500' },
+            { label: 'Total Belanja', value: formatRupiah(pengeluaranGU), className: 'text-red-500' },
             { label: 'Status', value: sisaSaldoKas < 0 ? 'Defisit' : 'Tersedia', className: sisaSaldoKas < 0 ? 'text-red-700' : 'text-emerald-700' }
           ]}
         />

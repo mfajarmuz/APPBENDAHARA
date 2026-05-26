@@ -280,6 +280,16 @@ export const selectPdfFile = () => {
   return Promise.resolve(null) // tidak tersedia di browser
 }
 
+export const parseRakPdf = (filePath) => {
+  if (isElectron) return window.api.parseRakPdf(filePath)
+  return Promise.resolve({ success: false, error: 'Fitur ini hanya tersedia di aplikasi desktop.' })
+}
+
+export const saveBulkRekening = (payload) => {
+  if (isElectron) return window.api.saveBulkRekening(payload)
+  return Promise.resolve({ success: false, error: 'Fitur ini hanya tersedia di aplikasi desktop.' })
+}
+
 export const loginGoogleDrive = () => {
   if (isElectron) return window.api.loginGoogleDrive()
   return Promise.resolve({ success: false, error: 'Fitur ini hanya tersedia di aplikasi desktop.' })

@@ -34,6 +34,18 @@ CREATE TABLE kode_rekening (
   kode text NOT NULL,
   uraian text NOT NULL,
   pagu_anggaran bigint NOT NULL,
+  rak_jan bigint NOT NULL DEFAULT 0,
+  rak_feb bigint NOT NULL DEFAULT 0,
+  rak_mar bigint NOT NULL DEFAULT 0,
+  rak_apr bigint NOT NULL DEFAULT 0,
+  rak_mei bigint NOT NULL DEFAULT 0,
+  rak_jun bigint NOT NULL DEFAULT 0,
+  rak_jul bigint NOT NULL DEFAULT 0,
+  rak_agu bigint NOT NULL DEFAULT 0,
+  rak_sep bigint NOT NULL DEFAULT 0,
+  rak_okt bigint NOT NULL DEFAULT 0,
+  rak_nov bigint NOT NULL DEFAULT 0,
+  rak_des bigint NOT NULL DEFAULT 0,
   created_at timestamptz DEFAULT now()
 );
 

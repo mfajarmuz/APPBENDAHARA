@@ -4,6 +4,7 @@ const fs = require('fs')
 const { createClient } = require('@supabase/supabase-js')
 const { autoUpdater } = require('electron-updater')
 const { testConnection, uploadFileToCMSFolder, startAuthFlow, disconnectDrive } = require('./drive')
+const { parseRakPdf } = require('./pdfParser')
 
 // Handle error wrapping for IPC
 const handleWith = async (fn) => {
@@ -256,6 +257,136 @@ ipcMain.handle('delete-kode-rekening', async (event, id) => {
   return handleWith(async () => {
     const { error } = await supabase.from('kode_rekening').delete().eq('id', id)
     if (error) throw error
+    return true
+  })
+})
+
+// RAK & PDF Parsing IPC Handlers
+ipcMain.handle('parse-rak-pdf', async (event, filePath) => {
+  return handleWith(async () => {
+    return await parseRakPdf(filePath)
+  })
+})
+
+ipcMain.handle('save-bulk-rekening', async (event, { header, rekening }) => {
+  console.log('IPC [save-bulk-rekening] dipanggil dengan:', {
+    header,
+    totalRekening: rekening ? rekening.length : 0
+  });
+  if (rekening && rekening.length > 0) {
+    console.log('Contoh data rekening pertama yang akan disimpan:', {
+      kode: rekening[0].kode,
+      uraian: rekening[0].uraian,
+      pagu_anggaran: rekening[0].pagu_anggaran,
+      rak_jan: rekening[0].rak_jan,
+      rak_feb: rekening[0].rak_feb,
+      rak_des: rekening[0].rak_des
+    });
+  }
+  return handleWith(async () => {
+    // 1. Ambil atau buat Program
+    let { data: prog, error: pErr } = await supabase
+      .from('program')
+      .select('id')
+      .eq('kode', header.programKode)
+      .maybeSingle()
+    if (pErr) throw pErr
+    if (!prog) {
+      const { data: newP, error: newPErr } = await supabase
+        .from('program')
+        .insert([{ kode: header.programKode, nama: header.programNama }])
+        .select('id')
+        .single()
+      if (newPErr) throw newPErr
+      prog = newP
+    }
+
+    // 2. Ambil atau buat Kegiatan
+    let { data: keg, error: kErr } = await supabase
+      .from('kegiatan')
+      .select('id')
+      .eq('kode', header.kegiatanKode)
+      .maybeSingle()
+    if (kErr) throw kErr
+    if (!keg) {
+      const { data: newK, error: newKErr } = await supabase
+        .from('kegiatan')
+        .insert([{ kode: header.kegiatanKode, nama: header.kegiatanNama, program_id: prog.id }])
+        .select('id')
+        .single()
+      if (newKErr) throw newKErr
+      keg = newK
+    }
+
+    // 3. Ambil atau buat Sub Kegiatan
+    let { data: sk, error: skErr } = await supabase
+      .from('sub_kegiatan')
+      .select('id')
+      .eq('kode', header.subKegiatanKode)
+      .maybeSingle()
+    if (skErr) throw skErr
+    if (!sk) {
+      const { data: newSk, error: newSkErr } = await supabase
+        .from('sub_kegiatan')
+        .insert([{
+          kode: header.subKegiatanKode,
+          nama: header.subKegiatanNama,
+          kegiatan_id: keg.id,
+          sumber_dana: 'PAD',
+          tahun_anggaran: 2026
+        }])
+        .select('id')
+        .single()
+      if (newSkErr) throw newSkErr
+      sk = newSk
+    }
+
+    const subKegiatanId = sk.id
+
+    // 4. Upsert Kode Rekening secara sekuensial aman
+    for (const r of rekening) {
+      const { data: existingRek, error: rFetchErr } = await supabase
+        .from('kode_rekening')
+        .select('id')
+        .eq('sub_kegiatan_id', subKegiatanId)
+        .eq('kode', r.kode)
+        .maybeSingle()
+      
+      if (rFetchErr) throw rFetchErr
+
+      const payload = {
+        sub_kegiatan_id: subKegiatanId,
+        kode: r.kode,
+        uraian: r.uraian,
+        pagu_anggaran: r.pagu_anggaran,
+        rak_jan: r.rak_jan,
+        rak_feb: r.rak_feb,
+        rak_mar: r.rak_mar,
+        rak_apr: r.rak_apr,
+        rak_mei: r.rak_mei,
+        rak_jun: r.rak_jun,
+        rak_jul: r.rak_jul,
+        rak_agu: r.rak_agu,
+        rak_sep: r.rak_sep,
+        rak_okt: r.rak_okt,
+        rak_nov: r.rak_nov,
+        rak_des: r.rak_des
+      }
+
+      if (existingRek) {
+        const { error: updErr } = await supabase
+          .from('kode_rekening')
+          .update(payload)
+          .eq('id', existingRek.id)
+        if (updErr) throw updErr
+      } else {
+        const { error: insErr } = await supabase
+          .from('kode_rekening')
+          .insert([payload])
+        if (insErr) throw insErr
+      }
+    }
+
     return true
   })
 })

@@ -126,9 +126,18 @@ export default function Laporan() {
   const [filterBulan, setFilterBulan] = useState(new Date().getMonth())
   const [filterTahun, setFilterTahun] = useState(new Date().getFullYear())
   const [tipeLaporan, setTipeLaporan] = useState('akhir') // 'akhir' atau 'pertengahan'
-  const [customDates, setCustomDates] = useState({
-    akhir: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0],
-    pertengahan: new Date().toISOString().split('T')[0]
+  const [customDates, setCustomDates] = useState(() => {
+    const now = new Date()
+    const toLocalYYYYMMDD = (d) => {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${day}`
+    }
+    return {
+      akhir: toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+      pertengahan: toLocalYYYYMMDD(now)
+    }
   })
   const [collapsedSk, setCollapsedSk] = useState({})
   const [penerimaanCollapsed, setPenerimaanCollapsed] = useState(true)
@@ -182,9 +191,21 @@ export default function Laporan() {
     setLocalBku(filteredBku)
     setSelectedIds([]) // Reset selection when filter changes
     
-    // Update end of month date when filter changes
-    const lastDay = new Date(filterTahun, filterBulan + 1, 0).toISOString().split('T')[0]
-    setCustomDates(prev => ({ ...prev, akhir: lastDay }))
+    // Helper to format date safely to YYYY-MM-DD in local time
+    const toLocalYYYYMMDD = (d) => {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${day}`
+    }
+
+    // Update end of month and mid-month dates when filter changes
+    const lastDay = toLocalYYYYMMDD(new Date(filterTahun, filterBulan + 1, 0))
+    const midDay = toLocalYYYYMMDD(new Date(filterTahun, filterBulan, 15))
+    setCustomDates({
+      akhir: lastDay,
+      pertengahan: midDay
+    })
   }, [filteredBku, filterBulan, filterTahun])
 
   const toggleSelect = (id) => {
@@ -567,7 +588,7 @@ export default function Laporan() {
     const lsPen = getPenerimaanAgg(['LS'])
     const kkpdPen = getPenerimaanAgg(['KKPD'])
 
-    const isTaxFromLS = (p) => (p.jenis === 'Pajak LS' || p.jenis === 'LS' || !!p.no_sp2d || !!p.nomor_ls)
+    const isTaxFromLS = (p) => (p.jenis === 'Pajak LS' || p.jenis === 'LS' || (!!p.no_sp2d && p.no_sp2d !== '-' && !p.no_sp2d.startsWith('BPP-')) || (!!p.nomor_ls && p.nomor_ls !== '-' && !p.nomor_ls.startsWith('BPP-')))
 
     const getTaxAgg = (regex) => {
       const items = penerimaan.filter(p => (p.jenis === 'Pajak' || p.jenis === 'Pajak LS') && regex.test(p.keterangan || ''))
@@ -696,7 +717,7 @@ export default function Laporan() {
       setPPN, setPPh21, setPPh22, setPPh23, setPPh4, taxPengeluaranTotal, totalPengeluaran,
       saldoKasRiil
     }
-  }, [penerimaan, pengeluaran, filterBulan, filterTahun])
+  }, [penerimaan, pengeluaran, filterBulan, filterTahun, customDates])
 
   const rekapBulanan = useMemo(() => {
     return BULAN.map((nama, i) => {

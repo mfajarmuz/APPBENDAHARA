@@ -95,6 +95,20 @@ const createKodeRekeningSlice = (set, get) => ({
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
+  },
+  parseRakPdf: async (filePath) => {
+    try {
+      return await api.parseRakPdf(filePath)
+    } catch (err) { return { success: false, error: err.message } }
+  },
+  saveBulkRekening: async (payload) => {
+    set({ isLoading: true })
+    try {
+      const res = await api.saveBulkRekening(payload)
+      if (res && res.success) await get().fetchSubKegiatan()
+      return res
+    } catch (err) { return { success: false, error: err.message } }
+    finally { set({ isLoading: false }) }
   }
 })
 
