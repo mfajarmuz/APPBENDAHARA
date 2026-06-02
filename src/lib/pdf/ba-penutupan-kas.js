@@ -46,7 +46,14 @@ export const exportBAPenutupanKasPdf = async (data, settings, customDate = null)
   const monthName = months[data.month - 1]
   const year = data.year
   
-  const dateObj = customDate ? new Date(customDate) : (settings.ba_tanggal ? new Date(settings.ba_tanggal) : new Date(year, data.month, 0))
+  let dateObj = new Date(year, data.month, 0)
+  if (customDate) {
+    const parsed = new Date(customDate)
+    if (!isNaN(parsed.getTime())) dateObj = parsed
+  } else if (settings.ba_tanggal) {
+    const parsed = new Date(settings.ba_tanggal)
+    if (!isNaN(parsed.getTime())) dateObj = parsed
+  }
   const fullDate = `${dateObj.getDate()} ${months[dateObj.getMonth()]} ${dateObj.getFullYear()}`
 
   const fmt = (val) => {

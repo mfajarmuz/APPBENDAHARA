@@ -13,60 +13,74 @@ const createSubKegiatanSlice = (set, get) => ({
       const res = await api.getSubKegiatan()
       if (res && res.success) {
         set({ subKegiatan: res.data || [] })
-      } else if (res) {
-        console.error('getSubKegiatan failed', res.error)
+      } else {
+        console.error('getSubKegiatan failed', res?.error || 'Unknown error')
       }
     } catch (err) { console.error('getSubKegiatan failed', err.message) }
     finally { set({ isLoading: false }) }
   },
   addProgram: async (payload) => {
+    set({ isLoading: true })
     try {
       const res = await api.addProgram(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
+    finally { set({ isLoading: false }) }
   },
   updateProgram: async (id, payload) => {
+    set({ isLoading: true })
     try {
       const res = await api.updateProgram(id, payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
+    finally { set({ isLoading: false }) }
   },
   addKegiatan: async (payload) => {
+    set({ isLoading: true })
     try {
       const res = await api.addKegiatan(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
+    finally { set({ isLoading: false }) }
   },
   updateKegiatan: async (id, payload) => {
+    set({ isLoading: true })
     try {
       const res = await api.updateKegiatan(id, payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
+    finally { set({ isLoading: false }) }
   },
   addSubKegiatan: async (payload) => {
+    set({ isLoading: true })
     try {
       const res = await api.addSubKegiatan(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
+    finally { set({ isLoading: false }) }
   },
   updateSubKegiatan: async (payload) => {
+    set({ isLoading: true })
     try {
       const res = await api.updateSubKegiatan(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
+    finally { set({ isLoading: false }) }
   },
   deleteSubKegiatan: async (id) => {
+    set({ isLoading: true })
     try {
       const res = await api.deleteSubKegiatan(id)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
+    finally { set({ isLoading: false }) }
   }
 })
 
@@ -76,25 +90,31 @@ const createSubKegiatanSlice = (set, get) => ({
  */
 const createKodeRekeningSlice = (set, get) => ({
   addKodeRekening: async (payload) => {
+    set({ isLoading: true })
     try {
       const res = await api.addKodeRekening(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
+    finally { set({ isLoading: false }) }
   },
   updateKodeRekening: async (payload) => {
+    set({ isLoading: true })
     try {
       const res = await api.updateKodeRekening(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
+    finally { set({ isLoading: false }) }
   },
   deleteKodeRekening: async (id) => {
+    set({ isLoading: true })
     try {
       const res = await api.deleteKodeRekening(id)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
     } catch (err) { return { success: false, error: err.message } }
+    finally { set({ isLoading: false }) }
   },
   parseRakPdf: async (filePath) => {
     try {

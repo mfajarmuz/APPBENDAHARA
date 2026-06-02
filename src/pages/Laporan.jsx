@@ -420,7 +420,7 @@ export default function Laporan() {
   const realisasiPerRek = useMemo(() => {
     const map = {}
     pengeluaran.forEach(p => {
-      if (new Date(p.tanggal).getFullYear() === filterTahun) {
+      if (new Date(p.tanggal).getFullYear() === filterTahun && p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS') {
         map[p.kode_rekening_id] = (map[p.kode_rekening_id] ?? 0) + p.jumlah
       }
     })

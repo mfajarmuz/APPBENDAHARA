@@ -8,7 +8,10 @@ export const normalize = (code) => {
   if (!code) return '';
   return code
     .split('.')
-    .map((part) => parseInt(part, 10).toString())
+    .map((part) => {
+      const clean = part.replace(/^0+/, '');
+      return clean === '' ? '0' : clean;
+    })
     .join('.');
 };
 

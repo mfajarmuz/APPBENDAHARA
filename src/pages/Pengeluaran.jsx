@@ -18,6 +18,8 @@ import Spinner from '@/components/ui/Spinner'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import ImportModal from '@/components/ui/ImportModal'
 
+const isElectron = typeof window !== 'undefined' && !!window.api
+
 const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 
 const PPH_OPTIONS = [
@@ -64,6 +66,7 @@ export default function Pengeluaran() {
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState({})
   const [selectedPdf, setSelectedPdf] = useState(null) // { path, name }
+  const [isDragging, setIsDragging] = useState(false)
   
   // Advanced Filters
   const [filterBulan, setFilterBulan] = useState('')
@@ -208,7 +211,7 @@ export default function Pengeluaran() {
     if (!selectedSk) return {}
     const map = {}
     pengeluaran
-      .filter(p => p.sub_kegiatan_id === selectedSk.id && p.id !== editingItem?.id)
+      .filter(p => p.sub_kegiatan_id === selectedSk.id && p.id !== editingItem?.id && p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS')
       .forEach(p => {
         map[p.kode_rekening_id] = (map[p.kode_rekening_id] ?? 0) + p.jumlah
       })
@@ -227,8 +230,9 @@ export default function Pengeluaran() {
 
   const rakInfo = useMemo(() => {
     if (!selectedRek || !form.tanggal) return null
-    const dateObj = new Date(form.tanggal)
-    const month = dateObj.getMonth()
+    const dateParts = form.tanggal.split('-')
+    if (dateParts.length < 2) return null
+    const month = parseInt(dateParts[1], 10) - 1 // 0-indexed month
     
     const rakMonths = [
       selectedRek.rak_jan || 0,
@@ -328,6 +332,57 @@ export default function Pengeluaran() {
     setRincian(r => r.map((row, idx) => idx === i ? { ...row, [field]: val } : row))
   }
 
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDragEnter = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) {
+      const file = files[0]
+      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        alert('Hanya berkas PDF yang diperbolehkan!')
+        return
+      }
+
+      // Validasi apakah path merupakan absolute path sistem berkas lokal
+      const filePath = file.path || ''
+      const isAbsolute = /^[a-zA-Z]:[\\/]/.test(filePath) || filePath.includes('/') || filePath.includes('\\')
+
+      if (!isAbsolute) {
+        alert(
+          `Gagal membaca jalur berkas lokal "${file.name}".\n\n` +
+          `Hal ini biasanya terjadi jika Anda menyeret berkas langsung dari browser (seperti Chrome Downloads), aplikasi chat (seperti Telegram), atau arsip ZIP.\n\n` +
+          `Solusi: Silakan klik kotak unggah untuk memilih berkas secara manual dari komputer Anda.`
+        )
+        return
+      }
+
+      setSelectedPdf({
+        name: file.name,
+        path: filePath,
+        size: file.size
+      })
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     
@@ -369,14 +424,15 @@ export default function Pengeluaran() {
     setErrors({})
 
     // Generate a background no_bukti to satisfy DB constraint
-    const d = new Date(form.tanggal)
+    const dateParts = form.tanggal.split('-')
+    const currentYear = parseInt(dateParts[0], 10)
+    const currentMonth = parseInt(dateParts[1], 10) - 1 // 0-indexed month
+    
     const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase()
-    const bgNoBukti = `BPP-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}-${Date.now()}-${randomSuffix}`
+    const bgNoBukti = `BPP-${currentYear}${String(currentMonth + 1).padStart(2, '0')}-${Date.now()}-${randomSuffix}`
 
     // Generate dynamic BKU sequence numbering and format file name for Google Drive
     const BULAN_UPPER = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER']
-    const currentMonth = d.getMonth()
-    const currentYear = d.getFullYear()
     
     let bkuNumber = 1
     const allBkuRows = getBkuRows(penerimaan, pengeluaran)
@@ -443,7 +499,7 @@ export default function Pengeluaran() {
               taxPenerimaanPayloads.push({
                 jenis: 'Pajak',
                 tanggal: form.tanggal,
-                no_sp2d: bgNoBukti,
+                nomor_ls: bgNoBukti,
                 sub_kegiatan_id: form.sub_kegiatan_id,
                 kode_rekening_id: form.kode_rekening_id,
                 jumlah: amount,
@@ -986,64 +1042,80 @@ export default function Pengeluaran() {
               )}
 
               {/* Unggah Berkas Bukti Bayar/Transfer PDF */}
-              <div className="space-y-1.5 mt-6 pt-6 border-t border-slate-100">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-1">Berkas PDF Pendukung Bukti Bayar/Transfer</label>
-                
-                {selectedPdf ? (
-                  <div className="flex items-center justify-between bg-emerald-50 border border-emerald-100 p-3.5 rounded-xl text-xs font-bold text-emerald-800 animate-in zoom-in-95 shadow-sm">
-                    <div className="flex items-center gap-2 truncate">
-                      <FileText size={16} className="text-emerald-600 shrink-0" />
-                      <span className="truncate font-black text-[11px] text-emerald-700">{selectedPdf.name}</span>
-                    </div>
-                    <button 
-                      type="button" 
-                      onClick={() => setSelectedPdf(null)}
-                      className="p-1 hover:bg-emerald-100 text-emerald-600 rounded-full transition-colors flex items-center justify-center shrink-0"
-                      title="Hapus Berkas"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          const file = await window.api?.selectPdfFile()
-                          if (file) {
-                            setSelectedPdf(file)
-                          }
-                        } catch (err) {
-                          alert('Gagal memilih file: ' + err.message)
-                        }
-                      }}
-                      className="w-full flex flex-col sm:flex-row items-center justify-center gap-2 border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 text-slate-500 hover:text-indigo-600 px-4 py-4 rounded-2xl transition-all duration-300 text-xs font-bold group"
-                    >
-                      <Paperclip size={15} className="group-hover:rotate-45 transition-transform text-slate-400 group-hover:text-indigo-500" />
-                      <span>Pilih Lampiran PDF Bukti Bayar/Transfer</span>
-                    </button>
-                    {editingItem?.file_pdf_name && (
-                      <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-2 rounded-lg text-[10px]">
-                        <span className="text-slate-500 flex items-center gap-1 truncate font-medium">
-                          <FileText size={11} className="text-slate-400" /> Terlampir: <span className="font-bold text-slate-700 truncate">{editingItem.file_pdf_name}</span>
-                        </span>
-                        <a 
-                          href={editingItem.file_pdf_link} 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="text-indigo-600 hover:underline font-bold shrink-0 ml-2"
-                        >
-                          Lihat PDF ↗
-                        </a>
+              {isElectron && (
+                <div className="space-y-1.5 mt-6 pt-6 border-t border-slate-100">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-1">Berkas PDF Pendukung Bukti Bayar/Transfer</label>
+                  
+                  {selectedPdf ? (
+                    <div className="flex items-center justify-between bg-emerald-50 border border-emerald-100 p-3.5 rounded-xl text-xs font-bold text-emerald-800 animate-in zoom-in-95 shadow-sm">
+                      <div className="flex items-center gap-2 truncate">
+                        <FileText size={16} className="text-emerald-600 shrink-0" />
+                        <span className="truncate font-black text-[11px] text-emerald-700">{selectedPdf.name}</span>
                       </div>
-                    )}
-                  </div>
-                )}
-                <p className="text-[9px] text-slate-400 pl-1 leading-tight">
-                  * Berkas otomatis diunggah ke Google Drive (Struktur: <span className="font-bold">Keuangan &gt; Bukti Bayar/Transfer</span>).
-                </p>
-              </div>
+                      <button 
+                        type="button" 
+                        onClick={() => setSelectedPdf(null)}
+                        className="p-1 hover:bg-emerald-100 text-emerald-600 rounded-full transition-colors flex items-center justify-center shrink-0"
+                        title="Hapus Berkas"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      <div 
+                        onDragOver={handleDragOver}
+                        onDragEnter={handleDragEnter}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`relative border-2 border-dashed rounded-2xl p-6 transition-all duration-300 text-center flex flex-col items-center justify-center gap-2 cursor-pointer ${
+                          isDragging 
+                            ? 'border-indigo-500 bg-indigo-50/50 scale-[0.99] text-indigo-600 shadow-inner' 
+                            : 'border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/20 text-slate-500'
+                        }`}
+                        onClick={async () => {
+                          try {
+                            const file = await window.api?.selectPdfFile()
+                            if (file) {
+                              setSelectedPdf(file)
+                            }
+                          } catch (err) {
+                            alert('Gagal memilih file: ' + err.message)
+                          }
+                        }}
+                      >
+                        <Paperclip size={20} className={`transition-transform duration-300 ${isDragging ? 'rotate-45 scale-110 text-indigo-600' : 'text-slate-400 hover:text-indigo-500'}`} />
+                        <div className="space-y-1">
+                          <span className="text-xs font-bold block">
+                            {isDragging ? 'Lepaskan berkas PDF di sini' : 'Tarik & Lepaskan berkas PDF di sini'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium block">
+                            atau klik untuk memilih berkas dari komputer Anda
+                          </span>
+                        </div>
+                      </div>
+                      {editingItem?.file_pdf_name && (
+                        <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-2 rounded-lg text-[10px]">
+                          <span className="text-slate-500 flex items-center gap-1 truncate font-medium">
+                            <FileText size={11} className="text-slate-400" /> Terlampir: <span className="font-bold text-slate-700 truncate">{editingItem.file_pdf_name}</span>
+                          </span>
+                          <a 
+                            href={editingItem.file_pdf_link} 
+                            target="_blank" 
+                            rel="noreferrer" 
+                            className="text-indigo-600 hover:underline font-bold shrink-0 ml-2"
+                          >
+                            Lihat PDF ↗
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-[9px] text-slate-400 pl-1 leading-tight">
+                    * Berkas otomatis diunggah ke Google Drive (Struktur: <span className="font-bold">Keuangan &gt; Bukti Bayar/Transfer</span>).
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">

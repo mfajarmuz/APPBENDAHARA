@@ -35,7 +35,9 @@ export default function ImportModal({ open, onClose }) {
   const realisasiPerRek = useMemo(() => {
     const map = {};
     pengeluaran.forEach((p) => {
-      map[p.kode_rekening_id] = (map[p.kode_rekening_id] || 0) + p.jumlah;
+      if (p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS') {
+        map[p.kode_rekening_id] = (map[p.kode_rekening_id] || 0) + p.jumlah;
+      }
     });
     return map;
   }, [pengeluaran]);

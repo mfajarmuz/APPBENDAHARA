@@ -105,7 +105,11 @@ export default function Anggaran() {
 
   const realisasiPerRek = useMemo(() => {
     const map = {}
-    pengeluaran.forEach(p => { map[p.kode_rekening_id] = (map[p.kode_rekening_id] ?? 0) + p.jumlah })
+    pengeluaran.forEach(p => {
+      if (p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS') {
+        map[p.kode_rekening_id] = (map[p.kode_rekening_id] ?? 0) + p.jumlah
+      }
+    })
     return map
   }, [pengeluaran])
 
@@ -325,18 +329,18 @@ export default function Anggaran() {
               </h1>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="bg-slate-50 px-6 py-3 rounded-xl border border-slate-100 text-right">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full md:w-auto">
+            <div className="bg-slate-50 px-6 py-3 rounded-xl border border-slate-100 text-left sm:text-right w-full sm:w-auto shrink-0">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Pagu Anggaran</p>
               <p className="text-xl font-black text-slate-800">
                 {formatRupiah(hierarchicalData.reduce((s, p) => s + p.totalPagu, 0))}
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <Button variant="secondary" onClick={handleImportPdfClick} disabled={isParsing} className="h-12 border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 shadow-sm transition-all">
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-start sm:justify-end">
+              <Button variant="secondary" onClick={handleImportPdfClick} disabled={isParsing} className="h-12 border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 shadow-sm transition-all shrink-0">
                 <FileText size={18} /> {isParsing ? 'Membaca PDF...' : 'Import RAK dari PDF'}
               </Button>
-              <Button onClick={openNewProg} className="h-12 shadow-md shadow-indigo-600/20">
+              <Button onClick={openNewProg} className="h-12 shadow-md shadow-indigo-600/20 shrink-0">
                 <Plus size={18} /> Tambah Program
               </Button>
             </div>

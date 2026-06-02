@@ -39,7 +39,7 @@ const KalkulatorPajak = () => {
     
     if (isPpnKategori) {
       dpp = Math.round(bruto / 1.11)
-      ppn = Math.round(dpp * 0.11)
+      ppn = bruto - dpp
     }
 
     let pph = 0

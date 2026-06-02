@@ -28,7 +28,12 @@ export function exportBKUPdf(rows, monthIndex, year = new Date().getFullYear(), 
   const monthName = getMonthName(monthIndex)
   const settings = useStore.getState().settings
 
-  const lastDay = customDate ? new Date(customDate).getDate() : new Date(year, monthIndex + 1, 0).getDate()
+  let dateObj = new Date(year, monthIndex + 1, 0)
+  if (customDate) {
+    const parsed = new Date(customDate)
+    if (!isNaN(parsed.getTime())) dateObj = parsed
+  }
+  const lastDay = dateObj.getDate()
 
   // --- HEADER SECTION ---
   doc.setFont('helvetica', 'bold')
@@ -139,7 +144,7 @@ export function exportBKUPdf(rows, monthIndex, year = new Date().getFullYear(), 
   }
 
   doc.setFontSize(8)
-  const dayName = customDate ? new Date(customDate).toLocaleDateString('id-ID', { weekday: 'long' }) : new Date(year, monthIndex + 1, 0).toLocaleDateString('id-ID', { weekday: 'long' })
+  const dayName = dateObj.toLocaleDateString('id-ID', { weekday: 'long' })
   const closingText = `Pada hari ${dayName} tanggal ${terbilang(lastDay)} bulan ${monthName} tahun ${terbilang(year)}, oleh kami Buku Kas Umum ditutup.`
   const wrappedClosing = doc.splitTextToSize(closingText, 180)
   doc.setFont('helvetica', 'normal')
@@ -173,8 +178,13 @@ export function exportBKUTriwulanPdf(rows, monthIndex, year = new Date().getFull
   const monthName = getMonthName(monthIndex)
   const settings = useStore.getState().settings
 
-  const lastDay = customDate ? new Date(customDate).getDate() : new Date(year, monthIndex + 1, 0).getDate()
-  const dayName = customDate ? new Date(customDate).toLocaleDateString('id-ID', { weekday: 'long' }) : new Date(year, monthIndex + 1, 0).toLocaleDateString('id-ID', { weekday: 'long' })
+  let dateObj = new Date(year, monthIndex + 1, 0)
+  if (customDate) {
+    const parsed = new Date(customDate)
+    if (!isNaN(parsed.getTime())) dateObj = parsed
+  }
+  const lastDay = dateObj.getDate()
+  const dayName = dateObj.toLocaleDateString('id-ID', { weekday: 'long' })
 
   // --- HEADER SECTION ---
   doc.setFont('helvetica', 'bold')
@@ -419,7 +429,12 @@ export function exportBKUSubKegPdf(rows, monthIndex, year, totalsBulanLalu = { d
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
   const monthName = getMonthName(monthIndex)
   const settings = useStore.getState().settings
-  const lastDay = customDate ? new Date(customDate).getDate() : new Date(year, monthIndex + 1, 0).getDate()
+  let dateObj = new Date(year, monthIndex + 1, 0)
+  if (customDate) {
+    const parsed = new Date(customDate)
+    if (!isNaN(parsed.getTime())) dateObj = parsed
+  }
+  const lastDay = dateObj.getDate()
 
   // 1. Beri nomor BKU global pada setiap row
   const numberedRows = rows.map((r, i) => ({ ...r, bkuNo: i + 1 }))

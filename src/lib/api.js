@@ -208,8 +208,8 @@ export const getPengeluaran = () => {
   })
 }
 
-export const addPengeluaran = ({ pengeluaran, rincian }) => {
-  if (isElectron) return window.api.addPengeluaran({ pengeluaran, rincian })
+export const addPengeluaran = ({ pengeluaran, rincian, pdfLocalPath, customFileName }) => {
+  if (isElectron) return window.api.addPengeluaran({ pengeluaran, rincian, pdfLocalPath, customFileName })
   return wrap(async () => {
     const { data: parent, error: pError } = await supabase
       .from('pengeluaran')
@@ -227,8 +227,8 @@ export const addPengeluaran = ({ pengeluaran, rincian }) => {
   })
 }
 
-export const updatePengeluaran = (id, { pengeluaran, rincian }) => {
-  if (isElectron) return window.api.updatePengeluaran(id, { pengeluaran, rincian })
+export const updatePengeluaran = (id, { pengeluaran, rincian, pdfLocalPath, customFileName }) => {
+  if (isElectron) return window.api.updatePengeluaran(id, { pengeluaran, rincian, pdfLocalPath, customFileName })
   return wrap(async () => {
     const { error: pError } = await supabase.from('pengeluaran').update(pengeluaran).eq('id', id)
     if (pError) throw pError

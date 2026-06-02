@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, Fragment } from 'react'
 import { ChevronRight, ChevronDown, TrendingUp, TrendingDown, Wallet, PieChart as PieIcon, Info } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { formatRupiah, formatTanggal, persen } from '@/lib/format'
@@ -84,9 +84,15 @@ export default function Dashboard() {
   const fetchPenerimaan = useStore(s => s.fetchPenerimaan)
 
   const [expandedItems, setExpandedItems] = useState({})
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
+  const [expandedRakSk, setExpandedRakSk] = useState({})
 
   const toggleExpand = (id) => {
     setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  const toggleExpandRakSk = (id) => {
+    setExpandedRakSk(prev => ({ ...prev, [id]: !prev[id] }))
   }
 
   useEffect(() => {
@@ -226,6 +232,70 @@ export default function Dashboard() {
     
     return list
   }, [pengeluaran, INDO_MONTHS])
+
+  const RAK_KEYS = useMemo(() => [
+    'rak_jan', 'rak_feb', 'rak_mar', 'rak_apr', 'rak_mei', 'rak_jun',
+    'rak_jul', 'rak_agu', 'rak_sep', 'rak_okt', 'rak_nov', 'rak_des'
+  ], [])
+
+  const rakMonitoringData = useMemo(() => {
+    return subKegiatan.map(sk => {
+      const keysToSum = RAK_KEYS.slice(0, selectedMonth)
+      const targetRak = (sk.kode_rekening ?? []).reduce((sumRek, rek) => {
+        const rekSum = keysToSum.reduce((sumBulan, key) => sumBulan + (rek[key] ?? 0), 0)
+        return sumRek + rekSum
+      }, 0)
+
+      const realisasi = pengeluaran
+        .filter(p => {
+          if (p.sub_kegiatan_id !== sk.id || !p.tanggal) return false
+          const parts = p.tanggal.split('-')
+          if (parts.length < 2) return false
+          const pMonth = parseInt(parts[1], 10)
+          return pMonth <= selectedMonth
+        })
+        .reduce((sum, p) => sum + (p.jumlah ?? 0), 0)
+
+      const sisa = targetRak - realisasi
+      const persenPenyerapan = targetRak > 0 ? Math.round((realisasi / targetRak) * 100) : 0
+
+      const rekeningDetails = (sk.kode_rekening ?? []).map(rek => {
+        const rekTargetRak = keysToSum.reduce((sumBulan, key) => sumBulan + (rek[key] ?? 0), 0)
+        const rekRealisasi = pengeluaran
+          .filter(p => p.kode_rekening_id === rek.id && p.tanggal)
+          .filter(p => {
+            const parts = p.tanggal.split('-')
+            const pMonth = parseInt(parts[1], 10)
+            return pMonth <= selectedMonth
+          })
+          .reduce((sum, p) => sum + (p.jumlah ?? 0), 0)
+
+        const rekSisa = rekTargetRak - rekRealisasi
+        const rekPersen = rekTargetRak > 0 ? Math.round((rekRealisasi / rekTargetRak) * 100) : 0
+
+        return {
+          id: rek.id,
+          kode: rek.kode,
+          uraian: rek.uraian,
+          targetRak: rekTargetRak,
+          realisasi: rekRealisasi,
+          sisa: rekSisa,
+          persen: rekPersen
+        }
+      }).sort((a, b) => a.kode.localeCompare(b.kode))
+
+      return {
+        id: sk.id,
+        kode: sk.kode,
+        nama: sk.nama,
+        targetRak,
+        realisasi,
+        sisa,
+        persen: persenPenyerapan,
+        rekening: rekeningDetails
+      }
+    }).sort((a, b) => a.kode.localeCompare(b.kode))
+  }, [subKegiatan, pengeluaran, selectedMonth, RAK_KEYS])
 
   if (isLoading && subKegiatan.length === 0) {
     return <div className="flex items-center justify-center h-64"><Spinner size={28} /></div>
@@ -466,6 +536,196 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+
+      {/* Tabel Monitoring RAK Bulanan Kumulatif */}
+      <Card className="mt-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-1">
+              <span className="w-1 h-4 bg-indigo-600 rounded-full" />
+              Monitoring Rencana Anggaran Kas (RAK) Kumulatif
+            </h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-3">
+              Akumulasi Rencana Penarikan Kas vs Pengeluaran Riil Seluruh Sub Kegiatan
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 font-bold whitespace-nowrap">s.d. Bulan:</span>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(parseInt(e.target.value, 10))}
+              className="text-xs font-black text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {INDO_MONTHS.map((m, idx) => (
+                <option key={idx} value={idx + 1}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {rakMonitoringData.length === 0 ? (
+           <EmptyState message="Belum ada data anggaran kas" />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs min-w-[800px]">
+              <thead>
+                <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                  <th className="py-3 px-4">Sub Kegiatan</th>
+                  <th className="py-3 px-4 text-right">Target RAK Kumulatif</th>
+                  <th className="py-3 px-4 text-right">Realisasi Belanja</th>
+                  <th className="py-3 px-4 text-right">Sisa Kuota RAK</th>
+                  <th className="py-3 px-4 text-center w-48">Persentase & Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50 font-bold text-slate-700">
+                {rakMonitoringData.map(item => {
+                  const isOver = item.sisa < 0
+                  const isExpanded = !!expandedRakSk[item.id]
+                  const statusText = 
+                    item.persen > 100 ? 'Over-Limit' :
+                    item.persen >= 90 ? 'Kritis' :
+                    item.persen >= 50 ? 'Optimal' :
+                    item.persen > 0 ? 'Rendah' : 'Belum Ada'
+
+                  const badgeVariant =
+                    item.persen > 100 ? 'danger' :
+                    item.persen >= 90 ? 'warning' :
+                    item.persen >= 50 ? 'success' : 'default'
+
+                  return (
+                    <Fragment key={item.id}>
+                      <tr 
+                        className={`hover:bg-slate-50/80 transition-all cursor-pointer ${isExpanded ? 'bg-indigo-50/30' : ''}`}
+                        onClick={() => toggleExpandRakSk(item.id)}
+                      >
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`text-slate-400 transition-transform shrink-0 ${isExpanded ? 'rotate-90 text-indigo-600 font-bold' : ''}`}>
+                              <ChevronRight size={14} />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[9px] font-mono text-slate-400 font-bold block mb-0.5">{item.kode}</span>
+                              <span className="text-slate-800 text-xs font-black uppercase truncate block">{item.nama}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-right text-slate-900 font-black font-mono">
+                          {formatRupiah(item.targetRak)}
+                        </td>
+                        <td className="py-3 px-4 text-right text-indigo-600 font-black font-mono">
+                          {formatRupiah(item.realisasi)}
+                        </td>
+                        <td className={`py-3 px-4 text-right font-black font-mono ${isOver ? 'text-rose-600' : 'text-emerald-600'}`}>
+                          {formatRupiah(item.sisa)}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 mb-0.5">
+                              <Badge variant={badgeVariant}>{statusText}</Badge>
+                              <span className={`font-mono font-black ${isOver ? 'text-rose-600' : 'text-slate-600'}`}>
+                                {item.persen}%
+                              </span>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  item.persen > 100 ? 'bg-rose-500 animate-pulse' :
+                                  item.persen >= 90 ? 'bg-amber-500' :
+                                  item.persen >= 50 ? 'bg-emerald-500' : 'bg-indigo-500'
+                                }`}
+                                style={{ width: `${Math.min(100, item.persen)}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="bg-slate-50/40">
+                          <td colSpan={5} className="p-0 border-t border-b border-slate-200/50 bg-slate-50/15">
+                            <div className="px-6 py-4 border-l-4 border-indigo-600 bg-slate-50/20 space-y-3">
+                              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest pb-1 border-b border-slate-200/40">
+                                Rincian Kode Rekening Belanja
+                              </div>
+                              <div className="overflow-x-auto rounded-xl border border-slate-200/60 bg-white shadow-sm">
+                                <table className="w-full text-left text-[11px] text-slate-600 border-collapse min-w-[700px]">
+                                  <thead>
+                                    <tr className="bg-slate-50/50 border-b border-slate-100 text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                                      <th className="py-2.5 px-4 text-left">Kode & Uraian Rekening</th>
+                                      <th className="py-2.5 px-4 text-right w-36">Target RAK Kumulatif</th>
+                                      <th className="py-2.5 px-4 text-right w-36">Realisasi Belanja</th>
+                                      <th className="py-2.5 px-4 text-right w-36">Sisa Kuota RAK</th>
+                                      <th className="py-2.5 px-4 text-center w-48">Penyerapan</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100 font-bold text-slate-700">
+                                    {item.rekening.map(rek => {
+                                      const rekOver = rek.sisa < 0
+                                      const rekStatusText = 
+                                        rek.persen > 100 ? 'Over-Limit' :
+                                        rek.persen >= 90 ? 'Kritis' :
+                                        rek.persen >= 50 ? 'Optimal' :
+                                        rek.persen > 0 ? 'Rendah' : 'Belum Ada'
+
+                                      const rekBadgeVariant =
+                                        rek.persen > 100 ? 'danger' :
+                                        rek.persen >= 90 ? 'warning' :
+                                        rek.persen >= 50 ? 'success' : 'default'
+
+                                      return (
+                                        <tr key={rek.id} className="hover:bg-slate-50/50 transition-colors">
+                                          <td className="py-2.5 px-4">
+                                            <div className="flex flex-col">
+                                              <span className="font-mono text-[9px] text-slate-400 font-bold block mb-0.5">{item.kode}.{rek.kode}</span>
+                                              <span className="text-slate-800 text-xs font-black uppercase leading-tight line-clamp-1" title={rek.uraian}>{rek.uraian}</span>
+                                            </div>
+                                          </td>
+                                          <td className="py-2.5 px-4 text-right text-slate-900 font-black font-mono">
+                                            {formatRupiah(rek.targetRak)}
+                                          </td>
+                                          <td className="py-2.5 px-4 text-right text-indigo-600 font-black font-mono">
+                                            {formatRupiah(rek.realisasi)}
+                                          </td>
+                                          <td className={`py-2.5 px-4 text-right font-black font-mono ${rekOver ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                            {formatRupiah(rek.sisa)}
+                                          </td>
+                                          <td className="py-2.5 px-4">
+                                            <div className="space-y-1 max-w-[160px] mx-auto">
+                                              <div className="flex items-center justify-between text-[8px] font-bold text-slate-400 mb-0.5">
+                                                <Badge variant={rekBadgeVariant}>{rekStatusText}</Badge>
+                                                <span className={`font-mono font-black ${rekOver ? 'text-rose-600' : 'text-slate-600'}`}>{rek.persen}%</span>
+                                              </div>
+                                              <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                                                <div
+                                                  className={`h-full rounded-full transition-all ${
+                                                    rek.persen > 100 ? 'bg-rose-500' :
+                                                    rek.persen >= 90 ? 'bg-amber-500' :
+                                                    rek.persen >= 50 ? 'bg-emerald-500' : 'bg-indigo-500'
+                                                  }`}
+                                                  style={{ width: `${Math.min(100, rek.persen)}%` }}
+                                                />
+                                              </div>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      )
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   )
 }

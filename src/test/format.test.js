@@ -20,6 +20,14 @@ describe('parseRupiah', () => {
   it('returns 0 for empty string', () => {
     expect(parseRupiah('')).toBe(0)
   })
+  it('handles international decimal separator', () => {
+    expect(parseRupiah('Rp 1500.50')).toBe(1500)
+    expect(parseRupiah('1,500.25')).toBe(1500)
+  })
+  it('handles local decimal separator', () => {
+    expect(parseRupiah('Rp 1.500.000,50')).toBe(1500000)
+    expect(parseRupiah('1.500,00')).toBe(1500)
+  })
 })
 
 describe('persen', () => {
@@ -37,6 +45,9 @@ describe('persen', () => {
 describe('formatTanggal', () => {
   it('returns dash for null', () => {
     expect(formatTanggal(null)).toBe('-')
+  })
+  it('returns dash for invalid date', () => {
+    expect(formatTanggal('Invalid-Date')).toBe('-')
   })
   it('formats date string', () => {
     const result = formatTanggal('2026-01-15')

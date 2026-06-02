@@ -3,9 +3,14 @@ import { useStore } from '../store/useStore'
 
 describe('useStore', () => {
   beforeEach(() => {
-    // Reset store state before each test if necessary
-    // Note: Zustand store is a singleton, so we might need to manually reset or use a factory
     vi.clearAllMocks()
+    useStore.setState({
+      user: null,
+      subKegiatan: [],
+      penerimaan: [],
+      pengeluaran: [],
+      isLoading: false
+    })
   })
 
   it('handles login correctly', async () => {
