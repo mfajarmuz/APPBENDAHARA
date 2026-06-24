@@ -554,7 +554,7 @@ ipcMain.handle('update-bku-urutan', async (event, items) => {
   })
 })
 
-ipcMain.handle('download-template', async (event, filename) => {
+ipcMain.handle('download-template', async (event, filename, defaultFilename) => {
   return handleWith(async () => {
     const sourcePath = app.isPackaged
       ? path.join(__dirname, '../dist', filename)
@@ -562,7 +562,7 @@ ipcMain.handle('download-template', async (event, filename) => {
 
     const { filePath } = await dialog.showSaveDialog({
       title: 'Simpan Template',
-      defaultPath: filename,
+      defaultPath: defaultFilename || filename,
       filters: [{ name: 'Excel Files', extensions: ['xlsx'] }]
     })
 

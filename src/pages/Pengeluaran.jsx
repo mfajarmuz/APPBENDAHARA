@@ -4,6 +4,7 @@ import { useStore } from '@/store/useStore'
 import { formatRupiah, formatTanggal, persen } from '@/lib/format'
 import { exportNPDPdf, exportNPDBatchPdf } from '@/lib/export-pdf'
 import { getBkuRows } from '@/lib/bku'
+import { exportTemplatePengeluaran } from '@/lib/export-excel'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
@@ -35,9 +36,9 @@ const EMPTY_FORM = {
   sub_kegiatan_id: '',
   kode_rekening_id: '',
   ppn: '',
-  pph: '',
-  pph_jenis: 'PPh 23',
+  pphs: [{ nominal: '', jenis: 'PPh 23' }],
   pajak_pungut: true,
+  keterangan_pajak: '',
 }
 const EMPTY_RINCIAN = { uraian: '', jumlah: '' }
 
@@ -283,14 +284,33 @@ export default function Pengeluaran() {
   function openEdit(item) {
     setEditingItem(item)
     setSelectedPdf(null)
+
+    let ppnVal = ''
+    let pphList = [{ nominal: '', jenis: 'PPh 23' }]
+    const cleanDesc = item.keterangan || ''
+
+    if (item.jenis === 'Pajak' || item.jenis === 'Pajak LS') {
+      const isPpn = cleanDesc.match(/^(?:Setoran|Pungutan) PPN/i)
+      if (isPpn) {
+        ppnVal = String(item.jumlah)
+      } else {
+        const pphMatch = cleanDesc.match(/^(?:Setoran|Pungutan) (PPh [^:]+|PPh Pasal \d+ ayat \d+)/i)
+        if (pphMatch) {
+          pphList = [{ nominal: String(item.jumlah), jenis: pphMatch[1] }]
+        } else {
+          ppnVal = String(item.jumlah)
+        }
+      }
+    }
+
     setForm({
       tanggal: item.tanggal,
       jenis: item.jenis || 'GU',
       sub_kegiatan_id: item.sub_kegiatan_id,
       kode_rekening_id: item.kode_rekening_id,
-      ppn: '',
-      pph: '',
-      pph_jenis: 'PPh 23',
+      ppn: ppnVal,
+      pphs: pphList,
+      pajak_pungut: true,
     })
     setRincian(item.pengeluaran_rincian?.length > 0 
       ? item.pengeluaran_rincian.map(r => ({ uraian: r.uraian, jumlah: String(r.jumlah) }))
@@ -318,9 +338,32 @@ export default function Pengeluaran() {
     setForm(f => ({ ...f, ppn: digits }))
   }
 
-  const handlePphChange = (val) => {
-    const digits = val.replace(/\D/g, '')
-    setForm(f => ({ ...f, pph: digits }))
+  const handleAddPph = () => {
+    setForm(f => ({
+      ...f,
+      pphs: [...(f.pphs || []), { nominal: '', jenis: 'PPh 23' }]
+    }))
+  }
+
+  const handleRemovePph = (idx) => {
+    setForm(f => ({
+      ...f,
+      pphs: (f.pphs || []).filter((_, i) => i !== idx)
+    }))
+  }
+
+  const handlePphItemChange = (idx, field, val) => {
+    setForm(f => {
+      const newPphs = (f.pphs || []).map((item, i) => {
+        if (i !== idx) return item
+        if (field === 'nominal') {
+          const digits = val.replace(/\D/g, '')
+          return { ...item, nominal: digits }
+        }
+        return { ...item, [field]: val }
+      })
+      return { ...f, pphs: newPphs }
+    })
   }
 
   function handleAmountInput(i, val) {
@@ -387,7 +430,9 @@ export default function Pengeluaran() {
     e.preventDefault()
     
     // Financial Validations
-    const amount = totalRincian
+    const isTaxPayment = form.jenis === 'Pajak' || form.jenis === 'Pajak LS'
+    const totalPajak = (parseInt(form.ppn, 10) || 0) + (form.pphs || []).reduce((sum, p) => sum + (parseInt(p.nominal, 10) || 0), 0)
+    const amount = isTaxPayment ? totalPajak : totalRincian
     const remainingQuota = (selectedSk?.kode_rekening?.find(r => r.id === form.kode_rekening_id)?.pagu_anggaran ?? 0) - (realisasiPerRek[form.kode_rekening_id] ?? 0)
     
     const totalCair = penerimaan.reduce((s, p) => s + p.jumlah, 0)
@@ -405,7 +450,6 @@ export default function Pengeluaran() {
     }
 
     // Validasi Rencana Anggaran Kas (RAK) Akumulatif Bulanan (Kecuali Transaksi Pajak)
-    const isTaxPayment = form.jenis === 'Pajak' || form.jenis === 'Pajak LS'
     if (!isTaxPayment && rakInfo && amount > rakInfo.sisaRAK) {
       setErrors({ 
         global: `Jumlah pengeluaran (${formatRupiah(amount)}) melebihi sisa alokasi RAK s.d ${rakInfo.bulan} (${formatRupiah(rakInfo.sisaRAK)}).\n` +
@@ -429,7 +473,7 @@ export default function Pengeluaran() {
     const currentMonth = parseInt(dateParts[1], 10) - 1 // 0-indexed month
     
     const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase()
-    const bgNoBukti = `BPP-${currentYear}${String(currentMonth + 1).padStart(2, '0')}-${Date.now()}-${randomSuffix}`
+    const bgNoBukti = editingItem?.no_bukti || `BPP-${currentYear}${String(currentMonth + 1).padStart(2, '0')}-${Date.now()}-${randomSuffix}`
 
     // Generate dynamic BKU sequence numbering and format file name for Google Drive
     const BULAN_UPPER = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER']
@@ -480,30 +524,62 @@ export default function Pengeluaran() {
     try {
       let res
       if (editingItem) {
-        res = await updatePengeluaran(editingItem.id, payload)
+        if (isTaxPayment) {
+          const isPpn = form.ppn && parseInt(form.ppn, 10) > 0
+          const firstPph = form.pphs?.[0]
+          const isPph = firstPph && firstPph.nominal && parseInt(firstPph.nominal, 10) > 0
+          
+          let updatedJumlah = 0
+          let updatedKeterangan = ''
+          
+          if (isPpn) {
+            updatedJumlah = parseInt(form.ppn, 10)
+            updatedKeterangan = "Setoran PPN"
+          } else if (isPph) {
+            updatedJumlah = parseInt(firstPph.nominal, 10)
+            updatedKeterangan = `Setoran ${firstPph.jenis}`
+          } else {
+            updatedJumlah = amount
+            updatedKeterangan = "Setoran Pajak"
+          }
+          
+          const editPayload = {
+            pengeluaran: {
+              tanggal: form.tanggal,
+              jenis: form.jenis,
+              no_bukti: editingItem.no_bukti,
+              sub_kegiatan_id: form.sub_kegiatan_id,
+              kode_rekening_id: form.kode_rekening_id,
+              jumlah: updatedJumlah,
+              keterangan: updatedKeterangan,
+            },
+            rincian: [],
+            pdfLocalPath: selectedPdf?.path || null,
+            customFileName: customFileName,
+          }
+          res = await updatePengeluaran(editingItem.id, editPayload)
+        } else {
+          res = await updatePengeluaran(editingItem.id, payload)
+        }
       } else {
-        res = await addPengeluaran(payload)
-        
-        // Save Taxes (PPN/PPh) - DUAL ENTRY (Pungut & Setor)
-        if (res && res.success) {
+        if (isTaxPayment) {
           const taxPenerimaanPayloads = []
           const taxPengeluaranPayloads = []
 
           // 1. Process PPN
           if (form.ppn && parseInt(form.ppn, 10) > 0) {
-            const amount = parseInt(form.ppn, 10)
-            const desc = rincian[0]?.uraian || 'Belanja'
+            const amountVal = parseInt(form.ppn, 10)
             
             // Pungutan (Penerimaan)
             if (form.pajak_pungut !== false) {
               taxPenerimaanPayloads.push({
-                jenis: 'Pajak',
+                jenis: form.jenis,
                 tanggal: form.tanggal,
                 nomor_ls: bgNoBukti,
                 sub_kegiatan_id: form.sub_kegiatan_id,
                 kode_rekening_id: form.kode_rekening_id,
-                jumlah: amount,
-                keterangan: `Pungutan PPN dari Belanja: ${desc}`.trim(),
+                jumlah: amountVal,
+                keterangan: "Pungutan PPN",
               })
             }
 
@@ -511,49 +587,51 @@ export default function Pengeluaran() {
             taxPengeluaranPayloads.push({
               pengeluaran: {
                 tanggal: form.tanggal,
-                jenis: 'Pajak',
+                jenis: form.jenis,
                 no_bukti: bgNoBukti,
                 sub_kegiatan_id: form.sub_kegiatan_id,
                 kode_rekening_id: form.kode_rekening_id,
-                jumlah: amount,
-                keterangan: `Setoran PPN dari Belanja: ${desc}`.trim(),
+                jumlah: amountVal,
+                keterangan: "Setoran PPN",
               },
               rincian: []
             })
           }
 
-          // 2. Process PPh
-          if (form.pph && parseInt(form.pph, 10) > 0) {
-            const amount = parseInt(form.pph, 10)
-            const desc = rincian[0]?.uraian || 'Belanja'
-            const jenisPph = form.pph_jenis || 'PPh'
-            const jenisPajak = form.jenis === 'LS' ? 'Pajak LS' : 'Pajak'
-            
-            // Pungutan (Penerimaan)
-            if (form.pajak_pungut !== false) {
-              taxPenerimaanPayloads.push({
-                jenis: jenisPajak,
-                tanggal: form.tanggal,
-                nomor_ls: bgNoBukti,
-                sub_kegiatan_id: form.sub_kegiatan_id,
-                kode_rekening_id: form.kode_rekening_id,
-                jumlah: amount,
-                keterangan: `Pungutan ${jenisPph} dari Belanja: ${desc}`.trim(),
-              })
-            }
+          // 2. Process PPh List
+          if (form.pphs && form.pphs.length > 0) {
+            form.pphs.forEach(pphItem => {
+              if (pphItem.nominal && parseInt(pphItem.nominal, 10) > 0) {
+                const amountVal = parseInt(pphItem.nominal, 10)
+                const jenisPph = pphItem.jenis || 'PPh'
+                
+                // Pungutan (Penerimaan)
+                if (form.pajak_pungut !== false) {
+                  taxPenerimaanPayloads.push({
+                    jenis: form.jenis,
+                    tanggal: form.tanggal,
+                    nomor_ls: bgNoBukti,
+                    sub_kegiatan_id: form.sub_kegiatan_id,
+                    kode_rekening_id: form.kode_rekening_id,
+                    jumlah: amountVal,
+                    keterangan: `Pungutan ${jenisPph}`,
+                  })
+                }
 
-            // Setoran (Pengeluaran)
-            taxPengeluaranPayloads.push({
-              pengeluaran: {
-                tanggal: form.tanggal,
-                jenis: jenisPajak,
-                no_bukti: bgNoBukti,
-                sub_kegiatan_id: form.sub_kegiatan_id,
-                kode_rekening_id: form.kode_rekening_id,
-                jumlah: amount,
-                keterangan: `Setoran ${jenisPph} dari Belanja: ${desc}`.trim(),
-              },
-              rincian: []
+                // Setoran (Pengeluaran)
+                taxPengeluaranPayloads.push({
+                  pengeluaran: {
+                    tanggal: form.tanggal,
+                    jenis: form.jenis,
+                    no_bukti: bgNoBukti,
+                    sub_kegiatan_id: form.sub_kegiatan_id,
+                    kode_rekening_id: form.kode_rekening_id,
+                    jumlah: amountVal,
+                    keterangan: `Setoran ${jenisPph}`,
+                  },
+                  rincian: []
+                })
+              }
             })
           }
 
@@ -565,6 +643,98 @@ export default function Pengeluaran() {
           // Iterative Insert Pengeluaran (Setoran)
           for (const tp of taxPengeluaranPayloads) {
             await addPengeluaran(tp)
+          }
+
+          res = { success: true }
+        } else {
+          res = await addPengeluaran(payload)
+          
+          // Save Taxes (PPN/PPh) - DUAL ENTRY (Pungut & Setor)
+          if (res && res.success) {
+            const taxPenerimaanPayloads = []
+            const taxPengeluaranPayloads = []
+
+            // 1. Process PPN
+            if (form.ppn && parseInt(form.ppn, 10) > 0) {
+              const amountVal = parseInt(form.ppn, 10)
+              const desc = rincian[0]?.uraian || 'Belanja'
+              
+              // Pungutan (Penerimaan)
+              if (form.pajak_pungut !== false) {
+                taxPenerimaanPayloads.push({
+                  jenis: 'Pajak',
+                  tanggal: form.tanggal,
+                  nomor_ls: bgNoBukti,
+                  sub_kegiatan_id: form.sub_kegiatan_id,
+                  kode_rekening_id: form.kode_rekening_id,
+                  jumlah: amountVal,
+                  keterangan: `Pungutan PPN dari Belanja: ${desc}`.trim(),
+                })
+              }
+
+              // Setoran (Pengeluaran)
+              taxPengeluaranPayloads.push({
+                pengeluaran: {
+                  tanggal: form.tanggal,
+                  jenis: 'Pajak',
+                  no_bukti: bgNoBukti,
+                  sub_kegiatan_id: form.sub_kegiatan_id,
+                  kode_rekening_id: form.kode_rekening_id,
+                  jumlah: amountVal,
+                  keterangan: `Setoran PPN dari Belanja: ${desc}`.trim(),
+                },
+                rincian: []
+              })
+            }
+
+            // 2. Process PPh List
+            if (form.pphs && form.pphs.length > 0) {
+              form.pphs.forEach(pphItem => {
+                if (pphItem.nominal && parseInt(pphItem.nominal, 10) > 0) {
+                  const amountVal = parseInt(pphItem.nominal, 10)
+                  const desc = rincian[0]?.uraian || 'Belanja'
+                  const jenisPph = pphItem.jenis || 'PPh'
+                  const jenisPajak = form.jenis === 'LS' ? 'Pajak LS' : 'Pajak'
+                  
+                  // Pungutan (Penerimaan)
+                  if (form.pajak_pungut !== false) {
+                    taxPenerimaanPayloads.push({
+                      jenis: jenisPajak,
+                      tanggal: form.tanggal,
+                      nomor_ls: bgNoBukti,
+                      sub_kegiatan_id: form.sub_kegiatan_id,
+                      kode_rekening_id: form.kode_rekening_id,
+                      jumlah: amountVal,
+                      keterangan: `Pungutan ${jenisPph} dari Belanja: ${desc}`.trim(),
+                    })
+                  }
+
+                  // Setoran (Pengeluaran)
+                  taxPengeluaranPayloads.push({
+                    pengeluaran: {
+                      tanggal: form.tanggal,
+                      jenis: jenisPajak,
+                      no_bukti: bgNoBukti,
+                      sub_kegiatan_id: form.sub_kegiatan_id,
+                      kode_rekening_id: form.kode_rekening_id,
+                      jumlah: amountVal,
+                      keterangan: `Setoran ${jenisPph} dari Belanja: ${desc}`.trim(),
+                    },
+                    rincian: []
+                  })
+                }
+              })
+            }
+
+            // Batch Insert Penerimaan
+            if (taxPenerimaanPayloads.length > 0) {
+              await addPenerimaan(taxPenerimaanPayloads)
+            }
+            
+            // Iterative Insert Pengeluaran (Setoran)
+            for (const tp of taxPengeluaranPayloads) {
+              await addPengeluaran(tp)
+            }
           }
         }
       }
@@ -616,10 +786,7 @@ export default function Pengeluaran() {
 
   const handleDownloadTemplate = async () => {
     try {
-      const res = await (window.api ? window.api.downloadTemplate('template-pengeluaran.xlsx') : { success: false, error: 'Fitur ini hanya tersedia di aplikasi desktop.' })
-      if (res && res.success) {
-        // Success (user saved the file)
-      }
+      exportTemplatePengeluaran(pengeluaran)
     } catch (err) {
       console.error('Download Template Error:', err)
       window.alert('Gagal mengunduh template: ' + err.message)
@@ -1119,99 +1286,252 @@ export default function Pengeluaran() {
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Rincian Belanja</label>
-                <button type="button" onClick={() => setRincian(r => [...r, { ...EMPTY_RINCIAN }])} className="text-indigo-600 text-[10px] font-black hover:underline flex items-center gap-1">
-                  <PlusCircle size={14} /> TAMBAH BARIS
-                </button>
-              </div>
+              {form.jenis === 'Pajak' || form.jenis === 'Pajak LS' ? (
+                // UI HANYA Pajak (Pungutan/Potongan)
+                <div className="space-y-4">
+                  <div className="space-y-4 animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <Badge variant="primary">Pajak (Pungutan/Potongan)</Badge>
+                      </h4>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            name="mekanisme_pajak"
+                            checked={form.pajak_pungut !== false}
+                            onChange={() => setForm(f => ({ ...f, pajak_pungut: true }))}
+                            className="text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                          />
+                          Pungut & Setor
+                        </label>
+                        <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            name="mekanisme_pajak"
+                            checked={form.pajak_pungut === false}
+                            onChange={() => setForm(f => ({ ...f, pajak_pungut: false }))}
+                            className="text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                          />
+                          Hanya Setor
+                        </label>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Input
+                        label="PPN"
+                        value={form.ppn}
+                        onChange={e => handlePpnChange(e.target.value)}
+                        placeholder="0"
+                        hint={form.ppn ? formatRupiah(parseInt(form.ppn, 10)) : 'Opsional'}
+                      />
+                    </div>
 
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin">
-                {rincian.map((row, i) => (
-                  <div key={i} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm space-y-3 relative group">
-                    {rincian.length > 1 && (
-                      <button type="button" onClick={() => setRincian(r => r.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 text-slate-300 hover:text-red-500 transition-colors">
-                        <MinusCircle size={16} />
-                      </button>
-                    )}
-                    <Textarea
-                      label="Uraian Rincian"
-                      value={row.uraian}
-                      onChange={e => updateRincian(i, 'uraian', e.target.value)}
-                      placeholder="Apa yang dibayar?"
-                      rows={2}
-                    />
-                    <Input
-                      label="Jumlah (Rp)"
-                      value={row.jumlah}
-                      onChange={e => handleAmountInput(i, e.target.value)}
-                      placeholder="0"
-                      hint={row.jumlah ? formatRupiah(parseInt(row.jumlah.replace(/\./g, ''), 10)) : 'Bisa copas Excel'}
-                    />
-                  </div>
-                ))}
-              </div>
+                    <div className="space-y-3">
+                      <div className="hidden md:grid md:grid-cols-12 gap-4 text-xs font-semibold text-text-secondary uppercase tracking-wide mb-1 px-1">
+                        <div className="md:col-span-5">Nominal PPh</div>
+                        <div className="md:col-span-5">Jenis PPh</div>
+                        <div className="md:col-span-2"></div>
+                      </div>
 
-              <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Bayar</span>
-                <span className="text-xl font-black text-indigo-600">{formatRupiah(totalRincian)}</span>
-              </div>
-
-              {!editingItem && form.jenis !== 'Pajak' && (
-                <div className="pt-6 mt-6 border-t border-slate-100 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <Badge variant="primary">Pajak (Pungutan/Potongan)</Badge>
-                    </h4>
-                    <div className="flex gap-4">
-                      <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 cursor-pointer">
-                        <input 
-                          type="radio" 
-                          name="mekanisme_pajak"
-                          checked={form.pajak_pungut !== false}
-                          onChange={() => setForm(f => ({ ...f, pajak_pungut: true }))}
-                          className="text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
-                        />
-                        Pungut & Setor
-                      </label>
-                      <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 cursor-pointer">
-                        <input 
-                          type="radio" 
-                          name="mekanisme_pajak"
-                          checked={form.pajak_pungut === false}
-                          onChange={() => setForm(f => ({ ...f, pajak_pungut: false }))}
-                          className="text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
-                        />
-                        Hanya Setor
-                      </label>
+                      {(form.pphs || [{ nominal: '', jenis: 'PPh 23' }]).map((pphItem, idx) => (
+                        <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start border-b border-slate-100/60 pb-3 md:pb-0 md:border-none">
+                          <div className="md:col-span-5">
+                            <span className="md:hidden text-[10px] font-semibold text-text-secondary uppercase tracking-wide block mb-1">
+                              Nominal PPh {idx > 0 ? `#${idx + 1}` : ''}
+                            </span>
+                            <Input
+                              value={pphItem.nominal}
+                              onChange={e => handlePphItemChange(idx, 'nominal', e.target.value)}
+                              placeholder="0"
+                              hint={pphItem.nominal ? formatRupiah(parseInt(pphItem.nominal, 10)) : 'Opsional'}
+                            />
+                          </div>
+                          <div className="md:col-span-5">
+                            <span className="md:hidden text-[10px] font-semibold text-text-secondary uppercase tracking-wide block mb-1">
+                              Jenis PPh {idx > 0 ? `#${idx + 1}` : ''}
+                            </span>
+                            <Select
+                              value={pphItem.jenis}
+                              onChange={e => handlePphItemChange(idx, 'jenis', e.target.value)}
+                              options={PPH_OPTIONS}
+                              className="[&>select]:py-[10px]"
+                              disabled={!pphItem.nominal || parseInt(pphItem.nominal, 10) <= 0}
+                            />
+                          </div>
+                          <div className="md:col-span-2 flex items-center justify-end md:mt-0.5">
+                            {idx > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => handleRemovePph(idx)}
+                                className="p-2 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl transition-all h-[38px] w-10 flex items-center justify-center border border-red-100"
+                                title="Hapus PPh"
+                              >
+                                <MinusCircle size={16} />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={handleAddPph}
+                                className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all h-[38px] w-10 flex items-center justify-center border border-indigo-100"
+                                title="Tambah PPh"
+                              >
+                                <PlusCircle size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      label="PPN"
-                      value={form.ppn}
-                      onChange={e => handlePpnChange(e.target.value)}
-                      placeholder="0"
-                      hint={form.ppn ? formatRupiah(parseInt(form.ppn, 10)) : 'Opsional'}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      label="PPh"
-                      value={form.pph}
-                      onChange={e => handlePphChange(e.target.value)}
-                      placeholder="0"
-                      hint={form.pph ? formatRupiah(parseInt(form.pph, 10)) : 'Opsional'}
-                    />
-                    <Select
-                      label="Jenis PPh"
-                      value={form.pph_jenis}
-                      onChange={e => setForm(f => ({ ...f, pph_jenis: e.target.value }))}
-                      options={PPH_OPTIONS}
-                      disabled={!form.pph || parseInt(form.pph, 10) <= 0}
-                    />
+
+                  <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Bayar</span>
+                    <span className="text-xl font-black text-indigo-600">
+                      {formatRupiah((parseInt(form.ppn, 10) || 0) + (form.pphs || []).reduce((sum, p) => sum + (parseInt(p.nominal, 10) || 0), 0))}
+                    </span>
                   </div>
                 </div>
+              ) : (
+                // UI Belanja Biasa (GU/LS)
+                <>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Rincian Belanja</label>
+                    <button type="button" onClick={() => setRincian(r => [...r, { ...EMPTY_RINCIAN }])} className="text-indigo-600 text-[10px] font-black hover:underline flex items-center gap-1">
+                      <PlusCircle size={14} /> TAMBAH BARIS
+                    </button>
+                  </div>
+
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin">
+                    {rincian.map((row, i) => (
+                      <div key={i} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm space-y-3 relative group">
+                        {rincian.length > 1 && (
+                          <button type="button" onClick={() => setRincian(r => r.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 text-slate-300 hover:text-red-500 transition-colors">
+                            <MinusCircle size={16} />
+                          </button>
+                        )}
+                        <Textarea
+                          label="Uraian Rincian"
+                          value={row.uraian}
+                          onChange={e => updateRincian(i, 'uraian', e.target.value)}
+                          placeholder="Apa yang dibayar?"
+                          rows={2}
+                        />
+                        <Input
+                          label="Jumlah (Rp)"
+                          value={row.jumlah}
+                          onChange={e => handleAmountInput(i, e.target.value)}
+                          placeholder="0"
+                          hint={row.jumlah ? formatRupiah(parseInt(row.jumlah.replace(/\./g, ''), 10)) : 'Bisa copas Excel'}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Bayar</span>
+                    <span className="text-xl font-black text-indigo-600">{formatRupiah(totalRincian)}</span>
+                  </div>
+
+                  {!editingItem && (
+                    <div className="pt-6 mt-6 border-t border-slate-100 space-y-4 animate-in fade-in duration-200">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                          <Badge variant="primary">Pajak (Pungutan/Potongan)</Badge>
+                        </h4>
+                        <div className="flex gap-4">
+                          <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 cursor-pointer">
+                            <input 
+                              type="radio" 
+                              name="mekanisme_pajak"
+                              checked={form.pajak_pungut !== false}
+                              onChange={() => setForm(f => ({ ...f, pajak_pungut: true }))}
+                              className="text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                            />
+                            Pungut & Setor
+                          </label>
+                          <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 cursor-pointer">
+                            <input 
+                              type="radio" 
+                              name="mekanisme_pajak"
+                              checked={form.pajak_pungut === false}
+                              onChange={() => setForm(f => ({ ...f, pajak_pungut: false }))}
+                              className="text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                            />
+                            Hanya Setor
+                          </label>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                          label="PPN"
+                          value={form.ppn}
+                          onChange={e => handlePpnChange(e.target.value)}
+                          placeholder="0"
+                          hint={form.ppn ? formatRupiah(parseInt(form.ppn, 10)) : 'Opsional'}
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        {/* Header kolom untuk tampilan desktop */}
+                        <div className="hidden md:grid md:grid-cols-12 gap-4 text-xs font-semibold text-text-secondary uppercase tracking-wide mb-1 px-1">
+                          <div className="md:col-span-5">Nominal PPh</div>
+                          <div className="md:col-span-5">Jenis PPh</div>
+                          <div className="md:col-span-2"></div>
+                        </div>
+
+                        {(form.pphs || [{ nominal: '', jenis: 'PPh 23' }]).map((pphItem, idx) => (
+                          <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start border-b border-slate-100/60 pb-3 md:pb-0 md:border-none">
+                            <div className="md:col-span-5">
+                              <span className="md:hidden text-[10px] font-semibold text-text-secondary uppercase tracking-wide block mb-1">
+                                Nominal PPh {idx > 0 ? `#${idx + 1}` : ''}
+                              </span>
+                              <Input
+                                value={pphItem.nominal}
+                                onChange={e => handlePphItemChange(idx, 'nominal', e.target.value)}
+                                placeholder="0"
+                                hint={pphItem.nominal ? formatRupiah(parseInt(pphItem.nominal, 10)) : 'Opsional'}
+                              />
+                            </div>
+                            <div className="md:col-span-5">
+                              <span className="md:hidden text-[10px] font-semibold text-text-secondary uppercase tracking-wide block mb-1">
+                                Jenis PPh {idx > 0 ? `#${idx + 1}` : ''}
+                              </span>
+                              <Select
+                                value={pphItem.jenis}
+                                onChange={e => handlePphItemChange(idx, 'jenis', e.target.value)}
+                                options={PPH_OPTIONS}
+                                className="[&>select]:py-[10px]"
+                                disabled={!pphItem.nominal || parseInt(pphItem.nominal, 10) <= 0}
+                              />
+                            </div>
+                            <div className="md:col-span-2 flex items-center justify-end md:mt-0.5">
+                              {idx > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemovePph(idx)}
+                                  className="p-2 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl transition-all h-[38px] w-10 flex items-center justify-center border border-red-100"
+                                  title="Hapus PPh"
+                                >
+                                  <MinusCircle size={16} />
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={handleAddPph}
+                                  className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all h-[38px] w-10 flex items-center justify-center border border-indigo-100"
+                                  title="Tambah PPh"
+                                >
+                                  <PlusCircle size={16} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

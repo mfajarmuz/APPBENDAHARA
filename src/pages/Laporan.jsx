@@ -25,7 +25,7 @@ import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
 import Spinner from '@/components/ui/Spinner'
 import { exportBKUPdf, exportBKUSubKegPdf, exportBKUTriwulanPdf, exportBAPemeriksaanKasPdf, exportBukuPembantuPdf, exportRealisasiPdf, exportRekapBulananPdf, exportLPJAdministratifPdf, exportLPJPeriodePdf, exportBukuPembantuPajakPdf, exportBukuSimpananBankPdf, exportRegisterKasPdf, exportRegisterKasPdf2, exportRPPUAPdf, exportRPPUAPdf2, exportRPPUPPdf, exportRPPUPPdf2, exportBAPenutupanKasPdf, terbilang } from '@/lib/export-pdf'
-import { exportBKUExcel, exportRealisasiExcel } from '@/lib/export-excel'
+import { exportBKUExcel, exportRealisasiExcel, exportLPJExcel } from '@/lib/export-excel'
 import { getBkuRows } from '@/lib/bku'
 import logoJabar from '@/assets/logo-jabar.png'
 
@@ -823,7 +823,11 @@ export default function Laporan() {
   function handleExportExcel() {
     if (tab === 'bku') exportBKUExcel(localBku)
     else if (tab === 'bank') exportBKUExcel(filteredBankBku)
-    else if (tab === 'lra') exportRealisasiExcel(subKegiatan, realisasiPerRek)
+    else if (tab === 'lra') {
+      const customDate = customDates[tipeLaporan]
+      const settings = useStore.getState().settings
+      exportLPJExcel(filterBulan, filterTahun, subKegiatan, pengeluaran, penerimaan, customDate, settings)
+    }
     else alert('Export Excel hanya tersedia untuk BKU dan LRA')
   }
 
