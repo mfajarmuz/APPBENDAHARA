@@ -35,6 +35,11 @@ contextBridge.exposeInMainWorld('api', {
   deletePengeluaran: (id) => ipcRenderer.invoke('delete-pengeluaran', id),
   updateBkuUrutan: (items) => ipcRenderer.invoke('update-bku-urutan', items),
 
+  // Periode Kunci
+  getPeriodeKunci: () => ipcRenderer.invoke('get-periode-kunci'),
+  kunciPeriode: (payload) => ipcRenderer.invoke('kunci-periode', payload),
+  bukaKunciPeriode: (id) => ipcRenderer.invoke('buka-kunci-periode', id),
+
   // Auto-updater
   appVersion: process.versions.electron ? require('electron').ipcRenderer.sendSync('get-app-version') : null,
   checkForUpdate: () => ipcRenderer.invoke('check-for-update'),

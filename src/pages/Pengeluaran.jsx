@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Plus, Trash2, PlusCircle, MinusCircle, Pencil, FileDown, Download, Filter, RefreshCcw, ArrowUp, ArrowDown, Printer, FileText, Paperclip, X } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { formatRupiah, formatTanggal, persen } from '@/lib/format'
@@ -58,6 +58,8 @@ export default function Pengeluaran() {
   const addPenerimaan = useStore(s => s.addPenerimaan)
   const updatePengeluaran = useStore(s => s.updatePengeluaran)
   const deletePengeluaran = useStore(s => s.deletePengeluaran)
+  const periodeKunci = useStore(s => s.periodeKunci)
+  const fetchPeriodeKunci = useStore(s => s.fetchPeriodeKunci)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
@@ -85,7 +87,17 @@ export default function Pengeluaran() {
     fetchSubKegiatan()
     fetchPengeluaran()
     fetchPenerimaan()
+    fetchPeriodeKunci()
   }, [])
+
+  const isDateLocked = useCallback((dateStr) => {
+    if (!dateStr) return false
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return false
+    const m = d.getMonth() + 1
+    const y = d.getFullYear()
+    return (periodeKunci || []).some(pk => pk.bulan === m && pk.tahun === y)
+  }, [periodeKunci])
 
   const requestSort = (key) => {
     let direction = 'asc'
@@ -428,6 +440,16 @@ export default function Pengeluaran() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    
+    if (isDateLocked(form.tanggal)) {
+      setErrors({ global: `Transaksi tidak dapat disimpan karena periode bulan tersebut telah terkunci 🔒` })
+      return
+    }
+
+    if (editingItem && isDateLocked(editingItem.tanggal)) {
+      setErrors({ global: `Transaksi tidak dapat diubah karena periode bulan transaksi asli telah terkunci 🔒` })
+      return
+    }
     
     // Financial Validations
     const isTaxPayment = form.jenis === 'Pajak' || form.jenis === 'Pajak LS'
@@ -1064,16 +1086,32 @@ export default function Pengeluaran() {
                             </a>
                           )}
                           <button
-                            onClick={() => openEdit(item)}
-                            className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 rounded-xl shadow-sm transition-all"
-                            title="Edit Data"
+                            onClick={() => {
+                              if (isDateLocked(item.tanggal)) return
+                              openEdit(item)
+                            }}
+                            disabled={isDateLocked(item.tanggal)}
+                            className={`p-2 bg-white border rounded-xl shadow-sm transition-all ${
+                              isDateLocked(item.tanggal)
+                                ? 'border-slate-100 text-slate-300 cursor-not-allowed'
+                                : 'border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50'
+                            }`}
+                            title={isDateLocked(item.tanggal) ? "Periode Terkunci 🔒" : "Edit Data"}
                           >
                             <Pencil size={15} />
                           </button>
                           <button
-                            onClick={() => setDeleteId(item.id)}
-                            className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 rounded-xl shadow-sm transition-all"
-                            title="Hapus Data"
+                            onClick={() => {
+                              if (isDateLocked(item.tanggal)) return
+                              setDeleteId(item.id)
+                            }}
+                            disabled={isDateLocked(item.tanggal)}
+                            className={`p-2 bg-white border rounded-xl shadow-sm transition-all ${
+                              isDateLocked(item.tanggal)
+                                ? 'border-slate-100 text-slate-300 cursor-not-allowed'
+                                : 'border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50'
+                            }`}
+                            title={isDateLocked(item.tanggal) ? "Periode Terkunci 🔒" : "Hapus Data"}
                           >
                             <Trash2 size={15} />
                           </button>

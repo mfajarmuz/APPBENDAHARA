@@ -273,6 +273,44 @@ export const updateBkuUrutan = (items) => {
   })
 }
 
+export const getPeriodeKunci = () => {
+  if (isElectron) return window.api.getPeriodeKunci()
+  return wrap(async () => {
+    const { data, error } = await supabase
+      .from('periode_kunci')
+      .select('*')
+      .order('tahun', { ascending: false })
+      .order('bulan', { ascending: false })
+    if (error) throw error
+    return data
+  })
+}
+
+export const kunciPeriode = (payload) => {
+  if (isElectron) return window.api.kunciPeriode(payload)
+  return wrap(async () => {
+    const { data, error } = await supabase
+      .from('periode_kunci')
+      .insert([payload])
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  })
+}
+
+export const bukaKunciPeriode = (id) => {
+  if (isElectron) return window.api.bukaKunciPeriode(id)
+  return wrap(async () => {
+    const { error } = await supabase
+      .from('periode_kunci')
+      .delete()
+      .eq('id', id)
+    if (error) throw error
+    return true
+  })
+}
+
 // ─── Fitur Electron-only (tidak tersedia di web) ──────────────────────────────
 
 export const selectPdfFile = () => {

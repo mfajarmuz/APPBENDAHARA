@@ -121,6 +121,10 @@ export default function Laporan() {
   const fetchPenerimaan = useStore(s => s.fetchPenerimaan)
   const fetchPengeluaran = useStore(s => s.fetchPengeluaran)
   const updateBkuUrutan = useStore(s => s.updateBkuUrutan)
+  const periodeKunci = useStore(s => s.periodeKunci)
+  const fetchPeriodeKunci = useStore(s => s.fetchPeriodeKunci)
+  const kunciPeriode = useStore(s => s.kunciPeriode)
+  const bukaKunciPeriode = useStore(s => s.bukaKunciPeriode)
 
   const [tab, setTab] = useState('bku')
   const [filterBulan, setFilterBulan] = useState(new Date().getMonth())
@@ -170,6 +174,7 @@ export default function Laporan() {
     fetchSubKegiatan()
     fetchPenerimaan()
     fetchPengeluaran()
+    fetchPeriodeKunci()
   }, [])
 
   // BKU Data Transformation
@@ -183,6 +188,10 @@ export default function Laporan() {
       return d.getMonth() === filterBulan && d.getFullYear() === filterTahun
     })
   }, [bkuRows, filterBulan, filterTahun])
+
+  const isCurrentPeriodLocked = useMemo(() => {
+    return (periodeKunci || []).some(pk => pk.bulan === (filterBulan + 1) && pk.tahun === filterTahun)
+  }, [periodeKunci, filterBulan, filterTahun])
 
   // Local state for BKU rows to allow instant UI updates during drag
   const [localBku, setLocalBku] = useState([])
@@ -836,8 +845,8 @@ export default function Laporan() {
   return (
     <div className="space-y-6 pb-12">
       {/* Tab Switcher */}
-      <div className="bg-white p-2 rounded-3xl border border-slate-200 shadow-sm overflow-x-auto no-scrollbar">
-        <div className="flex items-center gap-1 min-w-max">
+      <div className="bg-white p-2 rounded-3xl border border-slate-200 shadow-sm">
+        <div className="flex flex-wrap items-center gap-1.5">
           {[
             { id: 'bku', label: 'Buku Kas Umum' },
             { id: 'bank', label: 'Buku Simpanan Bank' },
@@ -849,6 +858,7 @@ export default function Laporan() {
             { id: 'rppup', label: 'RPPUP' },
             { id: 'ba_pemeriksaan', label: 'BA Pemeriksaan Kas' },
             { id: 'ba_penutupan', label: 'BA Penutupan Kas' },
+            { id: 'kunci_periode', label: 'Kunci Periode' },
           ].map(t => (
             <button
               key={t.id}
@@ -873,15 +883,21 @@ export default function Laporan() {
             </div>
             {tab === 'bku' && (
               <button
-                onClick={() => setIsDragEnabled(!isDragEnabled)}
+                onClick={() => {
+                  if (isCurrentPeriodLocked) return
+                  setIsDragEnabled(!isDragEnabled)
+                }}
+                disabled={isCurrentPeriodLocked}
                 className={`flex items-center gap-2 text-[10px] font-black px-3.5 py-2 rounded-full uppercase tracking-tighter ring-1 transition-all duration-200 active:scale-95 select-none ${
-                  isDragEnabled 
+                  isCurrentPeriodLocked
+                    ? 'bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed'
+                    : isDragEnabled 
                     ? 'bg-emerald-50 text-emerald-600 ring-emerald-200 hover:bg-emerald-100' 
                     : 'bg-slate-50 text-slate-500 ring-slate-200 hover:bg-slate-100'
                 }`}
               >
-                {isDragEnabled ? <Unlock size={12} /> : <Lock size={12} />}
-                <span>{isDragEnabled ? 'Urut Manual Aktif' : 'Urut Manual Terkunci'}</span>
+                {isCurrentPeriodLocked ? <Lock size={12} /> : isDragEnabled ? <Unlock size={12} /> : <Lock size={12} />}
+                <span>{isCurrentPeriodLocked ? 'Urut Manual Terkunci (🔒)' : isDragEnabled ? 'Urut Manual Aktif' : 'Urut Manual Terkunci'}</span>
               </button>
             )}
           </div>
@@ -2200,7 +2216,118 @@ export default function Laporan() {
             </div>
           </div>
         )}
+        {tab === 'kunci_periode' && (
+          <PeriodeKunciPanel />
+        )}
       </Card>
+    </div>
+  )
+}
+
+function PeriodeKunciPanel() {
+  const periodeKunci = useStore(s => s.periodeKunci)
+  const fetchPeriodeKunci = useStore(s => s.fetchPeriodeKunci)
+  const kunciPeriode = useStore(s => s.kunciPeriode)
+  const bukaKunciPeriode = useStore(s => s.bukaKunciPeriode)
+  const isLoading = useStore(s => s.isLoading)
+  const year = new Date().getFullYear()
+  const settings = useStore(s => s.settings)
+  const filterTahun = settings.tahun_anggaran || year
+
+  const [saving, setSaving] = useState(false)
+
+  const months = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ]
+
+  const handleToggleLock = async (monthIndex) => {
+    const monthNum = monthIndex + 1
+    const existing = (periodeKunci || []).find(pk => pk.bulan === monthNum && pk.tahun === filterTahun)
+    
+    setSaving(true)
+    try {
+      if (existing) {
+        if (window.confirm(`Apakah Anda yakin ingin MEMBUKA KUNCI periode ${months[monthIndex]} ${filterTahun}?`)) {
+          const res = await bukaKunciPeriode(existing.id)
+          if (res && !res.success) alert(res.error)
+        }
+      } else {
+        if (window.confirm(`Apakah Anda yakin ingin MENGUNCI periode ${months[monthIndex]} ${filterTahun}? Semua edit/hapus transaksi bulan tersebut akan dinonaktifkan.`)) {
+          const res = await kunciPeriode(monthNum, filterTahun)
+          if (res && !res.success) alert(res.error)
+        }
+      }
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-sm space-y-6">
+      <div>
+        <h3 className="text-sm font-black text-slate-800 tracking-tight flex items-center gap-2">
+          🔒 Kunci Periode Laporan ({filterTahun})
+        </h3>
+        <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+          Lindungi laporan bulanan Anda. Setelah dikunci, data pengeluaran dan penerimaan bulan tersebut tidak dapat dimodifikasi.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {months.map((monthName, idx) => {
+          const monthNum = idx + 1
+          const lockObj = (periodeKunci || []).find(pk => pk.bulan === monthNum && pk.tahun === filterTahun)
+          const isLocked = !!lockObj
+
+          return (
+            <div 
+              key={idx} 
+              className={`p-5 rounded-2xl border transition-all flex flex-col justify-between h-36 ${
+                isLocked 
+                  ? 'bg-red-50/40 border-red-100/80 text-red-900 shadow-inner' 
+                  : 'bg-slate-50/50 border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Bulan #{monthNum}</span>
+                  <span className="text-sm font-extrabold tracking-tight">{monthName}</span>
+                </div>
+                {isLocked ? (
+                  <span className="p-1.5 bg-red-100 text-red-600 rounded-lg" title="Periode Terkunci">
+                    <Lock size={16} />
+                  </span>
+                ) : (
+                  <span className="p-1.5 bg-slate-200/60 text-slate-400 rounded-lg" title="Periode Terbuka">
+                    <Unlock size={16} />
+                  </span>
+                )}
+              </div>
+
+              <div className="pt-4 border-t border-slate-200/60 flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400">
+                  {isLocked ? 'Status: Terkunci 🔒' : 'Status: Terbuka 🔓'}
+                </span>
+                <button
+                  type="button"
+                  disabled={saving || isLoading}
+                  onClick={() => handleToggleLock(idx)}
+                  className={`text-[10px] font-black px-3.5 py-1.5 rounded-xl uppercase tracking-wider transition-all duration-200 ${
+                    isLocked
+                      ? 'bg-white border border-red-200 text-red-600 hover:bg-red-50 shadow-sm'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/10'
+                  }`}
+                >
+                  {isLocked ? 'Buka Kunci' : 'Kunci'}
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

@@ -238,6 +238,55 @@ const createPengeluaranSlice = (set, get) => ({
 })
 
 /**
+ * [FITUR: PERIODE KUNCI]
+ * Mengelola penguncian transaksi berdasarkan periode bulan/tahun.
+ */
+const createPeriodeKunciSlice = (set, get) => ({
+  periodeKunci: [],
+  fetchPeriodeKunci: async () => {
+    set({ isLoading: true })
+    try {
+      const res = await api.getPeriodeKunci()
+      if (res && res.success) {
+        set({ periodeKunci: res.data || [] })
+      }
+    } catch (err) {
+      console.error('fetchPeriodeKunci failed', err.message)
+    } finally {
+      set({ isLoading: false })
+    }
+  },
+  kunciPeriode: async (bulan, tahun) => {
+    set({ isLoading: true })
+    try {
+      const res = await api.kunciPeriode({ bulan, tahun })
+      if (res && res.success) {
+        await get().fetchPeriodeKunci()
+      }
+      return res
+    } catch (err) {
+      return { success: false, error: err.message }
+    } finally {
+      set({ isLoading: false })
+    }
+  },
+  bukaKunciPeriode: async (id) => {
+    set({ isLoading: true })
+    try {
+      const res = await api.bukaKunciPeriode(id)
+      if (res && res.success) {
+        await get().fetchPeriodeKunci()
+      }
+      return res
+    } catch (err) {
+      return { success: false, error: err.message }
+    } finally {
+      set({ isLoading: false })
+    }
+  }
+})
+
+/**
  * [MAIN STORE: useStore]
  * Store utama aplikasi yang menggabungkan seluruh modul fungsional.
  * Menyimpan state global seperti User, Settings, dan IsLoading.
@@ -316,4 +365,5 @@ export const useStore = create((set, get) => ({
   ...createKodeRekeningSlice(set, get),
   ...createPenerimaanSlice(set, get),
   ...createPengeluaranSlice(set, get),
+  ...createPeriodeKunciSlice(set, get),
 }))

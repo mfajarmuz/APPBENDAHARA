@@ -1,5 +1,5 @@
 // src/pages/Penerimaan.jsx
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Plus, Pencil, Trash2, Filter, RefreshCcw } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { formatRupiah, formatTanggal } from '@/lib/format'
@@ -43,6 +43,8 @@ export default function Penerimaan() {
   const addPengeluaran = useStore(s => s.addPengeluaran)
   const updatePenerimaan = useStore(s => s.updatePenerimaan)
   const deletePenerimaan = useStore(s => s.deletePenerimaan)
+  const periodeKunci = useStore(s => s.periodeKunci)
+  const fetchPeriodeKunci = useStore(s => s.fetchPeriodeKunci)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null) // null = new, object = edit
@@ -60,7 +62,17 @@ export default function Penerimaan() {
   useEffect(() => { 
     fetchPenerimaan()
     fetchSubKegiatan()
+    fetchPeriodeKunci()
   }, [])
+
+  const isDateLocked = useCallback((dateStr) => {
+    if (!dateStr) return false
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return false
+    const m = d.getMonth() + 1
+    const y = d.getFullYear()
+    return (periodeKunci || []).some(pk => pk.bulan === m && pk.tahun === y)
+  }, [periodeKunci])
 
   const resetFilters = () => {
     setFilterBulan('')
@@ -122,6 +134,17 @@ export default function Penerimaan() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+
+    if (isDateLocked(form.tanggal)) {
+      setErrors({ global: `Transaksi tidak dapat disimpan karena periode bulan tersebut telah terkunci 🔒` })
+      return
+    }
+
+    if (editing && isDateLocked(editing.tanggal)) {
+      setErrors({ global: `Transaksi tidak dapat diubah karena periode bulan transaksi asli telah terkunci 🔒` })
+      return
+    }
+
     const e2 = validate()
     if (Object.keys(e2).length) { setErrors(e2); return }
     setSaving(true)
@@ -408,14 +431,32 @@ return (
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() => openEdit(item)}
-                          className="p-1.5 rounded-lg text-text-secondary hover:bg-accent-light hover:text-accent transition-colors"
+                          onClick={() => {
+                            if (isDateLocked(item.tanggal)) return
+                            openEdit(item)
+                          }}
+                          disabled={isDateLocked(item.tanggal)}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            isDateLocked(item.tanggal)
+                              ? 'text-slate-300 cursor-not-allowed'
+                              : 'text-text-secondary hover:bg-accent-light hover:text-accent'
+                          }`}
+                          title={isDateLocked(item.tanggal) ? "Periode Terkunci 🔒" : "Edit Data"}
                         >
                           <Pencil size={13} />
                         </button>
                         <button
-                          onClick={() => setDeleteId(item.id)}
-                          className="p-1.5 rounded-lg text-text-secondary hover:bg-red-100 hover:text-danger transition-colors"
+                          onClick={() => {
+                            if (isDateLocked(item.tanggal)) return
+                            setDeleteId(item.id)
+                          }}
+                          disabled={isDateLocked(item.tanggal)}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            isDateLocked(item.tanggal)
+                              ? 'text-slate-300 cursor-not-allowed'
+                              : 'text-text-secondary hover:bg-red-100 hover:text-danger'
+                          }`}
+                          title={isDateLocked(item.tanggal) ? "Periode Terkunci 🔒" : "Hapus Data"}
                         >
                           <Trash2 size={13} />
                         </button>

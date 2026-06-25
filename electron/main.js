@@ -554,6 +554,44 @@ ipcMain.handle('update-bku-urutan', async (event, items) => {
   })
 })
 
+// Get Periode Kunci
+ipcMain.handle('get-periode-kunci', async () => {
+  return handleWith(async () => {
+    const { data, error } = await supabase
+      .from('periode_kunci')
+      .select('*')
+      .order('tahun', { ascending: false })
+      .order('bulan', { ascending: false })
+    if (error) throw error
+    return data
+  })
+})
+
+// Kunci Periode
+ipcMain.handle('kunci-periode', async (event, payload) => {
+  return handleWith(async () => {
+    const { data, error } = await supabase
+      .from('periode_kunci')
+      .insert([payload])
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  })
+})
+
+// Buka Kunci Periode
+ipcMain.handle('buka-kunci-periode', async (event, id) => {
+  return handleWith(async () => {
+    const { error } = await supabase
+      .from('periode_kunci')
+      .delete()
+      .eq('id', id)
+    if (error) throw error
+    return true
+  })
+})
+
 ipcMain.handle('download-template', async (event, filename, defaultFilename) => {
   return handleWith(async () => {
     const sourcePath = app.isPackaged
