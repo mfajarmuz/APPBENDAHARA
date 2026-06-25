@@ -358,7 +358,13 @@ export const downloadTemplate = (filename) => {
 
 // Tempat Sampah (Soft Delete)
 export const getDeletedRecords = () => {
-  if (isElectron) return window.api.getDeletedRecords()
+  if (isElectron) {
+    if (!window.api?.getDeletedRecords) {
+      console.warn('window.api.getDeletedRecords is not defined. Please restart Electron app.')
+      return Promise.resolve({ success: false, error: 'Aplikasi Electron perlu dijalankan ulang (restart).' })
+    }
+    return window.api.getDeletedRecords()
+  }
   return wrap(async () => {
     const { data: pen, error: penErr } = await supabase
       .from('penerimaan')
@@ -380,7 +386,12 @@ export const getDeletedRecords = () => {
 }
 
 export const restoreRecord = (tipe, id) => {
-  if (isElectron) return window.api.restoreRecord({ tipe, id })
+  if (isElectron) {
+    if (!window.api?.restoreRecord) {
+      return Promise.resolve({ success: false, error: 'Aplikasi Electron perlu dijalankan ulang (restart).' })
+    }
+    return window.api.restoreRecord({ tipe, id })
+  }
   return wrap(async () => {
     const table = tipe === 'Penerimaan' ? 'penerimaan' : 'pengeluaran'
     const { error } = await supabase.from(table).update({ deleted_at: null }).eq('id', id)
@@ -390,7 +401,12 @@ export const restoreRecord = (tipe, id) => {
 }
 
 export const hardDeleteRecord = (tipe, id) => {
-  if (isElectron) return window.api.hardDeleteRecord({ tipe, id })
+  if (isElectron) {
+    if (!window.api?.hardDeleteRecord) {
+      return Promise.resolve({ success: false, error: 'Aplikasi Electron perlu dijalankan ulang (restart).' })
+    }
+    return window.api.hardDeleteRecord({ tipe, id })
+  }
   return wrap(async () => {
     const table = tipe === 'Penerimaan' ? 'penerimaan' : 'pengeluaran'
     const { error } = await supabase.from(table).delete().eq('id', id)
