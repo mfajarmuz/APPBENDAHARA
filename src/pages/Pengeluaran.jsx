@@ -72,7 +72,7 @@ export default function Pengeluaran() {
   const [isDragging, setIsDragging] = useState(false)
   
   // Advanced Filters
-  const [filterBulan, setFilterBulan] = useState('')
+  const [filterBulan, setFilterBulan] = useState(String(new Date().getMonth()))
   const [filterJenis, setFilterJenis] = useState('')
   const [filterProgram, setFilterProgram] = useState('')
   const [filterKegiatan, setFilterKegiatan] = useState('')
@@ -108,7 +108,7 @@ export default function Pengeluaran() {
   }
 
   const resetFilters = () => {
-    setFilterBulan('')
+    setFilterBulan(String(new Date().getMonth()))
     setFilterJenis('')
     setFilterProgram('')
     setFilterKegiatan('')

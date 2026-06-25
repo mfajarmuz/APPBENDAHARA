@@ -54,7 +54,7 @@ export default function Penerimaan() {
   const [deleteId, setDeleteId] = useState(null)
 
   // Filters
-  const [filterBulan, setFilterBulan] = useState('')
+  const [filterBulan, setFilterBulan] = useState(String(new Date().getMonth()))
   const [filterJenis, setFilterJenis] = useState('')
   const [searchNo, setSearchNo] = useState('')
   const [searchKet, setSearchKet] = useState('')
@@ -75,7 +75,7 @@ export default function Penerimaan() {
   }, [periodeKunci])
 
   const resetFilters = () => {
-    setFilterBulan('')
+    setFilterBulan(String(new Date().getMonth()))
     setFilterJenis('')
     setSearchNo('')
     setSearchKet('')
