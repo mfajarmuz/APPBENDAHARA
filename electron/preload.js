@@ -40,6 +40,11 @@ contextBridge.exposeInMainWorld('api', {
   kunciPeriode: (payload) => ipcRenderer.invoke('kunci-periode', payload),
   bukaKunciPeriode: (id) => ipcRenderer.invoke('buka-kunci-periode', id),
 
+  // Tempat Sampah (Soft Delete)
+  getDeletedRecords: () => ipcRenderer.invoke('get-deleted-records'),
+  restoreRecord: (payload) => ipcRenderer.invoke('restore-record', payload),
+  hardDeleteRecord: (payload) => ipcRenderer.invoke('hard-delete-record', payload),
+
   // Auto-updater
   appVersion: process.versions.electron ? require('electron').ipcRenderer.sendSync('get-app-version') : null,
   checkForUpdate: () => ipcRenderer.invoke('check-for-update'),

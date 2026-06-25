@@ -287,6 +287,63 @@ const createPeriodeKunciSlice = (set, get) => ({
 })
 
 /**
+ * [FITUR: TEMPAT SAMPAH / SOFT DELETE]
+ * Mengelola pemulihan dan penghapusan permanen transaksi.
+ */
+const createSoftDeleteSlice = (set, get) => ({
+  deletedRecords: [],
+  fetchDeletedRecords: async () => {
+    set({ isLoading: true })
+    try {
+      const res = await api.getDeletedRecords()
+      if (res && res.success) set({ deletedRecords: res.data || [] })
+    } catch (err) {
+      console.error(err)
+    } finally {
+      set({ isLoading: false })
+    }
+  },
+  restoreRecord: async (tipe, id) => {
+    set({ isLoading: true })
+    try {
+      const res = await api.restoreRecord(tipe, id)
+      if (res && res.success) {
+        await get().fetchDeletedRecords()
+        if (tipe === 'Penerimaan') await get().fetchPenerimaan()
+        else {
+          await get().fetchPengeluaran()
+          await get().fetchSubKegiatan()
+        }
+      }
+      return res
+    } catch (err) {
+      return { success: false, error: err.message }
+    } finally {
+      set({ isLoading: false })
+    }
+  },
+  hardDeleteRecord: async (tipe, id) => {
+    set({ isLoading: true })
+    try {
+      const res = await api.hardDeleteRecord(tipe, id)
+      if (res && res.success) {
+        await get().fetchDeletedRecords()
+        if (tipe === 'Penerimaan') await get().fetchPenerimaan()
+        else {
+          await get().fetchPengeluaran()
+          await get().fetchSubKegiatan()
+        }
+      }
+      return res
+    } catch (err) {
+      return { success: false, error: err.message }
+    } finally {
+      set({ isLoading: false })
+    }
+  }
+})
+
+/**
  * [MAIN STORE: useStore]
  * Store utama aplikasi yang menggabungkan seluruh modul fungsional.
  * Menyimpan state global seperti User, Settings, dan IsLoading.
@@ -366,4 +423,5 @@ export const useStore = create((set, get) => ({
   ...createPenerimaanSlice(set, get),
   ...createPengeluaranSlice(set, get),
   ...createPeriodeKunciSlice(set, get),
+  ...createSoftDeleteSlice(set, get),
 }))

@@ -397,6 +397,7 @@ ipcMain.handle('get-penerimaan', async () => {
     const { data, error } = await supabase
       .from('penerimaan')
       .select('*, sub_kegiatan(*), kode_rekening(*)')
+      .is('deleted_at', null)
       .order('urutan', { ascending: true })
     if (error) throw error
     return data
@@ -424,7 +425,10 @@ ipcMain.handle('update-penerimaan', async (event, payload) => {
 
 ipcMain.handle('delete-penerimaan', async (event, id) => {
   return handleWith(async () => {
-    const { error } = await supabase.from('penerimaan').delete().eq('id', id)
+    const { error } = await supabase
+      .from('penerimaan')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
     if (error) throw error
     return true
   })
@@ -441,6 +445,7 @@ ipcMain.handle('get-pengeluaran', async () => {
         kode_rekening (*),
         pengeluaran_rincian (*)
       `)
+      .is('deleted_at', null)
       .order('urutan', { ascending: true })
     if (error) throw error
     return data
@@ -533,7 +538,10 @@ ipcMain.handle('update-pengeluaran', async (event, id, { pengeluaran, rincian, p
 
 ipcMain.handle('delete-pengeluaran', async (event, id) => {
   return handleWith(async () => {
-    const { error } = await supabase.from('pengeluaran').delete().eq('id', id)
+    const { error } = await supabase
+      .from('pengeluaran')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
     if (error) throw error
     return true
   })
@@ -689,3 +697,44 @@ ipcMain.handle('print-to-pdf', async (event, { html, defaultPath, pageSize }) =>
 
   return { success: false, canceled: true }
 })
+
+// Tempat Sampah (Soft Delete)
+ipcMain.handle('get-deleted-records', async () => {
+  return handleWith(async () => {
+    const { data: pen, error: penErr } = await supabase
+      .from('penerimaan')
+      .select('*, sub_kegiatan(*), kode_rekening(*)')
+      .not('deleted_at', 'is', null)
+    if (penErr) throw penErr
+
+    const { data: peng, error: pengErr } = await supabase
+      .from('pengeluaran')
+      .select('*, sub_kegiatan(*), kode_rekening(*)')
+      .not('deleted_at', 'is', null)
+    if (pengErr) throw pengErr
+
+    const formattedPen = (pen || []).map(item => ({ ...item, tipe: 'Penerimaan' }))
+    const formattedPeng = (peng || []).map(item => ({ ...item, tipe: 'Pengeluaran' }))
+
+    return [...formattedPen, ...formattedPeng].sort((a, b) => new Date(b.deleted_at) - new Date(a.deleted_at))
+  })
+})
+
+ipcMain.handle('restore-record', async (event, { tipe, id }) => {
+  return handleWith(async () => {
+    const table = tipe === 'Penerimaan' ? 'penerimaan' : 'pengeluaran'
+    const { error } = await supabase.from(table).update({ deleted_at: null }).eq('id', id)
+    if (error) throw error
+    return true
+  })
+})
+
+ipcMain.handle('hard-delete-record', async (event, { tipe, id }) => {
+  return handleWith(async () => {
+    const table = tipe === 'Penerimaan' ? 'penerimaan' : 'pengeluaran'
+    const { error } = await supabase.from(table).delete().eq('id', id)
+    if (error) throw error
+    return true
+  })
+})
+

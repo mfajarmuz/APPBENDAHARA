@@ -154,6 +154,7 @@ export const getPenerimaan = () => {
     const { data, error } = await supabase
       .from('penerimaan')
       .select('*, sub_kegiatan(*), kode_rekening(*)')
+      .is('deleted_at', null)
       .order('urutan', { ascending: true })
     if (error) throw error
     return data
@@ -183,7 +184,10 @@ export const updatePenerimaan = (payload) => {
 export const deletePenerimaan = (id) => {
   if (isElectron) return window.api.deletePenerimaan(id)
   return wrap(async () => {
-    const { error } = await supabase.from('penerimaan').delete().eq('id', id)
+    const { error } = await supabase
+      .from('penerimaan')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
     if (error) throw error
     return true
   })
@@ -202,6 +206,7 @@ export const getPengeluaran = () => {
         kode_rekening (*),
         pengeluaran_rincian (*)
       `)
+      .is('deleted_at', null)
       .order('urutan', { ascending: true })
     if (error) throw error
     return data
@@ -253,7 +258,10 @@ export const updatePengeluaran = (id, { pengeluaran, rincian, pdfLocalPath, cust
 export const deletePengeluaran = (id) => {
   if (isElectron) return window.api.deletePengeluaran(id)
   return wrap(async () => {
-    const { error } = await supabase.from('pengeluaran').delete().eq('id', id)
+    const { error } = await supabase
+      .from('pengeluaran')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
     if (error) throw error
     return true
   })
@@ -346,4 +354,47 @@ export const logoutGoogleDrive = () => {
 export const downloadTemplate = (filename) => {
   if (isElectron) return window.api.downloadTemplate(filename)
   return Promise.resolve({ success: false, error: 'Fitur ini hanya tersedia di aplikasi desktop.' })
+}
+
+// Tempat Sampah (Soft Delete)
+export const getDeletedRecords = () => {
+  if (isElectron) return window.api.getDeletedRecords()
+  return wrap(async () => {
+    const { data: pen, error: penErr } = await supabase
+      .from('penerimaan')
+      .select('*, sub_kegiatan(*), kode_rekening(*)')
+      .not('deleted_at', 'is', null)
+    if (penErr) throw penErr
+
+    const { data: peng, error: pengErr } = await supabase
+      .from('pengeluaran')
+      .select('*, sub_kegiatan(*), kode_rekening(*)')
+      .not('deleted_at', 'is', null)
+    if (pengErr) throw pengErr
+
+    const formattedPen = (pen || []).map(item => ({ ...item, tipe: 'Penerimaan' }))
+    const formattedPeng = (peng || []).map(item => ({ ...item, tipe: 'Pengeluaran' }))
+
+    return [...formattedPen, ...formattedPeng].sort((a, b) => new Date(b.deleted_at) - new Date(a.deleted_at))
+  })
+}
+
+export const restoreRecord = (tipe, id) => {
+  if (isElectron) return window.api.restoreRecord({ tipe, id })
+  return wrap(async () => {
+    const table = tipe === 'Penerimaan' ? 'penerimaan' : 'pengeluaran'
+    const { error } = await supabase.from(table).update({ deleted_at: null }).eq('id', id)
+    if (error) throw error
+    return true
+  })
+}
+
+export const hardDeleteRecord = (tipe, id) => {
+  if (isElectron) return window.api.hardDeleteRecord({ tipe, id })
+  return wrap(async () => {
+    const table = tipe === 'Penerimaan' ? 'penerimaan' : 'pengeluaran'
+    const { error } = await supabase.from(table).delete().eq('id', id)
+    if (error) throw error
+    return true
+  })
 }
