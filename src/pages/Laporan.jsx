@@ -232,7 +232,7 @@ export default function Laporan() {
   }
 
   async function handleDragEnd(event) {
-    if (!isDragEnabled) return
+    if (!isDragEnabled || isCurrentPeriodLocked) return
     const { active, over } = event
     if (!over) return
 

@@ -75,9 +75,9 @@ bot.on('text', async (ctx) => {
         await ctx.reply('⌛ Sedang berkonsultasi dengan Gemini CLI...');
         console.log(`🤖 Executing gemini -p for user ${userId}: "${userMessage}"`);
 
-        // Execute Gemini CLI in headless mode
-        // Note: Using --skip-trust to avoid interactive prompts in headless mode
-        const { stdout, stderr } = await execPromise(`gemini --skip-trust -p "${userMessage.replace(/"/g, '\\"')}"`);
+        // Sanitasi pesan untuk mencegah OS Command Injection (RCE)
+        const sanitizedMessage = userMessage.replace(/[&|;$><`%\r\n]/g, ' ');
+        const { stdout, stderr } = await execPromise(`gemini --skip-trust -p "${sanitizedMessage.replace(/"/g, '\\"')}"`);
 
         const response = stdout || stderr || 'Tidak ada respons dari Gemini CLI.';
         

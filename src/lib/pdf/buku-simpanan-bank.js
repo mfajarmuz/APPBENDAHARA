@@ -9,7 +9,13 @@ import { getMonthName } from './utils'
 export async function exportBukuSimpananBankPdf(rows, monthIndex, year, totalsBulanLalu = { debet: 0, kredit: 0 }, customDate = null) {
   const settings = useStore.getState().settings
   const monthName = getMonthName(monthIndex).toUpperCase()
-  const displayDate = customDate ? new Date(customDate) : new Date(year, monthIndex + 1, 0)
+  let displayDate = new Date(year, monthIndex + 1, 0)
+  if (customDate) {
+    const parsed = new Date(customDate)
+    if (!isNaN(parsed.getTime())) {
+      displayDate = parsed
+    }
+  }
   const fullDisplayDate = displayDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
   
   // Hitung Totals

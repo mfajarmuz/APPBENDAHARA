@@ -9,7 +9,14 @@ export function exportBukuPembantuPajakPdf(rows, monthIndex, year = new Date().g
   const monthName = getMonthName(monthIndex)
   const settings = useStore.getState().settings
 
-  const lastDay = customDate ? new Date(customDate).getDate() : new Date(year, monthIndex + 1, 0).getDate()
+  let displayDate = new Date(year, monthIndex + 1, 0)
+  if (customDate) {
+    const parsed = new Date(customDate)
+    if (!isNaN(parsed.getTime())) {
+      displayDate = parsed
+    }
+  }
+  const lastDay = displayDate.getDate()
 
   // --- HEADER SECTION ---
   doc.setFont('helvetica', 'bold')

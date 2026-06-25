@@ -215,7 +215,7 @@ export default function Penerimaan() {
           const ketPengeluaran = `Dibayar Belanja ${rawKet}`.trim()
           
           // 1. Pengeluaran Utama
-          await addPengeluaran({
+          const resPengeluaran = await addPengeluaran({
             pengeluaran: {
               tanggal: form.tanggal,
               jenis: 'LS',
@@ -231,10 +231,13 @@ export default function Penerimaan() {
               jumlah: amount,
             }]
           })
+          if (resPengeluaran && !resPengeluaran.success) {
+            throw new Error(resPengeluaran.error || 'Gagal menyimpan pengeluaran utama otomatis')
+          }
 
           // 2. Setoran PPN (Pengeluaran)
           if (form.ppn && parseInt(form.ppn, 10) > 0) {
-            await addPengeluaran({
+            const resPpn = await addPengeluaran({
               pengeluaran: {
                 tanggal: form.tanggal,
                 jenis: 'Pajak LS',
@@ -246,11 +249,14 @@ export default function Penerimaan() {
               },
               rincian: []
             })
+            if (resPpn && !resPpn.success) {
+              throw new Error(resPpn.error || 'Gagal menyimpan setoran PPN otomatis')
+            }
           }
 
           // 3. Setoran PPh (Pengeluaran)
           if (form.pph && parseInt(form.pph, 10) > 0) {
-            await addPengeluaran({
+            const resPph = await addPengeluaran({
               pengeluaran: {
                 tanggal: form.tanggal,
                 jenis: 'Pajak LS',
@@ -262,6 +268,9 @@ export default function Penerimaan() {
               },
               rincian: []
             })
+            if (resPph && !resPph.success) {
+              throw new Error(resPph.error || 'Gagal menyimpan setoran PPh otomatis')
+            }
           }
         }
       }

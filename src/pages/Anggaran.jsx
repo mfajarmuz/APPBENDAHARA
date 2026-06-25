@@ -144,8 +144,12 @@ export default function Anggaran() {
     e.preventDefault(); setSaving(true)
     try {
       const payload = { ...skForm, tahun_anggaran: parseInt(skForm.tahun_anggaran, 10) }
-      if (editingSk) await updateSubKegiatan({ id: editingSk.id, ...payload })
-      else await addSubKegiatan(payload)
+      const res = editingSk 
+        ? await updateSubKegiatan({ id: editingSk.id, ...payload })
+        : await addSubKegiatan(payload)
+      if (res && !res.success) {
+        throw new Error(res.error || 'Gagal menyimpan sub kegiatan')
+      }
       setSkModal(false)
     } catch (err) { alert(err.message) } finally { setSaving(false) }
   }
@@ -162,8 +166,12 @@ export default function Anggaran() {
   async function handleProgSubmit(e) {
     e.preventDefault(); setSaving(true)
     try { 
-      if (editingProgId) await updateProgram(editingProgId, progForm); 
-      else await addProgram(progForm);
+      const res = editingProgId 
+        ? await updateProgram(editingProgId, progForm)
+        : await addProgram(progForm);
+      if (res && !res.success) {
+        throw new Error(res.error || 'Gagal menyimpan program')
+      }
       setProgModal(false) 
     } catch (err) { alert(err.message) } finally { setSaving(false) }
   }
@@ -180,8 +188,12 @@ export default function Anggaran() {
   async function handleKegSubmit(e) {
     e.preventDefault(); setSaving(true)
     try { 
-      if (editingKegId) await updateKegiatan(editingKegId, kegForm); 
-      else await addKegiatan(kegForm);
+      const res = editingKegId 
+        ? await updateKegiatan(editingKegId, kegForm)
+        : await addKegiatan(kegForm);
+      if (res && !res.success) {
+        throw new Error(res.error || 'Gagal menyimpan kegiatan')
+      }
       setKegModal(false) 
     } catch (err) { alert(err.message) } finally { setSaving(false) }
   }
@@ -243,8 +255,12 @@ export default function Anggaran() {
         return;
       }
 
-      if (editingRekId) await updateKodeRekening({ id: editingRekId, ...payload })
-      else await addKodeRekening(payload)
+      const res = editingRekId 
+        ? await updateKodeRekening({ id: editingRekId, ...payload })
+        : await addKodeRekening(payload)
+      if (res && !res.success) {
+        throw new Error(res.error || 'Gagal menyimpan kode rekening')
+      }
       setRekModal(false)
     } catch (err) { alert(err.message) } finally { setSaving(false) }
   }

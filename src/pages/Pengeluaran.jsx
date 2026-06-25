@@ -659,12 +659,18 @@ export default function Pengeluaran() {
 
           // Batch Insert Penerimaan
           if (taxPenerimaanPayloads.length > 0) {
-            await addPenerimaan(taxPenerimaanPayloads)
+            const resPajakPen = await addPenerimaan(taxPenerimaanPayloads)
+            if (resPajakPen && !resPajakPen.success) {
+              throw new Error(resPajakPen.error || "Gagal menyimpan pungutan pajak otomatis")
+            }
           }
           
           // Iterative Insert Pengeluaran (Setoran)
           for (const tp of taxPengeluaranPayloads) {
-            await addPengeluaran(tp)
+            const resPajakPeng = await addPengeluaran(tp)
+            if (resPajakPeng && !resPajakPeng.success) {
+              throw new Error(resPajakPeng.error || "Gagal menyimpan setoran pajak otomatis")
+            }
           }
 
           res = { success: true }
@@ -750,12 +756,18 @@ export default function Pengeluaran() {
 
             // Batch Insert Penerimaan
             if (taxPenerimaanPayloads.length > 0) {
-              await addPenerimaan(taxPenerimaanPayloads)
+              const resTaxPen = await addPenerimaan(taxPenerimaanPayloads)
+              if (resTaxPen && !resTaxPen.success) {
+                throw new Error(resTaxPen.error || "Gagal menyimpan pungutan pajak otomatis untuk belanja ini")
+              }
             }
             
             // Iterative Insert Pengeluaran (Setoran)
             for (const tp of taxPengeluaranPayloads) {
-              await addPengeluaran(tp)
+              const resTaxPeng = await addPengeluaran(tp)
+              if (resTaxPeng && !resTaxPeng.success) {
+                throw new Error(resTaxPeng.error || "Gagal menyimpan setoran pajak otomatis untuk belanja ini")
+              }
             }
           }
         }

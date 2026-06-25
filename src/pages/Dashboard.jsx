@@ -111,11 +111,11 @@ export default function Dashboard() {
       if (!programsMap[prog.id]) programsMap[prog.id] = { ...prog, kegiatan: {}, total_pagu: 0, realisasi: 0 }
       if (!programsMap[prog.id].kegiatan[keg.id]) programsMap[prog.id].kegiatan[keg.id] = { ...keg, sub_kegiatan: {}, total_pagu: 0, realisasi: 0 }
       const skPagu = (sk.kode_rekening ?? []).reduce((s, r) => s + (r.pagu_anggaran ?? 0), 0)
-      const skReal = pengeluaran.filter(p => p.sub_kegiatan_id === sk.id).reduce((sum, p) => sum + (p.jumlah ?? 0), 0)
+      const skReal = pengeluaran.filter(p => p.sub_kegiatan_id === sk.id && p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS').reduce((sum, p) => sum + (p.jumlah ?? 0), 0)
       const skData = {
         ...sk, total_pagu: skPagu, realisasi: skReal, persen: persen(skReal, skPagu),
         kode_rekening: (sk.kode_rekening ?? []).map(rek => {
-          const rekReal = pengeluaran.filter(p => p.kode_rekening_id === rek.id).reduce((sum, p) => sum + (p.jumlah ?? 0), 0)
+          const rekReal = pengeluaran.filter(p => p.kode_rekening_id === rek.id && p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS').reduce((sum, p) => sum + (p.jumlah ?? 0), 0)
           return { ...rek, realisasi: rekReal, persen: persen(rekReal, rek.pagu_anggaran) }
         })
       }
@@ -135,8 +135,8 @@ export default function Dashboard() {
   }, [subKegiatan, pengeluaran])
 
   const totalPagu = useMemo(() => hierarchicalData.reduce((sum, p) => sum + p.total_pagu, 0), [hierarchicalData])
-  const totalPenerimaan = useMemo(() => penerimaan.reduce((sum, p) => sum + (p.jumlah ?? 0), 0), [penerimaan])
-  const totalPengeluaran = useMemo(() => pengeluaran.reduce((sum, p) => sum + (p.jumlah ?? 0), 0), [pengeluaran])
+  const totalPenerimaan = useMemo(() => penerimaan.filter(p => p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS').reduce((sum, p) => sum + (p.jumlah ?? 0), 0), [penerimaan])
+  const totalPengeluaran = useMemo(() => pengeluaran.filter(p => p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS').reduce((sum, p) => sum + (p.jumlah ?? 0), 0), [pengeluaran])
 
   // Breakdown Penerimaan
   const penerimaanLS = useMemo(() => penerimaan.filter(p => p.jenis === 'LS').reduce((s, p) => s + p.jumlah, 0), [penerimaan])
