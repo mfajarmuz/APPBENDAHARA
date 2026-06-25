@@ -7,6 +7,7 @@ import {
   FileText,
   Calculator,
   Settings as SettingsIcon,
+  Trash2,
 } from 'lucide-react'
 
 const navItems = [
@@ -17,6 +18,7 @@ const navItems = [
   { to: '/laporan', icon: FileText, label: 'Laporan' },
   { to: '/pajak', icon: Calculator, label: 'Kalkulator Pajak' },
   { to: '/settings', icon: SettingsIcon, label: 'Pengaturan' },
+  { to: '/trash', icon: Trash2, label: 'Tempat Sampah' },
 ]
 
 export default function Sidebar({ onClose, isCollapsed = false }) {
