@@ -406,4 +406,6 @@ export function exportLPJExcel(monthIndex, year, allSubKegiatan, pengeluaran, pe
   return filename
 }
 
+export { exportLPJTemplateExcel } from './exportLPJTemplateExcel'
+
 
