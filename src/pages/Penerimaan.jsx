@@ -45,6 +45,7 @@ export default function Penerimaan() {
   const deletePenerimaan = useStore(s => s.deletePenerimaan)
   const periodeKunci = useStore(s => s.periodeKunci)
   const fetchPeriodeKunci = useStore(s => s.fetchPeriodeKunci)
+  const user = useStore(s => s.user)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null) // null = new, object = edit
@@ -342,9 +343,11 @@ return (
             <span className="ml-2 text-xs">({penerimaan.length} Transaksi)</span>
           </p>
         </div>
-        <Button onClick={openNew}>
-          <Plus size={15} /> Tambah Penerimaan
-        </Button>
+        {user?.role !== 'viewer' && (
+          <Button onClick={openNew}>
+            <Plus size={15} /> Tambah Penerimaan
+          </Button>
+        )}
       </div>
 {/* Filters */}
 <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
@@ -424,7 +427,7 @@ return (
             <th className="text-left text-xs font-medium text-text-secondary px-5 py-3">Jenis</th>
             <th className="text-left text-xs font-medium text-text-secondary px-5 py-3">Keterangan</th>
             <th className="text-right text-xs font-medium text-text-secondary px-5 py-3">Jumlah</th>
-            <th className="px-5 py-3" />
+            {user?.role !== 'viewer' && <th className="px-5 py-3" />}
           </tr>
         </thead>
         <tbody>
@@ -437,40 +440,42 @@ return (
                     <td className="px-5 py-3 font-medium text-text-primary">{item.jenis ?? 'LS'}</td>
                     <td className="px-5 py-3 text-text-secondary text-xs max-w-xs truncate">{item.keterangan ?? '-'}</td>
                     <td className="px-5 py-3 text-right font-semibold text-success">{formatRupiah(item.jumlah)}</td>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => {
-                            if (isDateLocked(item.tanggal)) return
-                            openEdit(item)
-                          }}
-                          disabled={isDateLocked(item.tanggal)}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDateLocked(item.tanggal)
-                              ? 'text-slate-300 cursor-not-allowed'
-                              : 'text-text-secondary hover:bg-accent-light hover:text-accent'
-                          }`}
-                          title={isDateLocked(item.tanggal) ? "Periode Terkunci 🔒" : "Edit Data"}
-                        >
-                          <Pencil size={13} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (isDateLocked(item.tanggal)) return
-                            setDeleteId(item.id)
-                          }}
-                          disabled={isDateLocked(item.tanggal)}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDateLocked(item.tanggal)
-                              ? 'text-slate-300 cursor-not-allowed'
-                              : 'text-text-secondary hover:bg-red-100 hover:text-danger'
-                          }`}
-                          title={isDateLocked(item.tanggal) ? "Periode Terkunci 🔒" : "Hapus Data"}
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </td>
+                    {user?.role !== 'viewer' && (
+                      <td className="px-5 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => {
+                              if (isDateLocked(item.tanggal)) return
+                              openEdit(item)
+                            }}
+                            disabled={isDateLocked(item.tanggal)}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              isDateLocked(item.tanggal)
+                                ? 'text-slate-300 cursor-not-allowed'
+                                : 'text-text-secondary hover:bg-accent-light hover:text-accent'
+                            }`}
+                            title={isDateLocked(item.tanggal) ? "Periode Terkunci 🔒" : "Edit Data"}
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (isDateLocked(item.tanggal)) return
+                              setDeleteId(item.id)
+                            }}
+                            disabled={isDateLocked(item.tanggal)}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              isDateLocked(item.tanggal)
+                                ? 'text-slate-300 cursor-not-allowed'
+                                : 'text-text-secondary hover:bg-red-100 hover:text-danger'
+                            }`}
+                            title={isDateLocked(item.tanggal) ? "Periode Terkunci 🔒" : "Hapus Data"}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

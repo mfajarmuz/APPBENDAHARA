@@ -16,6 +16,7 @@ export default function Settings() {
   const settings = useStore(s => s.settings)
   const updateSettings = useStore(s => s.updateSettings)
   const resetSettings = useStore(s => s.resetSettings)
+  const user = useStore(s => s.user)
 
   const [form, setForm] = useState({ ...settings })
   const [isSaving, setIsSubmitting] = useState(false)
@@ -148,13 +149,15 @@ export default function Settings() {
               ✓ Berhasil disimpan
             </div>
           )}
-          <Button 
-            variant="secondary" 
-            onClick={() => setShowResetConfirm(true)}
-            className="text-xs font-bold border-slate-200"
-          >
-            <RefreshCcw size={14} className="mr-2" /> Reset
-          </Button>
+          {user?.role !== 'viewer' && (
+            <Button 
+              variant="secondary" 
+              onClick={() => setShowResetConfirm(true)}
+              className="text-xs font-bold border-slate-200"
+            >
+              <RefreshCcw size={14} className="mr-2" /> Reset
+            </Button>
+          )}
         </div>
       </div>
 
@@ -172,7 +175,8 @@ export default function Settings() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Identitas Unit Kerja */}
+        <fieldset disabled={user?.role === 'viewer'} className="space-y-6 border-0 p-0 m-0">
+          {/* Identitas Unit Kerja */}
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-6 text-indigo-600">
             <Building2 size={18} />
@@ -354,15 +358,18 @@ export default function Settings() {
           </Card>
         </div>
 
-        <div className="flex justify-end pt-4">
-          <Button type="submit" disabled={isSaving} className="px-8 h-12 shadow-lg shadow-indigo-600/20">
-            {isSaving ? 'Menyimpan...' : (
-              <span className="flex items-center gap-2">
-                <Save size={18} /> Simpan Perubahan
-              </span>
-            )}
-          </Button>
-        </div>
+        {user?.role !== 'viewer' && (
+          <div className="flex justify-end pt-4">
+            <Button type="submit" disabled={isSaving} className="px-8 h-12 shadow-lg shadow-indigo-600/20">
+              {isSaving ? 'Menyimpan...' : (
+                <span className="flex items-center gap-2">
+                  <Save size={18} /> Simpan Perubahan
+                </span>
+              )}
+            </Button>
+          </div>
+        )}
+        </fieldset>
       </form>
 
       {/* Integrasi Google Drive */}

@@ -47,6 +47,7 @@ export default function Anggaran() {
   const deleteKodeRekening = useStore(s => s.deleteKodeRekening)
   const parseRakPdf = useStore(s => s.parseRakPdf)
   const saveBulkRekening = useStore(s => s.saveBulkRekening)
+  const user = useStore(s => s.user)
 
   const [expanded, setExpanded] = useState({})
   const [expandedRak, setExpandedRak] = useState({})
@@ -352,14 +353,16 @@ export default function Anggaran() {
                 {formatRupiah(hierarchicalData.reduce((s, p) => s + p.totalPagu, 0))}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-start sm:justify-end">
-              <Button variant="secondary" onClick={handleImportPdfClick} disabled={isParsing} className="h-12 border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 shadow-sm transition-all shrink-0">
-                <FileText size={18} /> {isParsing ? 'Membaca PDF...' : 'Import RAK dari PDF'}
-              </Button>
-              <Button onClick={openNewProg} className="h-12 shadow-md shadow-indigo-600/20 shrink-0">
-                <Plus size={18} /> Tambah Program
-              </Button>
-            </div>
+            {user?.role !== 'viewer' && (
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-start sm:justify-end">
+                <Button variant="secondary" onClick={handleImportPdfClick} disabled={isParsing} className="h-12 border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 shadow-sm transition-all shrink-0">
+                  <FileText size={18} /> {isParsing ? 'Membaca PDF...' : 'Import RAK dari PDF'}
+                </Button>
+                <Button onClick={openNewProg} className="h-12 shadow-md shadow-indigo-600/20 shrink-0">
+                  <Plus size={18} /> Tambah Program
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -377,20 +380,24 @@ export default function Anggaran() {
                   <span className="text-[10px] font-bold text-indigo-500/60 uppercase tracking-tighter block leading-none mb-1">{prog.kode}</span>
                   <h2 className="text-sm font-black text-slate-800 uppercase leading-none">{prog.nama}</h2>
                 </div>
-                <button 
-                  onClick={() => openEditProg(prog)} 
-                  className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
-                  title="Edit Program"
-                >
-                  <Pencil size={14} />
-                </button>
-                <button 
-                  onClick={() => openNewKeg(prog.id)} 
-                  className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
-                  title="Tambah Kegiatan"
-                >
-                  <Plus size={14} />
-                </button>
+                {user?.role !== 'viewer' && (
+                  <>
+                    <button 
+                      onClick={() => openEditProg(prog)} 
+                      className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
+                      title="Edit Program"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button 
+                      onClick={() => openNewKeg(prog.id)} 
+                      className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
+                      title="Tambah Kegiatan"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </>
+                )}
               </div>
               <div className="text-right">
                 <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest leading-none mb-1">Pagu Program</p>
@@ -413,20 +420,24 @@ export default function Anggaran() {
                       <div>
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="text-[9px] font-mono text-slate-400 font-bold">{keg.kode}</span>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); openEditKeg(keg) }} 
-                            className="p-1 bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 rounded-md transition-all shadow-sm"
-                            title="Edit Kegiatan"
-                          >
-                            <Pencil size={12} />
-                          </button>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); openNewSk(keg.id) }} 
-                            className="p-1 bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 rounded-md transition-all shadow-sm"
-                            title="Tambah Sub Kegiatan"
-                          >
-                            <Plus size={12} />
-                          </button>
+                          {user?.role !== 'viewer' && (
+                            <>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); openEditKeg(keg) }} 
+                                className="p-1 bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 rounded-md transition-all shadow-sm"
+                                title="Edit Kegiatan"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); openNewSk(keg.id) }} 
+                                className="p-1 bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 rounded-md transition-all shadow-sm"
+                                title="Tambah Sub Kegiatan"
+                              >
+                                <Plus size={12} />
+                              </button>
+                            </>
+                          )}
                         </div>
                         <h3 className="text-xs font-bold text-slate-700 uppercase leading-none">{keg.nama}</h3>
                       </div>
@@ -459,28 +470,32 @@ export default function Anggaran() {
                                   <p className="text-[9px] text-slate-400 uppercase font-black leading-none mb-1">Pagu Sub Kegiatan</p>
                                   <p className="text-xs font-black text-slate-900 leading-none">{formatRupiah(sk.calculatedPagu)}</p>
                                 </div>
-                                <div className="flex items-center gap-1 ml-4" onClick={e => e.stopPropagation()}>
-                                  <button 
-                                    onClick={() => openEditSk(sk)} 
-                                    className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
-                                    title="Edit Sub Kegiatan"
-                                  >
-                                    <Pencil size={14} />
-                                  </button>
-                                  <button 
-                                    onClick={() => setDeleteSkId(sk.id)} 
-                                    className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all shadow-sm"
-                                    title="Hapus Sub Kegiatan"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                </div>
+                                {user?.role !== 'viewer' && (
+                                  <div className="flex items-center gap-1 ml-4" onClick={e => e.stopPropagation()}>
+                                    <button 
+                                      onClick={() => openEditSk(sk)} 
+                                      className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
+                                      title="Edit Sub Kegiatan"
+                                    >
+                                      <Pencil size={14} />
+                                    </button>
+                                    <button 
+                                      onClick={() => setDeleteSkId(sk.id)} 
+                                      className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all shadow-sm"
+                                      title="Hapus Sub Kegiatan"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                               {skExpanded && (
                                 <div className="border-t border-slate-100 bg-slate-50/20 pb-2">
                                   <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 mb-2">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Daftar Rekening Belanja</span>
-                                    <button onClick={() => openNewRek(sk.id)} className="text-[10px] text-indigo-600 font-black flex items-center gap-1 hover:underline"><Plus size={14} /> TAMBAH REKENING</button>
+                                    {user?.role !== 'viewer' && (
+                                      <button onClick={() => openNewRek(sk.id)} className="text-[10px] text-indigo-600 font-black flex items-center gap-1 hover:underline"><Plus size={14} /> TAMBAH REKENING</button>
+                                    )}
                                   </div>
                                   <div className="px-3 overflow-x-auto">
                                     <table className="w-full text-[11px] border-separate border-spacing-0 min-w-[800px]">
@@ -520,21 +535,24 @@ export default function Anggaran() {
                                                   <td className="px-3 py-2.5 text-right font-black text-slate-900 border-t border-slate-100">{formatRupiah(rek.pagu_anggaran)}</td>
                                                   <td className="px-3 py-2.5 text-right font-bold text-red-500 border-t border-slate-100">{formatRupiah(real)}</td>
                                                   <td className="px-3 py-2.5 border-t border-slate-100">
-                                                    <div className="flex items-center justify-end gap-1 transition-all">
-                                                      <button 
-                                                        onClick={() => openEditRek(rek, sk.id)} 
-                                                        className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
-                                                        title="Edit Rekening"
-                                                      >
-                                                        <Pencil size={12} />
-                                                      </button>
-                                                      <button
-                                                        onClick={() => setDeleteRekId(rek.id)}
-                                                        className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all shadow-sm"
-                                                        title="Hapus Rekening"
-                                                      >
-                                                        <Trash2 size={12} />
-                                                      </button>                                                </div>
+                                                    {user?.role !== 'viewer' && (
+                                                      <div className="flex items-center justify-end gap-1 transition-all">
+                                                        <button 
+                                                          onClick={() => openEditRek(rek, sk.id)} 
+                                                          className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
+                                                          title="Edit Rekening"
+                                                        >
+                                                          <Pencil size={12} />
+                                                        </button>
+                                                        <button
+                                                          onClick={() => setDeleteRekId(rek.id)}
+                                                          className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all shadow-sm"
+                                                          title="Hapus Rekening"
+                                                        >
+                                                          <Trash2 size={12} />
+                                                        </button>
+                                                      </div>
+                                                    )}
                                                   </td>
                                                 </tr>
                                                 {isExpanded && (

@@ -16,6 +16,7 @@ export default function Trash() {
   const hardDeleteRecord = useStore(s => s.hardDeleteRecord)
   const periodeKunci = useStore(s => s.periodeKunci)
   const fetchPeriodeKunci = useStore(s => s.fetchPeriodeKunci)
+  const user = useStore(s => s.user)
 
   useEffect(() => {
     fetchDeletedRecords()
@@ -69,7 +70,9 @@ export default function Trash() {
                     <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Keterangan / Uraian</th>
                     <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Jumlah</th>
                     <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Tanggal Dihapus</th>
-                    <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right">Aksi</th>
+                    {user?.role !== 'viewer' && (
+                      <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right">Aksi</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
@@ -98,42 +101,44 @@ export default function Trash() {
                         <td className="px-4 py-3 whitespace-nowrap text-slate-400">
                           {item.deleted_at ? new Date(item.deleted_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-'}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-right">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (isLocked) {
-                                  alert(`Tidak dapat memulihkan transaksi ini karena periode bulan transaksi tersebut sedang dikunci 🔒. Harap buka kunci periode terlebih dahulu di menu Laporan.`)
-                                  return
-                                }
-                                if (confirm(`Apakah Anda yakin ingin memulihkan transaksi ini?`)) {
-                                  const res = await restoreRecord(item.tipe, item.id)
-                                  if (res && !res.success) alert(res.error)
-                                }
-                              }}
-                              className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-indigo-600 hover:text-indigo-800 px-2 py-1 bg-indigo-50 hover:bg-indigo-100/75 rounded-lg transition-colors"
-                            >
-                              <Undo size={12} /> Pulihkan
-                            </button>
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (isLocked) {
-                                  alert(`Tidak dapat menghapus permanen transaksi ini karena periode bulan transaksi tersebut sedang dikunci 🔒. Harap buka kunci periode terlebih dahulu di menu Laporan.`)
-                                  return
-                                }
-                                if (confirm(`PERINGATAN Keras! Anda akan menghapus transaksi ini secara PERMANEN dari database dan tidak dapat dipulihkan lagi. Apakah Anda yakin?`)) {
-                                  const res = await hardDeleteRecord(item.tipe, item.id)
-                                  if (res && !res.success) alert(res.error)
-                                }
-                              }}
-                              className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-rose-600 hover:text-rose-800 px-2 py-1 bg-rose-50 hover:bg-rose-100/75 rounded-lg transition-colors"
-                            >
-                              <Trash2 size={12} /> Hapus Permanen
-                            </button>
-                          </div>
-                        </td>
+                        {user?.role !== 'viewer' && (
+                          <td className="px-4 py-3 whitespace-nowrap text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (isLocked) {
+                                    alert(`Tidak dapat memulihkan transaksi ini karena periode bulan transaksi tersebut sedang dikunci 🔒. Harap buka kunci periode terlebih dahulu di menu Laporan.`)
+                                    return
+                                  }
+                                  if (confirm(`Apakah Anda yakin ingin memulihkan transaksi ini?`)) {
+                                    const res = await restoreRecord(item.tipe, item.id)
+                                    if (res && !res.success) alert(res.error)
+                                  }
+                                }}
+                                className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-indigo-600 hover:text-indigo-800 px-2 py-1 bg-indigo-50 hover:bg-indigo-100/75 rounded-lg transition-colors"
+                              >
+                                <Undo size={12} /> Pulihkan
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (isLocked) {
+                                    alert(`Tidak dapat menghapus permanen transaksi ini karena periode bulan transaksi tersebut sedang dikunci 🔒. Harap buka kunci periode terlebih dahulu di menu Laporan.`)
+                                    return
+                                  }
+                                  if (confirm(`PERINGATAN Keras! Anda akan menghapus transaksi ini secara PERMANEN dari database dan tidak dapat dipulihkan lagi. Apakah Anda yakin?`)) {
+                                    const res = await hardDeleteRecord(item.tipe, item.id)
+                                    if (res && !res.success) alert(res.error)
+                                  }
+                                }}
+                                className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-rose-600 hover:text-rose-800 px-2 py-1 bg-rose-50 hover:bg-rose-100/75 rounded-lg transition-colors"
+                              >
+                                <Trash2 size={12} /> Hapus Permanen
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     )
                   })}

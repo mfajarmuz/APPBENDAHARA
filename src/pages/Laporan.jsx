@@ -125,6 +125,7 @@ export default function Laporan() {
   const fetchPeriodeKunci = useStore(s => s.fetchPeriodeKunci)
   const kunciPeriode = useStore(s => s.kunciPeriode)
   const bukaKunciPeriode = useStore(s => s.bukaKunciPeriode)
+  const user = useStore(s => s.user)
 
   const [tab, setTab] = useState('bku')
   const [filterBulan, setFilterBulan] = useState(new Date().getMonth())
@@ -858,7 +859,7 @@ export default function Laporan() {
             { id: 'rppup', label: 'RPPUP' },
             { id: 'ba_pemeriksaan', label: 'BA Pemeriksaan Kas' },
             { id: 'ba_penutupan', label: 'BA Penutupan Kas' },
-            { id: 'kunci_periode', label: 'Kunci Periode' },
+            ...(user?.role !== 'viewer' ? [{ id: 'kunci_periode', label: 'Kunci Periode' }] : []),
           ].map(t => (
             <button
               key={t.id}
@@ -881,7 +882,7 @@ export default function Laporan() {
               <h3 className="text-sm font-black text-slate-800 tracking-tight">Filter Laporan</h3>
               <p className="text-[11px] text-slate-400 font-medium">Atur periode, tanggal, dan mode laporan.</p>
             </div>
-            {tab === 'bku' && (
+            {tab === 'bku' && user?.role !== 'viewer' && (
               <button
                 onClick={() => {
                   if (isCurrentPeriodLocked) return

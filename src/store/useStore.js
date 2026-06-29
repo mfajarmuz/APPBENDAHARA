@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 import * as api from '../lib/api'
 
+const checkViewer = (get) => {
+  if (get().user?.role === 'viewer') {
+    throw new Error('Akses ditolak: Akun Pemeriksa tidak diizinkan mengubah data.')
+  }
+}
+
 /**
  * [FITUR: MASTER DATA - SUB KEGIATAN & PROGRAM]
  * Mengelola struktur program, kegiatan, dan sub kegiatan termasuk sinkronisasi anggaran.
@@ -22,6 +28,7 @@ const createSubKegiatanSlice = (set, get) => ({
   addProgram: async (payload) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.addProgram(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
@@ -31,6 +38,7 @@ const createSubKegiatanSlice = (set, get) => ({
   updateProgram: async (id, payload) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.updateProgram(id, payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
@@ -40,6 +48,7 @@ const createSubKegiatanSlice = (set, get) => ({
   addKegiatan: async (payload) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.addKegiatan(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
@@ -49,6 +58,7 @@ const createSubKegiatanSlice = (set, get) => ({
   updateKegiatan: async (id, payload) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.updateKegiatan(id, payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
@@ -58,6 +68,7 @@ const createSubKegiatanSlice = (set, get) => ({
   addSubKegiatan: async (payload) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.addSubKegiatan(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
@@ -67,6 +78,7 @@ const createSubKegiatanSlice = (set, get) => ({
   updateSubKegiatan: async (payload) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.updateSubKegiatan(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
@@ -76,6 +88,7 @@ const createSubKegiatanSlice = (set, get) => ({
   deleteSubKegiatan: async (id) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.deleteSubKegiatan(id)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
@@ -92,6 +105,7 @@ const createKodeRekeningSlice = (set, get) => ({
   addKodeRekening: async (payload) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.addKodeRekening(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
@@ -101,6 +115,7 @@ const createKodeRekeningSlice = (set, get) => ({
   updateKodeRekening: async (payload) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.updateKodeRekening(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
@@ -110,6 +125,7 @@ const createKodeRekeningSlice = (set, get) => ({
   deleteKodeRekening: async (id) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.deleteKodeRekening(id)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
@@ -118,12 +134,14 @@ const createKodeRekeningSlice = (set, get) => ({
   },
   parseRakPdf: async (filePath) => {
     try {
+      checkViewer(get)
       return await api.parseRakPdf(filePath)
     } catch (err) { return { success: false, error: err.message } }
   },
   saveBulkRekening: async (payload) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.saveBulkRekening(payload)
       if (res && res.success) await get().fetchSubKegiatan()
       return res
@@ -149,6 +167,7 @@ const createPenerimaanSlice = (set, get) => ({
   addPenerimaan: async (payload) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.addPenerimaan(payload)
       if (res && res.success) await get().fetchPenerimaan()
       return res
@@ -158,6 +177,7 @@ const createPenerimaanSlice = (set, get) => ({
   updatePenerimaan: async (payload) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.updatePenerimaan(payload)
       if (res && res.success) await get().fetchPenerimaan()
       return res
@@ -167,6 +187,7 @@ const createPenerimaanSlice = (set, get) => ({
   deletePenerimaan: async (id) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.deletePenerimaan(id)
       if (res && res.success) await get().fetchPenerimaan()
       return res
@@ -192,6 +213,7 @@ const createPengeluaranSlice = (set, get) => ({
   addPengeluaran: async (payload) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.addPengeluaran(payload)
       if (res && res.success) {
         await get().fetchPengeluaran()
@@ -204,6 +226,7 @@ const createPengeluaranSlice = (set, get) => ({
   updatePengeluaran: async (id, payload) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.updatePengeluaran(id, payload)
       if (res && res.success) {
         await get().fetchPengeluaran()
@@ -216,6 +239,7 @@ const createPengeluaranSlice = (set, get) => ({
   deletePengeluaran: async (id) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.deletePengeluaran(id)
       if (res && res.success) {
         await get().fetchPengeluaran()
@@ -227,6 +251,7 @@ const createPengeluaranSlice = (set, get) => ({
   },
   updateBkuUrutan: async (items) => {
     try {
+      checkViewer(get)
       const res = await api.updateBkuUrutan(items)
       if (res && res.success) {
         await get().fetchPenerimaan()
@@ -259,6 +284,7 @@ const createPeriodeKunciSlice = (set, get) => ({
   kunciPeriode: async (bulan, tahun) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.kunciPeriode({ bulan, tahun })
       if (res && res.success) {
         await get().fetchPeriodeKunci()
@@ -273,6 +299,7 @@ const createPeriodeKunciSlice = (set, get) => ({
   bukaKunciPeriode: async (id) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.bukaKunciPeriode(id)
       if (res && res.success) {
         await get().fetchPeriodeKunci()
@@ -306,6 +333,7 @@ const createSoftDeleteSlice = (set, get) => ({
   restoreRecord: async (tipe, id) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.restoreRecord(tipe, id)
       if (res && res.success) {
         await get().fetchDeletedRecords()
@@ -325,6 +353,7 @@ const createSoftDeleteSlice = (set, get) => ({
   hardDeleteRecord: async (tipe, id) => {
     set({ isLoading: true })
     try {
+      checkViewer(get)
       const res = await api.hardDeleteRecord(tipe, id)
       if (res && res.success) {
         await get().fetchDeletedRecords()
@@ -376,12 +405,14 @@ export const useStore = create((set, get) => ({
   },
   
   updateSettings: (newSettings) => {
+    if (get().user?.role === 'viewer') return
     const updated = { ...get().settings, ...newSettings }
     localStorage.setItem('app_settings', JSON.stringify(updated))
     set({ settings: updated })
   },
 
   resetSettings: () => {
+    if (get().user?.role === 'viewer') return
     const defaults = {
       unit_kerja_kode: '5.02.0.00.0.00.02.0016',
       unit_kerja: 'UPTD PUSAT PENGELOLAAN PENDAPATAN DAERAH WILAYAH KABUPATEN TASIKMALAYA',
@@ -406,6 +437,11 @@ export const useStore = create((set, get) => ({
   login: async (username, password) => {
     if (username === 'p3dwkabtasikmalaya' && password === 'Sukaraj4') {
       const user = { username: 'p3dwkabtasikmalaya', role: 'admin' }
+      localStorage.setItem('user', JSON.stringify(user))
+      set({ user })
+      return true
+    } else if (username === 'pemeriksa' && password === 'Pemeriks4') {
+      const user = { username: 'pemeriksa', role: 'viewer' }
       localStorage.setItem('user', JSON.stringify(user))
       set({ user })
       return true
