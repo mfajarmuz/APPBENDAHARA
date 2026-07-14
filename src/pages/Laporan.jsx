@@ -24,8 +24,8 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
 import Spinner from '@/components/ui/Spinner'
-import { exportBKUPdf, exportBKUSubKegPdf, exportBKUTriwulanPdf, exportBAPemeriksaanKasPdf, exportBukuPembantuPdf, exportRealisasiPdf, exportRekapBulananPdf, exportLPJAdministratifPdf, exportLPJPeriodePdf, exportBukuPembantuPajakPdf, exportBukuSimpananBankPdf, exportRegisterKasPdf, exportRegisterKasPdf2, exportRPPUAPdf, exportRPPUAPdf2, exportRPPUPPdf, exportRPPUPPdf2, exportBAPenutupanKasPdf, terbilang } from '@/lib/export-pdf'
-import { exportBKUExcel, exportRealisasiExcel, exportLPJExcel, exportLPJTemplateExcel } from '@/lib/export-excel'
+import { exportBKUPdf, exportBKUSubKegPdf, exportBKUTriwulanPdf, exportBAPemeriksaanKasPdf, exportBukuPembantuPdf, exportRealisasiPdf, exportRealisasiTriwulanPdf, exportRekapBulananPdf, exportLPJAdministratifPdf, exportLPJPeriodePdf, exportBukuPembantuPajakPdf, exportBukuSimpananBankPdf, exportRegisterKasPdf, exportRegisterKasPdf2, exportRPPUAPdf, exportRPPUAPdf2, exportRPPUPPdf, exportRPPUPPdf2, exportBAPenutupanKasPdf, terbilang } from '@/lib/export-pdf'
+import { exportBKUExcel, exportRealisasiExcel, exportRealisasiTriwulanExcel, exportLPJExcel, exportLPJTemplateExcel } from '@/lib/export-excel'
 import { getBkuRows } from '@/lib/bku'
 import logoJabar from '@/assets/logo-jabar.png'
 
@@ -564,6 +564,109 @@ export default function Laporan() {
     }
   }, [realisasiLpj])
 
+  const realisasiTriwulan = useMemo(() => {
+    return subKegiatan.map(sk => {
+      let skPagu = 0
+      let skT1 = 0
+      let skT2 = 0
+      let skT3 = 0
+      let skT4 = 0
+      let skTotalReal = 0
+
+      const rekenings = (sk.kode_rekening ?? []).map(rek => {
+        const rp = pengeluaran.filter(p => 
+          p.kode_rekening_id === rek.id && 
+          new Date(p.tanggal).getFullYear() === filterTahun &&
+          p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS'
+        )
+
+        const t1 = rp.filter(p => {
+          const m = new Date(p.tanggal).getMonth()
+          return m >= 0 && m <= 2
+        }).reduce((s, p) => s + p.jumlah, 0)
+
+        const t2 = rp.filter(p => {
+          const m = new Date(p.tanggal).getMonth()
+          return m >= 3 && m <= 5
+        }).reduce((s, p) => s + p.jumlah, 0)
+
+        const t3 = rp.filter(p => {
+          const m = new Date(p.tanggal).getMonth()
+          return m >= 6 && m <= 8
+        }).reduce((s, p) => s + p.jumlah, 0)
+
+        const t4 = rp.filter(p => {
+          const m = new Date(p.tanggal).getMonth()
+          return m >= 9 && m <= 11
+        }).reduce((s, p) => s + p.jumlah, 0)
+
+        const totalReal = t1 + t2 + t3 + t4
+        const sisa = (rek.pagu_anggaran ?? 0) - totalReal
+
+        skPagu += (rek.pagu_anggaran ?? 0)
+        skT1 += t1
+        skT2 += t2
+        skT3 += t3
+        skT4 += t4
+        skTotalReal += totalReal
+
+        return {
+          ...rek,
+          t1,
+          t2,
+          t3,
+          t4,
+          totalReal,
+          sisa
+        }
+      })
+
+      const skSisa = skPagu - skTotalReal
+
+      return {
+        ...sk,
+        rekenings,
+        pagu: skPagu,
+        t1: skT1,
+        t2: skT2,
+        t3: skT3,
+        t4: skT4,
+        totalReal: skTotalReal,
+        sisa: skSisa
+      }
+    })
+  }, [subKegiatan, pengeluaran, filterTahun])
+
+  const grandTotalsTriwulan = useMemo(() => {
+    let pagu = 0
+    let t1 = 0
+    let t2 = 0
+    let t3 = 0
+    let t4 = 0
+    let totalReal = 0
+    let sisa = 0
+
+    realisasiTriwulan.forEach(sk => {
+      pagu += sk.pagu || 0
+      t1 += sk.t1 || 0
+      t2 += sk.t2 || 0
+      t3 += sk.t3 || 0
+      t4 += sk.t4 || 0
+      totalReal += sk.totalReal || 0
+      sisa += sk.sisa || 0
+    })
+
+    return {
+      pagu,
+      t1,
+      t2,
+      t3,
+      t4,
+      totalReal,
+      sisa
+    }
+  }, [realisasiTriwulan])
+
   const lpjSummary = useMemo(() => {
     const midDate = new Date(customDates.pertengahan); midDate.setHours(23, 59, 59, 999);
     const endDate = new Date(customDates.akhir); endDate.setHours(23, 59, 59, 999);
@@ -823,6 +926,7 @@ export default function Laporan() {
     else if (tab === 'pajak') await exportBukuPembantuPajakPdf(filteredPajakBku, filterBulan, filterTahun, pajakTotalsBulanLalu, customDate)
     else if (tab === 'pembantu_rek') exportBukuPembantuPdf(pembantuGroups)
     else if (tab === 'lra') exportRealisasiPdf(subKegiatan, realisasiPerRek, filterTahun)
+    else if (tab === 'triwulan') exportRealisasiTriwulanPdf(realisasiTriwulan, grandTotalsTriwulan, filterTahun)
     else if (tab === 'register_kas') exportRegisterKasPdf(registerKasData, cashUnits, filterBulan, filterTahun, customDate)
     else if (tab === 'rppua') exportRPPUAPdf(rekapBulanan, filterBulan, filterTahun, customDate)
     else if (tab === 'rppup') exportRPPUPPdf(rekapPajakBulanan, filterBulan, filterTahun, customDate)
@@ -838,7 +942,10 @@ export default function Laporan() {
       const settings = useStore.getState().settings
       exportLPJTemplateExcel(filterBulan, filterTahun, subKegiatan, pengeluaran, penerimaan, customDate, settings)
     }
-    else alert('Export Excel hanya tersedia untuk BKU dan LRA')
+    else if (tab === 'triwulan') {
+      exportRealisasiTriwulanExcel(realisasiTriwulan, grandTotalsTriwulan)
+    }
+    else alert('Export Excel hanya tersedia untuk BKU, LRA, dan Realisasi Triwulan')
   }
 
   if (isLoading && subKegiatan.length === 0) return <div className="flex justify-center py-16"><Spinner /></div>
@@ -854,6 +961,7 @@ export default function Laporan() {
             { id: 'pajak', label: 'Buku Pembantu Pajak' },
             { id: 'pembantu_rek', label: 'Buku Pembantu Rekening' },
             { id: 'lra', label: 'Realisasi / SPJ' },
+            { id: 'triwulan', label: 'Realisasi Triwulan' },
             { id: 'register_kas', label: 'Register Kas' },
             { id: 'rppua', label: 'RPPUA' },
             { id: 'rppup', label: 'RPPUP' },
@@ -903,7 +1011,7 @@ export default function Laporan() {
             )}
           </div>
 
-          {(tab === 'bku' || tab === 'bank' || tab === 'lra' || tab === 'pajak' || tab === 'pembantu_rek' || tab === 'register_kas' || tab === 'rppua' || tab === 'rppup' || tab === 'ba_pemeriksaan' || tab === 'ba_penutupan') && (
+          {(tab === 'bku' || tab === 'bank' || tab === 'lra' || tab === 'triwulan' || tab === 'pajak' || tab === 'pembantu_rek' || tab === 'register_kas' || tab === 'rppua' || tab === 'rppup' || tab === 'ba_pemeriksaan' || tab === 'ba_penutupan') && (
             <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1.1fr_1fr] gap-3">
               <label className="block rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
                 <span className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">
@@ -1069,7 +1177,7 @@ export default function Laporan() {
             </Button>
             {tab !== 'lra' && (
               <Button onClick={handleExportPdf} className="h-11 w-full rounded-2xl justify-start px-4 text-xs font-bold shadow-lg shadow-indigo-600/10 group">
-                <Download size={14} className="group-hover:translate-y-0.5 transition-transform" /> Export PDF Bulanan
+                <Download size={14} className="group-hover:translate-y-0.5 transition-transform" /> {tab === 'triwulan' ? 'Export PDF Triwulan' : 'Export PDF Bulanan'}
               </Button>
             )}
           </div>
@@ -1664,6 +1772,86 @@ export default function Laporan() {
                 <tr className="bg-indigo-100/60 font-black border-t border-slate-300">
                   <td colSpan={3 + (showFullLs ? 3 : 1) + (showFullGu ? 3 : 1)} className="px-6 py-3.5 text-right text-xs font-black text-indigo-950 border-r border-slate-200">SALDO KAS</td>
                   <td className="px-6 py-3.5 text-right text-xs font-black text-indigo-900">{formatLRAValue(lpjSummary.saldoKasRiil)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {tab === 'triwulan' && (
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full text-left border-collapse min-w-[1200px]">
+              <thead className="bg-slate-50/80 border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest align-middle border-r border-slate-200">Kode / Uraian</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-36 text-right align-middle border-r border-slate-200">Pagu (Rp)</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-36 text-right align-middle border-r border-slate-200">Triwulan I (Rp)</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-36 text-right align-middle border-r border-slate-200">Triwulan II (Rp)</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-36 text-right align-middle border-r border-slate-200">Triwulan III (Rp)</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-36 text-right align-middle border-r border-slate-200">Triwulan IV (Rp)</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-36 text-right align-middle border-r border-slate-200">Total Realisasi (Rp)</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-36 text-right align-middle">Sisa Anggaran (Rp)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {realisasiTriwulan.map(sk => {
+                  const isCollapsed = !!collapsedSk[sk.id]
+                  return (
+                    <React.Fragment key={sk.id}>
+                      <tr 
+                        className="bg-slate-50/40 cursor-pointer hover:bg-slate-100/60 transition-colors select-none"
+                        onClick={() => toggleSk(sk.id)}
+                      >
+                        <td className="px-6 py-3 font-black text-slate-900 border-r border-slate-200">
+                          <div className="flex items-center gap-3">
+                            {isCollapsed ? (
+                              <ChevronRight size={16} className="text-slate-400 shrink-0" />
+                            ) : (
+                              <ChevronDown size={16} className="text-slate-400 shrink-0" />
+                            )}
+                            <div>
+                              <p className="text-[10px] text-indigo-600 mb-0.5">{sk.kode}</p>
+                              <p className="text-xs">{sk.nama}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-3 text-right text-xs font-bold text-slate-800 border-r border-slate-200">{formatLRAValue(sk.pagu)}</td>
+                        <td className="px-6 py-3 text-right text-xs font-bold text-slate-700 border-r border-slate-200">{formatLRAValue(sk.t1)}</td>
+                        <td className="px-6 py-3 text-right text-xs font-bold text-slate-700 border-r border-slate-200">{formatLRAValue(sk.t2)}</td>
+                        <td className="px-6 py-3 text-right text-xs font-bold text-slate-700 border-r border-slate-200">{formatLRAValue(sk.t3)}</td>
+                        <td className="px-6 py-3 text-right text-xs font-bold text-slate-700 border-r border-slate-200">{formatLRAValue(sk.t4)}</td>
+                        <td className="px-6 py-3 text-right text-xs font-extrabold text-indigo-700 border-r border-slate-200">{formatLRAValue(sk.totalReal)}</td>
+                        <td className="px-6 py-3 text-right text-xs font-extrabold text-emerald-600">{formatLRAValue(sk.sisa)}</td>
+                      </tr>
+                      {!isCollapsed && (sk.rekenings ?? []).map(rek => (
+                        <tr key={rek.id} className="hover:bg-slate-50 transition-colors group border-b border-slate-100">
+                          <td className="pl-12 pr-6 py-3 border-r border-slate-200">
+                            <p className="text-[10px] font-mono text-slate-400 group-hover:text-indigo-500 transition-colors">{rek.kode}</p>
+                            <p className="text-xs text-slate-600 font-medium">{rek.uraian}</p>
+                          </td>
+                          <td className="px-6 py-3 text-right text-xs text-slate-500 font-medium border-r border-slate-200">{formatLRAValue(rek.pagu_anggaran)}</td>
+                          <td className="px-6 py-3 text-right text-xs text-slate-600 font-semibold border-r border-slate-200">{formatLRAValue(rek.t1)}</td>
+                          <td className="px-6 py-3 text-right text-xs text-slate-600 font-semibold border-r border-slate-200">{formatLRAValue(rek.t2)}</td>
+                          <td className="px-6 py-3 text-right text-xs text-slate-600 font-semibold border-r border-slate-200">{formatLRAValue(rek.t3)}</td>
+                          <td className="px-6 py-3 text-right text-xs text-slate-600 font-semibold border-r border-slate-200">{formatLRAValue(rek.t4)}</td>
+                          <td className="px-6 py-3 text-right text-xs text-indigo-600/90 font-bold border-r border-slate-200">{formatLRAValue(rek.totalReal)}</td>
+                          <td className="px-6 py-3 text-right text-xs text-emerald-600 font-bold">{formatLRAValue(rek.sisa)}</td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  )
+                })}
+
+                {/* Grand Total Row */}
+                <tr className="bg-indigo-50/50 border-t-2 border-indigo-200 font-black">
+                  <td className="px-6 py-4 text-xs text-indigo-900 border-r border-slate-200">TOTAL</td>
+                  <td className="px-6 py-4 text-right text-xs text-indigo-900 border-r border-slate-200">{formatLRAValue(grandTotalsTriwulan.pagu)}</td>
+                  <td className="px-6 py-4 text-right text-xs text-indigo-900 border-r border-slate-200">{formatLRAValue(grandTotalsTriwulan.t1)}</td>
+                  <td className="px-6 py-4 text-right text-xs text-indigo-900 border-r border-slate-200">{formatLRAValue(grandTotalsTriwulan.t2)}</td>
+                  <td className="px-6 py-4 text-right text-xs text-indigo-900 border-r border-slate-200">{formatLRAValue(grandTotalsTriwulan.t3)}</td>
+                  <td className="px-6 py-4 text-right text-xs text-indigo-900 border-r border-slate-200">{formatLRAValue(grandTotalsTriwulan.t4)}</td>
+                  <td className="px-6 py-4 text-right text-xs text-indigo-950 border-r border-slate-200">{formatLRAValue(grandTotalsTriwulan.totalReal)}</td>
+                  <td className="px-6 py-4 text-right text-xs text-emerald-700">{formatLRAValue(grandTotalsTriwulan.sisa)}</td>
                 </tr>
               </tbody>
             </table>

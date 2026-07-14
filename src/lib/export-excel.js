@@ -408,4 +408,53 @@ export function exportLPJExcel(monthIndex, year, allSubKegiatan, pengeluaran, pe
 
 export { exportLPJTemplateExcel } from './exportLPJTemplateExcel'
 
+export function exportRealisasiTriwulanExcel(realisasiTriwulan, grandTotalsTriwulan) {
+  const data = []
+  realisasiTriwulan.forEach(sk => {
+    data.push({
+      'Kode': sk.kode,
+      'Uraian / Nama Kegiatan': sk.nama,
+      'Pagu (Rp)': sk.pagu,
+      'Triwulan I (Rp)': sk.t1,
+      'Triwulan II (Rp)': sk.t2,
+      'Triwulan III (Rp)': sk.t3,
+      'Triwulan IV (Rp)': sk.t4,
+      'Total Realisasi (Rp)': sk.totalReal,
+      'Sisa Anggaran (Rp)': sk.sisa,
+    })
+    ;(sk.rekenings ?? []).forEach(rek => {
+      data.push({
+        'Kode': `  ${rek.kode}`,
+        'Uraian / Nama Kegiatan': `  ${rek.uraian}`,
+        'Pagu (Rp)': rek.pagu_anggaran,
+        'Triwulan I (Rp)': rek.t1,
+        'Triwulan II (Rp)': rek.t2,
+        'Triwulan III (Rp)': rek.t3,
+        'Triwulan IV (Rp)': rek.t4,
+        'Total Realisasi (Rp)': rek.totalReal,
+        'Sisa Anggaran (Rp)': rek.sisa,
+      })
+    })
+  })
+
+  // Tambahkan TOTAL keseluruhan
+  data.push({
+    'Kode': 'TOTAL',
+    'Uraian / Nama Kegiatan': '',
+    'Pagu (Rp)': grandTotalsTriwulan.pagu,
+    'Triwulan I (Rp)': grandTotalsTriwulan.t1,
+    'Triwulan II (Rp)': grandTotalsTriwulan.t2,
+    'Triwulan III (Rp)': grandTotalsTriwulan.t3,
+    'Triwulan IV (Rp)': grandTotalsTriwulan.t4,
+    'Total Realisasi (Rp)': grandTotalsTriwulan.totalReal,
+    'Sisa Anggaran (Rp)': grandTotalsTriwulan.sisa,
+  })
+
+  const ws = XLSX.utils.json_to_sheet(data)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Realisasi Triwulan')
+  download(wb, 'Laporan_Realisasi_Anggaran_Triwulan.xlsx')
+}
+
+
 

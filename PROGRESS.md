@@ -4,6 +4,8 @@
 The project is in the refinement phase. Core features (Dashboard, Anggaran, Penerimaan, Pengeluaran) are implemented. Recent focus has been on fixing bugs in expenditure rincian and report accuracy.
 
 ## Recent Achievements
+- [x] **New Feature**: Implementasi Laporan Realisasi Triwulan pada halaman Laporan, menyajikan data penyerapan anggaran per sub kegiatan & kode rekening per triwulan sepanjang tahun anggaran berjalan.
+- [x] **New Feature**: Penambahan fungsi ekspor PDF Landscape (`exportRealisasiTriwulanPdf`) dan Excel spreadsheet (`exportRealisasiTriwulanExcel`) untuk laporan triwulan.
 - [x] **Bug Fix**: Memperbaiki kegagalan fungsionalitas tombol **Export PDF** pada tab **Berita Acara Pemeriksaan Kas** (BA Kas) dengan menerapkan pengamanan parsing tanggal (`customDate`) untuk mencegah RangeError serta standardisasi konversi numerik `saldoBuku`.
 - [x] **Testing & Verification**: Menambahkan 5 kasus pengujian baru di `src/test/export-pdf.test.js` untuk memverifikasi fungsionalitas ekspor PDF BA Kas pada mode browser (Web Mode) dan mode desktop (Electron) dengan berbagai variasi input tanggal (valid, kosong, tidak valid) — seluruh 44 unit test Vitest kini 100% lulus.
 - [x] **Environment Sync**: Sinkronisasi variabel lingkungan Supabase berprefiks `VITE_` (`VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY`) di file `.env` dan `.env.example` untuk menjamin koneksi database berjalan mulus pada mode browser Web tanpa warning.
