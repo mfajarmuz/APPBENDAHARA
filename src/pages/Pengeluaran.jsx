@@ -246,6 +246,7 @@ export default function Pengeluaran() {
     if (!selectedRek || !form.tanggal) return null
     const dateParts = form.tanggal.split('-')
     if (dateParts.length < 2) return null
+    const year = parseInt(dateParts[0], 10)
     const month = parseInt(dateParts[1], 10) - 1 // 0-indexed month
     
     const rakMonths = [
@@ -268,7 +269,22 @@ export default function Pengeluaran() {
       accumulatedRAK += rakMonths[m]
     }
 
-    const realisasiRekPrev = realisasiPerRek[form.kode_rekening_id] ?? 0
+    // Realisasi pengeluaran untuk Kode Rekening ini SAMPAI DENGAN bulan transaksi pada tahun yang sama (selain item yang sedang diedit)
+    const realisasiRekPrev = pengeluaran
+      .filter(p => {
+        if (p.kode_rekening_id !== form.kode_rekening_id) return false
+        if (p.id === editingItem?.id) return false
+        if (p.jenis === 'Pajak' || p.jenis === 'Pajak LS') return false
+        if (!p.tanggal) return false
+        const parts = p.tanggal.split('-')
+        if (parts.length < 2) return false
+        const pYear = parseInt(parts[0], 10)
+        const pMonth = parseInt(parts[1], 10) - 1
+        if (pYear !== year) return false
+        return pMonth <= month
+      })
+      .reduce((sum, p) => sum + (p.jumlah || 0), 0)
+
     const sisaRAK = accumulatedRAK - realisasiRekPrev
 
     return {
@@ -278,7 +294,7 @@ export default function Pengeluaran() {
       realisasiSebelumnya: realisasiRekPrev,
       sisaRAK: sisaRAK
     }
-  }, [selectedRek, form.tanggal, realisasiPerRek, form.kode_rekening_id])
+  }, [selectedRek, form.tanggal, form.kode_rekening_id, pengeluaran, editingItem])
 
   const totalRincian = rincian.reduce((sum, r) => {
     const val = typeof r.jumlah === 'string' ? r.jumlah.replace(/\./g, '') : r.jumlah

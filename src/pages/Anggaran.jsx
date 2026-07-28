@@ -51,6 +51,7 @@ export default function Anggaran() {
 
   const [expanded, setExpanded] = useState({})
   const [expandedRak, setExpandedRak] = useState({})
+  const [inlineRak, setInlineRak] = useState({})
   const [saving, setSaving] = useState(false)
   const [isParsing, setIsParsing] = useState(false)
   const [parsedPdfData, setParsedPdfData] = useState(null)
@@ -128,7 +129,122 @@ export default function Anggaran() {
   const diffVal = paguVal - sumRAK;
 
   const toggleExpand = (id) => setExpanded(e => ({ ...e, [id]: !e[id] }))
-  const toggleExpandRak = (id) => setExpandedRak(e => ({ ...e, [id]: !e[id] }))
+  const toggleExpandRak = (rek) => {
+    setExpandedRak(e => {
+      const isOpening = !e[rek.id]
+      if (isOpening && !inlineRak[rek.id]) {
+        setInlineRak(prev => ({
+          ...prev,
+          [rek.id]: {
+            rak_jan: String(rek.rak_jan || 0),
+            rak_feb: String(rek.rak_feb || 0),
+            rak_mar: String(rek.rak_mar || 0),
+            rak_apr: String(rek.rak_apr || 0),
+            rak_mei: String(rek.rak_mei || 0),
+            rak_jun: String(rek.rak_jun || 0),
+            rak_jul: String(rek.rak_jul || 0),
+            rak_agu: String(rek.rak_agu || 0),
+            rak_sep: String(rek.rak_sep || 0),
+            rak_okt: String(rek.rak_okt || 0),
+            rak_nov: String(rek.rak_nov || 0),
+            rak_des: String(rek.rak_des || 0)
+          }
+        }))
+      }
+      return { ...e, [rek.id]: isOpening }
+    })
+  }
+
+  const handleInlineRakChange = (rekId, key, value) => {
+    setInlineRak(prev => ({
+      ...prev,
+      [rekId]: {
+        ...(prev[rekId] || {}),
+        [key]: value
+      }
+    }))
+  }
+
+  const calculateInlineRakSum = (rekId) => {
+    const data = inlineRak[rekId] || {}
+    return (
+      (parseInt(data.rak_jan || 0, 10)) + (parseInt(data.rak_feb || 0, 10)) + (parseInt(data.rak_mar || 0, 10)) +
+      (parseInt(data.rak_apr || 0, 10)) + (parseInt(data.rak_mei || 0, 10)) + (parseInt(data.rak_jun || 0, 10)) +
+      (parseInt(data.rak_jul || 0, 10)) + (parseInt(data.rak_agu || 0, 10)) + (parseInt(data.rak_sep || 0, 10)) +
+      (parseInt(data.rak_okt || 0, 10)) + (parseInt(data.rak_nov || 0, 10)) + (parseInt(data.rak_des || 0, 10))
+    )
+  }
+
+  const autoSplitInlineRak = (rek) => {
+    const pagu = rek.pagu_anggaran || 0
+    if (pagu <= 0) return
+    const base = Math.floor(pagu / 12)
+    const rem = pagu % 12
+    setInlineRak(prev => ({
+      ...prev,
+      [rek.id]: {
+        rak_jan: String(base),
+        rak_feb: String(base),
+        rak_mar: String(base),
+        rak_apr: String(base),
+        rak_mei: String(base),
+        rak_jun: String(base),
+        rak_jul: String(base),
+        rak_agu: String(base),
+        rak_sep: String(base),
+        rak_okt: String(base),
+        rak_nov: String(base),
+        rak_des: String(base + rem)
+      }
+    }))
+  }
+
+  async function handleSaveInlineRak(rek, skId) {
+    const data = inlineRak[rek.id] || {}
+    const payload = {
+      id: rek.id,
+      kode: rek.kode,
+      uraian: rek.uraian,
+      pagu_anggaran: rek.pagu_anggaran,
+      sub_kegiatan_id: skId,
+      rak_jan: parseInt(data.rak_jan || 0, 10),
+      rak_feb: parseInt(data.rak_feb || 0, 10),
+      rak_mar: parseInt(data.rak_mar || 0, 10),
+      rak_apr: parseInt(data.rak_apr || 0, 10),
+      rak_mei: parseInt(data.rak_mei || 0, 10),
+      rak_jun: parseInt(data.rak_jun || 0, 10),
+      rak_jul: parseInt(data.rak_jul || 0, 10),
+      rak_agu: parseInt(data.rak_agu || 0, 10),
+      rak_sep: parseInt(data.rak_sep || 0, 10),
+      rak_okt: parseInt(data.rak_okt || 0, 10),
+      rak_nov: parseInt(data.rak_nov || 0, 10),
+      rak_des: parseInt(data.rak_des || 0, 10)
+    }
+
+    const sumRAK =
+      payload.rak_jan + payload.rak_feb + payload.rak_mar +
+      payload.rak_apr + payload.rak_mei + payload.rak_jun +
+      payload.rak_jul + payload.rak_agu + payload.rak_sep +
+      payload.rak_okt + payload.rak_nov + payload.rak_des
+
+    if (sumRAK !== payload.pagu_anggaran) {
+      alert(`Gagal menyimpan RAK! Total alokasi RAK Belanja (Rp ${sumRAK.toLocaleString('id-ID')}) harus sama dengan Pagu Anggaran (Rp ${payload.pagu_anggaran.toLocaleString('id-ID')}).\nSelisih: Rp ${(payload.pagu_anggaran - sumRAK).toLocaleString('id-ID')}`)
+      return
+    }
+
+    setSaving(true)
+    try {
+      const res = await updateKodeRekening(payload)
+      if (res && !res.success) {
+        throw new Error(res.error || 'Gagal menyimpan RAK Belanja')
+      }
+      alert('Berhasil menyimpan Distribusi Anggaran Kas Bulanan (RAK Belanja)!')
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   // Sub Kegiatan
   function openNewSk(kegId) {
@@ -520,13 +636,13 @@ export default function Anggaran() {
                                                     <div className="flex items-center gap-2">
                                                       <span>{rek.uraian}</span>
                                                       <button 
-                                                        onClick={() => toggleExpandRak(rek.id)} 
+                                                        onClick={() => toggleExpandRak(rek)} 
                                                         className={`px-2 py-0.5 rounded transition-all text-[8px] font-black uppercase tracking-widest border ${
                                                           isExpanded 
                                                             ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-100' 
                                                             : 'bg-white border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-100 hover:bg-indigo-50/50'
                                                         }`}
-                                                        title="Tampilkan Detail RAK Bulanan"
+                                                        title="Edit Distribusi RAK Bulanan"
                                                       >
                                                         {isExpanded ? 'TUTUP RAK' : 'RAK BELANJA'}
                                                       </button>
@@ -558,30 +674,103 @@ export default function Anggaran() {
                                                 {isExpanded && (
                                                   <tr className="bg-slate-50/30">
                                                     <td colSpan={5} className="px-4 py-3 border-t border-slate-100 bg-slate-50/30">
-                                                      <div className="grid grid-cols-4 md:grid-cols-12 gap-2 text-[10px] bg-white p-4 rounded-2xl border border-slate-100 shadow-inner">
-                                                        <div className="col-span-4 md:col-span-12 border-b border-slate-100 pb-2 mb-1 flex items-center justify-between">
-                                                          <span className="font-black text-indigo-600 uppercase tracking-widest text-[9px]">Distribusi Anggaran Kas Bulanan (RAK Belanja)</span>
-                                                          <span className="font-black text-slate-500">
-                                                            Total Alokasi RAK: {formatRupiah(
-                                                              (rek.rak_jan || 0) + (rek.rak_feb || 0) + (rek.rak_mar || 0) +
-                                                              (rek.rak_apr || 0) + (rek.rak_mei || 0) + (rek.rak_jun || 0) +
-                                                              (rek.rak_jul || 0) + (rek.rak_agu || 0) + (rek.rak_sep || 0) +
-                                                              (rek.rak_okt || 0) + (rek.rak_nov || 0) + (rek.rak_des || 0)
-                                                            )}
-                                                          </span>
+                                                      <div className="bg-white p-4 rounded-2xl border border-indigo-100 shadow-sm space-y-4">
+                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                                                          <div className="flex items-center gap-2">
+                                                            <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
+                                                            <span className="font-black text-indigo-600 uppercase tracking-widest text-[10px]">
+                                                              Distribusi Anggaran Kas Bulanan (RAK Belanja)
+                                                            </span>
+                                                          </div>
+                                                          {user?.role !== 'viewer' && (
+                                                            <div className="flex items-center gap-2">
+                                                              <Button
+                                                                type="button"
+                                                                variant="secondary"
+                                                                size="xs"
+                                                                onClick={() => autoSplitInlineRak(rek)}
+                                                                className="text-[9px] font-bold"
+                                                                title="Bagi rata Pagu Anggaran ke 12 bulan"
+                                                              >
+                                                                ⚡ Bagi Rata 12 Bulan
+                                                              </Button>
+                                                              <Button
+                                                                type="button"
+                                                                variant="primary"
+                                                                size="xs"
+                                                                disabled={saving}
+                                                                onClick={() => handleSaveInlineRak(rek, sk.id)}
+                                                                className="text-[9px] font-black bg-indigo-600 hover:bg-indigo-700"
+                                                              >
+                                                                {saving ? 'Menyimpan...' : 'Simpan RAK'}
+                                                              </Button>
+                                                            </div>
+                                                          )}
                                                         </div>
-                                                        <div className="flex flex-col p-1.5 bg-slate-50 rounded border border-slate-100 text-center"><span className="text-slate-400 font-bold text-[8px] uppercase">Jan</span><span className="font-extrabold text-slate-700">{formatRupiah(rek.rak_jan || 0)}</span></div>
-                                                        <div className="flex flex-col p-1.5 bg-slate-50 rounded border border-slate-100 text-center"><span className="text-slate-400 font-bold text-[8px] uppercase">Feb</span><span className="font-extrabold text-slate-700">{formatRupiah(rek.rak_feb || 0)}</span></div>
-                                                        <div className="flex flex-col p-1.5 bg-slate-50 rounded border border-slate-100 text-center"><span className="text-slate-400 font-bold text-[8px] uppercase">Mar</span><span className="font-extrabold text-slate-700">{formatRupiah(rek.rak_mar || 0)}</span></div>
-                                                        <div className="flex flex-col p-1.5 bg-slate-50 rounded border border-slate-100 text-center"><span className="text-slate-400 font-bold text-[8px] uppercase">Apr</span><span className="font-extrabold text-slate-700">{formatRupiah(rek.rak_apr || 0)}</span></div>
-                                                        <div className="flex flex-col p-1.5 bg-slate-50 rounded border border-slate-100 text-center"><span className="text-slate-400 font-bold text-[8px] uppercase">Mei</span><span className="font-extrabold text-slate-700">{formatRupiah(rek.rak_mei || 0)}</span></div>
-                                                        <div className="flex flex-col p-1.5 bg-slate-50 rounded border border-slate-100 text-center"><span className="text-slate-400 font-bold text-[8px] uppercase">Jun</span><span className="font-extrabold text-slate-700">{formatRupiah(rek.rak_jun || 0)}</span></div>
-                                                        <div className="flex flex-col p-1.5 bg-slate-50 rounded border border-slate-100 text-center"><span className="text-slate-400 font-bold text-[8px] uppercase">Jul</span><span className="font-extrabold text-slate-700">{formatRupiah(rek.rak_jul || 0)}</span></div>
-                                                        <div className="flex flex-col p-1.5 bg-slate-50 rounded border border-slate-100 text-center"><span className="text-slate-400 font-bold text-[8px] uppercase">Agu</span><span className="font-extrabold text-slate-700">{formatRupiah(rek.rak_agu || 0)}</span></div>
-                                                        <div className="flex flex-col p-1.5 bg-slate-50 rounded border border-slate-100 text-center"><span className="text-slate-400 font-bold text-[8px] uppercase">Sep</span><span className="font-extrabold text-slate-700">{formatRupiah(rek.rak_sep || 0)}</span></div>
-                                                        <div className="flex flex-col p-1.5 bg-slate-50 rounded border border-slate-100 text-center"><span className="text-slate-400 font-bold text-[8px] uppercase">Okt</span><span className="font-extrabold text-slate-700">{formatRupiah(rek.rak_okt || 0)}</span></div>
-                                                        <div className="flex flex-col p-1.5 bg-slate-50 rounded border border-slate-100 text-center"><span className="text-slate-400 font-bold text-[8px] uppercase">Nov</span><span className="font-extrabold text-slate-700">{formatRupiah(rek.rak_nov || 0)}</span></div>
-                                                        <div className="flex flex-col p-1.5 bg-slate-50 rounded border border-slate-100 text-center"><span className="text-slate-400 font-bold text-[8px] uppercase">Des</span><span className="font-extrabold text-slate-700">{formatRupiah(rek.rak_des || 0)}</span></div>
+
+                                                        <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-[10px]">
+                                                          <div className="flex items-center gap-4">
+                                                            <div>
+                                                              <span className="text-slate-400 font-bold uppercase block text-[8px]">Pagu Rekening</span>
+                                                              <span className="font-black text-slate-800">{formatRupiah(rek.pagu_anggaran)}</span>
+                                                            </div>
+                                                            <div className="border-l border-slate-200 pl-4">
+                                                              <span className="text-slate-400 font-bold uppercase block text-[8px]">Total RAK 12 Bulan</span>
+                                                              <span className="font-black text-indigo-600">{formatRupiah(calculateInlineRakSum(rek.id))}</span>
+                                                            </div>
+                                                          </div>
+                                                          <div>
+                                                            {(() => {
+                                                              const currentSum = calculateInlineRakSum(rek.id)
+                                                              const diff = rek.pagu_anggaran - currentSum
+                                                              if (diff === 0) {
+                                                                return <Badge variant="success" className="text-[9px] font-black px-2 py-0.5">✓ 100% Balans</Badge>
+                                                              } else if (diff > 0) {
+                                                                return <Badge variant="warning" className="text-[9px] font-black px-2 py-0.5">⚠ Sisa: {formatRupiah(diff)}</Badge>
+                                                              } else {
+                                                                return <Badge variant="danger" className="text-[9px] font-black px-2 py-0.5">❌ Over Pagu: +{formatRupiah(-diff)}</Badge>
+                                                              }
+                                                            })()}
+                                                          </div>
+                                                        </div>
+
+                                                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                                                          {[
+                                                            { key: 'rak_jan', label: 'Jan' },
+                                                            { key: 'rak_feb', label: 'Feb' },
+                                                            { key: 'rak_mar', label: 'Mar' },
+                                                            { key: 'rak_apr', label: 'Apr' },
+                                                            { key: 'rak_mei', label: 'Mei' },
+                                                            { key: 'rak_jun', label: 'Jun' },
+                                                            { key: 'rak_jul', label: 'Jul' },
+                                                            { key: 'rak_agu', label: 'Agu' },
+                                                            { key: 'rak_sep', label: 'Sep' },
+                                                            { key: 'rak_okt', label: 'Okt' },
+                                                            { key: 'rak_nov', label: 'Nov' },
+                                                            { key: 'rak_des', label: 'Des' },
+                                                          ].map(m => (
+                                                            <div key={m.key} className="space-y-1 bg-slate-50/70 p-2 rounded-xl border border-slate-100">
+                                                              <label className="text-[8px] font-black text-slate-400 uppercase block">{m.label}</label>
+                                                              {user?.role !== 'viewer' ? (
+                                                                <input
+                                                                  type="number"
+                                                                  min="0"
+                                                                  value={inlineRak[rek.id]?.[m.key] ?? ''}
+                                                                  onChange={e => handleInlineRakChange(rek.id, m.key, e.target.value)}
+                                                                  className="w-full text-[11px] font-mono font-bold px-2 py-1 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                                                                  placeholder="0"
+                                                                />
+                                                              ) : (
+                                                                <div className="font-extrabold text-slate-700 text-[10px] font-mono py-1">
+                                                                  {formatRupiah(rek[m.key] || 0)}
+                                                                </div>
+                                                              )}
+                                                              <span className="text-[8px] font-mono text-slate-400 block truncate">
+                                                                {formatRupiah(parseInt(inlineRak[rek.id]?.[m.key] || 0, 10))}
+                                                              </span>
+                                                            </div>
+                                                          ))}
+                                                        </div>
                                                       </div>
                                                     </td>
                                                   </tr>
@@ -650,12 +839,60 @@ export default function Anggaran() {
       </Modal>
 
       <Modal open={rekModal} onClose={() => setRekModal(false)} title={editingRekId ? 'Edit Rekening' : 'Tambah Rekening'}>
-        <form onSubmit={handleRekSubmit} className="space-y-4">
+        <form onSubmit={handleRekSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Kode Rekening" value={rekForm.kode} onChange={e => setRekForm({...rekForm, kode: e.target.value})} placeholder="5.1.02..." required />
             <Input label="Pagu Anggaran" type="number" value={rekForm.pagu_anggaran} onChange={e => setRekForm({...rekForm, pagu_anggaran: e.target.value})} required />
           </div>
           <Textarea label="Uraian Belanja" value={rekForm.uraian} onChange={e => setRekForm({...rekForm, uraian: e.target.value})} required rows={2} />
+
+          {/* RAK Belanja Section in Modal */}
+          <div className="border-t border-slate-100 pt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">Alokasi RAK Belanja (12 Bulan)</span>
+              <Button type="button" variant="secondary" size="xs" onClick={autoSplit12} className="text-[10px] font-bold">
+                ⚡ Bagi Rata 12 Bulan
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+              {[
+                { key: 'rak_jan', label: 'Jan' },
+                { key: 'rak_feb', label: 'Feb' },
+                { key: 'rak_mar', label: 'Mar' },
+                { key: 'rak_apr', label: 'Apr' },
+                { key: 'rak_mei', label: 'Mei' },
+                { key: 'rak_jun', label: 'Jun' },
+                { key: 'rak_jul', label: 'Jul' },
+                { key: 'rak_agu', label: 'Agu' },
+                { key: 'rak_sep', label: 'Sep' },
+                { key: 'rak_okt', label: 'Okt' },
+                { key: 'rak_nov', label: 'Nov' },
+                { key: 'rak_des', label: 'Des' },
+              ].map(m => (
+                <div key={m.key} className="space-y-0.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase">{m.label}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={rekForm[m.key]}
+                    onChange={e => setRekForm({ ...rekForm, [m.key]: e.target.value })}
+                    className="w-full text-[11px] font-mono font-bold px-2 py-1 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="0"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
+              <span>Total RAK: <strong className="text-indigo-600 font-mono">{formatRupiah(sumRAK)}</strong></span>
+              <span>Pagu: <strong className="text-slate-800 font-mono">{formatRupiah(paguVal)}</strong></span>
+              <span className={diffVal === 0 ? 'text-emerald-600 font-black' : 'text-red-600 font-black'}>
+                {diffVal === 0 ? '✓ Balans' : `Selisih: ${formatRupiah(diffVal)}`}
+              </span>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <Button variant="secondary" onClick={() => setRekModal(false)} type="button">Batal</Button>
             <Button type="submit" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan'}</Button>

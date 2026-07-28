@@ -126,4 +126,28 @@ describe('Sistem Rencana Anggaran Kas (RAK) Belanja Bulanan', () => {
     const sum = alokasi.reduce((a, b) => a + b, 0)
     expect(sum).toBe(paguTotal)
   })
+
+  it('harus hanya mengabaikan transaksi di bulan-bulan mendatang saat menghitung realisasi akumulatif', () => {
+    const listPengeluaran = [
+      { id: '1', kode_rekening_id: 'rek-1', tanggal: '2026-01-10', jumlah: 5000000, jenis: 'GU' },
+      { id: '2', kode_rekening_id: 'rek-1', tanggal: '2026-02-15', jumlah: 2000000, jenis: 'GU' },
+      { id: '3', kode_rekening_id: 'rek-1', tanggal: '2026-05-20', jumlah: 50000000, jenis: 'GU' } // Masa depan (Mei)
+    ]
+
+    // Saat mengedit/menginput transaksi di Februari (target: 2026-02-15, bulan index 1)
+    const targetMonth = 1
+    const targetYear = 2026
+
+    const realisasiSdBulanFeb = listPengeluaran
+      .filter(p => {
+        const parts = p.tanggal.split('-')
+        const pYear = parseInt(parts[0], 10)
+        const pMonth = parseInt(parts[1], 10) - 1
+        return pYear === targetYear && pMonth <= targetMonth
+      })
+      .reduce((sum, p) => sum + p.jumlah, 0)
+
+    // Harus 5.000.000 (Jan) + 2.000.000 (Feb) = 7.000.000, transaksi Mei (50M) diabaikan
+    expect(realisasiSdBulanFeb).toBe(7000000)
+  })
 })

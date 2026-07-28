@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, Fragment } from 'react'
 import { ChevronRight, ChevronDown, TrendingUp, TrendingDown, Wallet, PieChart as PieIcon, Info } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { formatRupiah, formatTanggal, persen } from '@/lib/format'
+import { getBkuRows } from '@/lib/bku'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import ProgressBar from '@/components/ui/ProgressBar'
@@ -88,7 +89,13 @@ export default function Dashboard() {
   const [expandedRakSk, setExpandedRakSk] = useState({})
 
   const toggleExpand = (id) => {
-    setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }))
+    setExpandedItems(prev => {
+      const current = prev[id]
+      if (id.startsWith('sk-') || id.startsWith('rek-')) {
+        return { ...prev, [id]: !current }
+      }
+      return { ...prev, [id]: current === undefined ? false : !current }
+    })
   }
 
   const toggleExpandRakSk = (id) => {
@@ -115,8 +122,11 @@ export default function Dashboard() {
       const skData = {
         ...sk, total_pagu: skPagu, realisasi: skReal, persen: persen(skReal, skPagu),
         kode_rekening: (sk.kode_rekening ?? []).map(rek => {
-          const rekReal = pengeluaran.filter(p => p.kode_rekening_id === rek.id && p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS').reduce((sum, p) => sum + (p.jumlah ?? 0), 0)
-          return { ...rek, realisasi: rekReal, persen: persen(rekReal, rek.pagu_anggaran) }
+          const rekTx = pengeluaran
+            .filter(p => p.kode_rekening_id === rek.id && p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS')
+            .sort((a, b) => (a.tanggal || '').localeCompare(b.tanggal || ''))
+          const rekReal = rekTx.reduce((sum, p) => sum + (p.jumlah ?? 0), 0)
+          return { ...rek, realisasi: rekReal, persen: persen(rekReal, rek.pagu_anggaran), transaksi: rekTx }
         })
       }
       programsMap[prog.id].kegiatan[keg.id].sub_kegiatan[sk.id] = skData
@@ -196,6 +206,50 @@ export default function Dashboard() {
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
   ], [])
+
+  const bkuIndexMap = useMemo(() => {
+    const allBku = getBkuRows(penerimaan, pengeluaran)
+    
+    // Kelompokkan item BKU per bulan (tahun-bulan)
+    const monthGroups = {}
+    allBku.forEach(item => {
+      if (!item.tanggal) return
+      const parts = item.tanggal.split('-')
+      if (parts.length >= 2) {
+        const ymKey = `${parts[0]}-${parts[1]}`
+        if (!monthGroups[ymKey]) monthGroups[ymKey] = []
+        monthGroups[ymKey].push(item)
+      }
+    })
+
+    const map = {}
+    allBku.forEach((item, globalIdx) => {
+      let bulanBku = '-'
+      let noUrutBulan = globalIdx + 1
+      if (item.tanggal) {
+        const parts = item.tanggal.split('-')
+        if (parts.length >= 2) {
+          const ymKey = `${parts[0]}-${parts[1]}`
+          const mIdx = parseInt(parts[1], 10) - 1
+          if (mIdx >= 0 && mIdx < 12) {
+            bulanBku = INDO_MONTHS[mIdx]
+          }
+          if (monthGroups[ymKey]) {
+            const idxInMonth = monthGroups[ymKey].findIndex(mItem => mItem.id === item.id)
+            if (idxInMonth !== -1) {
+              noUrutBulan = idxInMonth + 1
+            }
+          }
+        }
+      }
+      map[item.id] = {
+        noUrut: noUrutBulan, // Nomor urut BKU Bulanan (dimulai dari #1 setiap bulan baru)
+        noUrutTahunan: globalIdx + 1, // Nomor urut BKU Akumulatif Tahunan
+        bulanBku
+      }
+    })
+    return map
+  }, [penerimaan, pengeluaran, INDO_MONTHS])
 
   const monthlyRecap = useMemo(() => {
     let year = new Date().getFullYear()
@@ -370,53 +424,20 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        <div className="xl:col-span-5">
-          <Card>
-            <h2 className="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
-              <span className="w-1 h-4 bg-indigo-600 rounded-full" />
-              Rekap Pengeluaran Bulanan (GU & LS)
-            </h2>
-            {monthlyRecap.length === 0 ? (
-              <EmptyState message="Belum ada data pengeluaran" />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                      <th className="py-3 px-4">Bulan</th>
-                      <th className="py-3 px-4 text-right">Belanja GU</th>
-                      <th className="py-3 px-4 text-right">Belanja LS</th>
-                      <th className="py-3 px-4 text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50 font-bold text-slate-700">
-                    {monthlyRecap.map(item => (
-                      <tr key={item.key} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="py-3.5 px-4 font-black text-slate-900">{item.monthName} {item.year}</td>
-                        <td className="py-3.5 px-4 text-right text-emerald-600">{formatRupiah(item.totalGU)}</td>
-                        <td className="py-3.5 px-4 text-right text-blue-600">{formatRupiah(item.totalLS)}</td>
-                        <td className="py-3.5 px-4 text-right text-slate-900 font-black">{formatRupiah(item.totalAll)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-        </div>
+      {/* Detail Realisasi Anggaran (Drill-down Hierarkis) - Full Width */}
+      <Card>
+        <h2 className="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
+          <span className="w-1 h-4 bg-emerald-600 rounded-full" />
+          Detail Realisasi Anggaran (Drill-down Hierarkis)
+        </h2>
+        {hierarchicalData.length === 0 ? (
+          <EmptyState message="Belum ada data anggaran" />
+        ) : (
+          <div className="space-y-4">
+            {hierarchicalData.map(prog => {
+              const isProgExpanded = expandedItems[`prog-${prog.id}`] !== false
 
-        <div className="xl:col-span-7">
-          <Card>
-            <h2 className="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
-              <span className="w-1 h-4 bg-emerald-600 rounded-full" />
-              Detail Realisasi Anggaran (Drill-down Hierarkis)
-            </h2>
-          {hierarchicalData.length === 0 ? (
-            <EmptyState message="Belum ada data anggaran" />
-          ) : (
-            <div className="space-y-4">
-              {hierarchicalData.map(prog => (
+              return (
                 <div key={prog.id} className="border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-sm transition-all hover:shadow-md">
                   <div 
                     onClick={() => toggleExpand(`prog-${prog.id}`)}
@@ -424,7 +445,7 @@ export default function Dashboard() {
                   >
                     <div className="flex items-center gap-3">
                       <div className="p-1.5 bg-white rounded-lg border border-slate-200 text-slate-400 group-hover:text-indigo-600 transition-colors">
-                        {expandedItems[`prog-${prog.id}`] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        {isProgExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                       </div>
                       <div>
                         <span className="text-[10px] font-black bg-indigo-600 text-white px-2 py-0.5 rounded uppercase tracking-tighter mb-1 inline-block">PROGRAM</span>
@@ -434,111 +455,248 @@ export default function Dashboard() {
                     <div className="flex items-center gap-4">
                       <div className="text-right hidden sm:block">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Realisasi</p>
-                        <p className="text-sm font-black text-slate-900">{formatRupiah(prog.realisasi)}</p>
+                        <p className="text-sm font-black text-slate-900">{formatRupiah(prog.realisasi)} <span className="text-xs text-slate-400 font-normal">/ {formatRupiah(prog.total_pagu)}</span></p>
                       </div>
                       <Badge variant={statusVariant(prog.persen)}>{prog.persen}%</Badge>
                     </div>
                   </div>
 
-                  {expandedItems[`prog-${prog.id}`] && (
+                  {isProgExpanded && (
                     <div className="p-2 sm:p-4 space-y-3 bg-white border-t border-slate-100">
-                      {prog.kegiatan.map(keg => (
-                        <div key={keg.id} className="border border-slate-50 rounded-xl overflow-hidden">
-                          <div 
-                            onClick={() => toggleExpand(`keg-${keg.id}`)}
-                            className="p-3 bg-slate-50 flex items-center justify-between cursor-pointer hover:bg-slate-100/50 transition-colors"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="text-slate-400">
-                                {expandedItems[`keg-${keg.id}`] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                              </div>
-                              <div>
-                                <span className="text-[9px] font-black text-indigo-500 uppercase tracking-tighter block">KEGIATAN</span>
-                                <h4 className="text-xs font-bold text-slate-700 leading-tight">{keg.kode} {keg.nama}</h4>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <span className="text-xs font-bold text-slate-600 hidden sm:inline-block">{formatRupiah(keg.realisasi)}</span>
-                              <span className="text-[10px] font-black text-indigo-600">{keg.persen}%</span>
-                            </div>
-                          </div>
+                      {prog.kegiatan.map(keg => {
+                        const isKegExpanded = expandedItems[`keg-${keg.id}`] !== false
 
-                          {expandedItems[`keg-${keg.id}`] && (
-                            <div className="p-3 space-y-4 border-t border-slate-50">
-                              {keg.sub_kegiatan.map(sk => (
-                                <div key={sk.id} className="group">
-                                  <div 
-                                    onClick={() => toggleExpand(`sk-${sk.id}`)}
-                                    className="flex items-start justify-between mb-2 cursor-pointer"
-                                  >
-                                    <div className="flex-1 min-w-0 mr-3">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-[8px] font-black bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded uppercase tracking-tighter">SUB KEGIATAN</span>
-                                        <p className="text-[10px] font-black text-emerald-600 tracking-tighter">{sk.kode}</p>
-                                        <div className="text-slate-400">
-                                          {expandedItems[`sk-${sk.id}`] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                        return (
+                          <div key={keg.id} className="border border-slate-50 rounded-xl overflow-hidden">
+                            <div 
+                              onClick={() => toggleExpand(`keg-${keg.id}`)}
+                              className="p-3 bg-slate-50 flex items-center justify-between cursor-pointer hover:bg-slate-100/50 transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="text-slate-400">
+                                  {isKegExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                </div>
+                                <div>
+                                  <span className="text-[9px] font-black text-indigo-500 uppercase tracking-tighter block">KEGIATAN</span>
+                                  <h4 className="text-xs font-bold text-slate-700 leading-tight">{keg.kode} {keg.nama}</h4>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <div className="text-right hidden sm:block">
+                                  <span className="text-xs font-bold text-slate-600">{formatRupiah(keg.realisasi)}</span>
+                                  <span className="text-[10px] text-slate-400 block font-normal">/ {formatRupiah(keg.total_pagu)}</span>
+                                </div>
+                                <span className="text-[10px] font-black text-indigo-600">{keg.persen}%</span>
+                              </div>
+                            </div>
+
+                            {isKegExpanded && (
+                              <div className="p-3 space-y-4 border-t border-slate-50">
+                                {keg.sub_kegiatan.map(sk => {
+                                  const isSkExpanded = !!expandedItems[`sk-${sk.id}`]
+
+                                  return (
+                                    <div key={sk.id} className="group">
+                                      <div 
+                                        onClick={() => toggleExpand(`sk-${sk.id}`)}
+                                        className="flex items-start justify-between mb-2 cursor-pointer"
+                                      >
+                                        <div className="flex-1 min-w-0 mr-3">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-[8px] font-black bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded uppercase tracking-tighter">SUB KEGIATAN</span>
+                                            <p className="text-[10px] font-black text-emerald-600 tracking-tighter">{sk.kode}</p>
+                                            <div className="text-slate-400">
+                                              {isSkExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                                            </div>
+                                          </div>
+                                          <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-600 transition-colors leading-tight">
+                                            {sk.nama}
+                                          </p>
+                                        </div>
+                                        <div className="flex items-center gap-3 shrink-0">
+                                          <span className="text-xs font-black text-slate-900">{formatRupiah(sk.realisasi)}</span>
+                                          <Badge variant={statusVariant(sk.persen)}>{statusLabel(sk.persen)}</Badge>
                                         </div>
                                       </div>
-                                      <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-600 transition-colors leading-tight">
-                                        {sk.nama}
-                                      </p>
-                                    </div>
-                                    <div className="flex items-center gap-3 shrink-0">
-                                      <span className="text-xs font-black text-slate-900">{formatRupiah(sk.realisasi)}</span>
-                                      <Badge variant={statusVariant(sk.persen)}>{statusLabel(sk.persen)}</Badge>
-                                    </div>
-                                  </div>
-                                  <ProgressBar value={sk.persen} variant={statusVariant(sk.persen)} />
-                                  <div className="flex justify-between mt-1">
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Pagu: {formatRupiah(sk.total_pagu)}</span>
-                                    <span className="text-[9px] font-black text-emerald-600">{sk.persen}%</span>
-                                  </div>
+                                      <ProgressBar value={sk.persen} variant={statusVariant(sk.persen)} />
+                                      <div className="flex justify-between mt-1">
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Pagu: {formatRupiah(sk.total_pagu)}</span>
+                                        <span className="text-[9px] font-black text-emerald-600">{sk.persen}%</span>
+                                      </div>
 
-                                  {expandedItems[`sk-${sk.id}`] && (
-                                    <div className="mt-3 ml-4 pl-4 border-l-2 border-emerald-50 space-y-2 py-2">
-                                      {sk.kode_rekening.map(rek => (
-                                        <div key={rek.id} className="bg-slate-50/50 p-2 rounded-lg border border-slate-100">
-                                          <div className="flex justify-between items-start mb-1">
-                                            <div className="min-w-0 flex-1">
-                                              <p className="text-[9px] font-mono text-slate-400 leading-none mb-1">{rek.kode}</p>
-                                              <p className="text-[11px] font-medium text-slate-600 leading-tight">{rek.uraian}</p>
+                                      {isSkExpanded && (
+                                  <div className="mt-3 ml-2 sm:ml-4 pl-3 sm:pl-4 border-l-2 border-emerald-200/60 space-y-2.5 py-2">
+                                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                      Kode Rekening Belanja ({sk.kode_rekening.length})
+                                    </div>
+                                    {sk.kode_rekening.map(rek => {
+                                      const isRekExpanded = !!expandedItems[`rek-${rek.id}`]
+                                      const txList = rek.transaksi || []
+
+                                      return (
+                                        <div key={rek.id} className="bg-slate-50/70 rounded-xl border border-slate-200/70 overflow-hidden transition-all shadow-2xs hover:border-slate-300">
+                                          <div 
+                                            onClick={() => toggleExpand(`rek-${rek.id}`)}
+                                            className="p-2.5 flex items-start justify-between cursor-pointer hover:bg-slate-100/60 transition-colors group"
+                                          >
+                                            <div className="flex items-start gap-2 min-w-0 flex-1 mr-3">
+                                              <div className="p-1 rounded bg-white border border-slate-200 text-slate-400 group-hover:text-emerald-600 transition-colors mt-0.5 shrink-0">
+                                                {isRekExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                                              </div>
+                                              <div className="min-w-0">
+                                                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                                  <span className="text-[9px] font-mono font-black text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200">{rek.kode}</span>
+                                                  <span className="text-[9px] font-black bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100">
+                                                    {txList.length} Transaksi
+                                                  </span>
+                                                </div>
+                                                <p className="text-[11px] font-bold text-slate-800 leading-tight group-hover:text-emerald-700 transition-colors">{rek.uraian}</p>
+                                              </div>
                                             </div>
-                                            <div className="text-right ml-3">
-                                              <p className="text-xs font-black text-slate-800 leading-none">{formatRupiah(rek.realisasi)}</p>
+                                            <div className="text-right shrink-0">
+                                              <p className="text-xs font-black text-slate-900 leading-none">{formatRupiah(rek.realisasi)}</p>
                                               <p className="text-[9px] text-slate-400 font-bold mt-1">/{formatRupiah(rek.pagu_anggaran)}</p>
                                             </div>
                                           </div>
-                                          <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
-                                            <div 
-                                              className={`h-full rounded-full ${
-                                                rek.persen >= 100 ? 'bg-red-500' : 
-                                                rek.persen >= 75 ? 'bg-emerald-500' : 'bg-indigo-500'
-                                              }`}
-                                              style={{ width: `${Math.min(rek.persen, 100)}%` }}
-                                            />
+
+                                          <div className="px-2.5 pb-2">
+                                            <div className="w-full bg-slate-200/70 h-1 rounded-full overflow-hidden">
+                                              <div 
+                                                className={`h-full rounded-full transition-all ${
+                                                  rek.persen >= 100 ? 'bg-red-500' : 
+                                                  rek.persen >= 75 ? 'bg-emerald-500' : 'bg-indigo-500'
+                                                }`}
+                                                style={{ width: `${Math.min(rek.persen, 100)}%` }}
+                                              />
+                                            </div>
                                           </div>
+
+                                          {isRekExpanded && (
+                                            <div className="bg-white border-t border-slate-200/70 p-3 space-y-2">
+                                              <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                                                <span>Rincian Transaksi Pengeluaran ({txList.length})</span>
+                                              </div>
+                                              {txList.length === 0 ? (
+                                                <div className="p-3 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200 text-slate-400 text-xs font-medium italic">
+                                                  Belum ada transaksi pengeluaran tercatat pada kode rekening ini.
+                                                </div>
+                                              ) : (
+                                                <div className="overflow-x-auto rounded-lg border border-slate-200/60">
+                                                  <table className="w-full text-left text-xs border-collapse min-w-[550px]">
+                                                    <thead>
+                                                      <tr className="bg-slate-50 text-[9px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                                                        <th className="py-2 px-3 text-center w-20">No. BKU</th>
+                                                        <th className="py-2 px-3">Bulan BKU</th>
+                                                        <th className="py-2 px-3">Tanggal</th>
+                                                        <th className="py-2 px-3">Jenis</th>
+                                                        <th className="py-2 px-3">Uraian / Rincian</th>
+                                                        <th className="py-2 px-3 text-right">Jumlah</th>
+                                                      </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                                                      {txList.map(tx => {
+                                                        const bkuInfo = bkuIndexMap[tx.id] || { noUrut: '-', bulanBku: '-' }
+                                                        const rincianText = tx.pengeluaran_rincian?.length > 0
+                                                          ? tx.pengeluaran_rincian.map(r => `${r.uraian}${r.volume ? ` (${r.volume} ${r.satuan || ''})` : ''}`).join(', ')
+                                                          : tx.keterangan || 'Belanja'
+
+                                                        return (
+                                                          <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
+                                                            <td className="py-2 px-3 text-[10px] font-mono font-black text-indigo-600 text-center whitespace-nowrap">
+                                                              #{bkuInfo.noUrut}
+                                                            </td>
+                                                            <td className="py-2 px-3 text-[10px] font-bold text-slate-700 whitespace-nowrap">
+                                                              {bkuInfo.bulanBku}
+                                                            </td>
+                                                            <td className="py-2 px-3 text-[10px] font-mono font-bold text-slate-600 whitespace-nowrap">
+                                                              {formatTanggal(tx.tanggal)}
+                                                            </td>
+                                                            <td className="py-2 px-3 whitespace-nowrap">
+                                                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                                                                tx.jenis === 'LS' ? 'bg-blue-100 text-blue-700' :
+                                                                tx.jenis === 'GU' ? 'bg-emerald-100 text-emerald-700' :
+                                                                'bg-amber-100 text-amber-700'
+                                                              }`}>
+                                                                {tx.jenis}
+                                                              </span>
+                                                            </td>
+                                                            <td className="py-2 px-3 text-slate-800 text-[11px] font-medium leading-tight">
+                                                              <div>{rincianText}</div>
+                                                              {tx.penerima_nama && (
+                                                                <span className="text-[9px] text-slate-400 block font-bold mt-0.5">Penerima: {tx.penerima_nama}</span>
+                                                              )}
+                                                            </td>
+                                                            <td className="py-2 px-3 text-right font-black font-mono text-slate-900 whitespace-nowrap">
+                                                              {formatRupiah(tx.jumlah)}
+                                                            </td>
+                                                          </tr>
+                                                        )
+                                                      })}
+                                                    </tbody>
+                                                  </table>
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
                                         </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
-                      ))}
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-          </Card>
-        </div>
-      </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      })}
+          </div>
+        )}
+      </Card>
+
+      {/* Rekap Pengeluaran Bulanan (GU & LS) - Dikebawahkan */}
+      <Card>
+        <h2 className="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
+          <span className="w-1 h-4 bg-indigo-600 rounded-full" />
+          Rekap Pengeluaran Bulanan (GU & LS)
+        </h2>
+        {monthlyRecap.length === 0 ? (
+          <EmptyState message="Belum ada data pengeluaran" />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                  <th className="py-3 px-4">Bulan</th>
+                  <th className="py-3 px-4 text-right">Belanja GU</th>
+                  <th className="py-3 px-4 text-right">Belanja LS</th>
+                  <th className="py-3 px-4 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50 font-bold text-slate-700">
+                {monthlyRecap.map(item => (
+                  <tr key={item.key} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3.5 px-4 font-black text-slate-900">{item.monthName} {item.year}</td>
+                    <td className="py-3.5 px-4 text-right text-emerald-600">{formatRupiah(item.totalGU)}</td>
+                    <td className="py-3.5 px-4 text-right text-blue-600">{formatRupiah(item.totalLS)}</td>
+                    <td className="py-3.5 px-4 text-right text-slate-900 font-black">{formatRupiah(item.totalAll)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       {/* Tabel Monitoring RAK Bulanan Kumulatif */}
-      <Card className="mt-6">
+      <Card>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-1">
