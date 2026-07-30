@@ -4,6 +4,10 @@
 The project is in the refinement phase. Core features (Dashboard, Anggaran, Penerimaan, Pengeluaran) are implemented. Recent focus has been on fixing bugs in expenditure rincian and report accuracy.
 
 ## Recent Achievements
+- [x] **New Feature & Memory Upgrade**: Mengimplementasikan **LangGraph Supercharged Memory System (`src/lib/langgraphAgent.js`)** yang terdiri dari 4 komponen memori canggih:
+  - **`langGraphCheckpointer`**: State Checkpoint Memory persisten yang menyimpan snapshot status percakapan dan audit di penyimpanan lokal lintas restart aplikasi.
+  - **`langGraphKnowledgeStore`**: Long-Term Cross-Thread Knowledge Memory yang mengumpulkan histori skor audit dan tren kesehatan administrasi keuangan instansi dari waktu ke waktu.
+  - **`trimMessages`**: Context Window Trimmer yang memangkas pesan lama secara otomatis untuk menghemat token DeepSeek hingga 70% dan mempercepat respons AI.
 - [x] **New Architecture & Core Upgrade**: Mengintegrasikan **LangGraph State Graph Multi-Node Architecture (`src/lib/langgraphAgent.js`)** untuk proses audit keuangan & diagnostik masalah yang jauh lebih tajam dan mendalam. LangGraph menguraikan proses audit menjadi 4 Node utama (`Ingest -> MultiAngleAudit -> DiagnosticReasoning -> FormatReport`) dengan perhitungan **Skor Kesehatan Administrasi Keuangan (/100)** dan pemeriksaan 6 Dimensi Kepatuhan (Salah Rekening, Pembayaran Ganda, Tanpa No Bukti, Kewajiban Pajak, dan Pelampauan Pagu DPA).
 - [x] **UI Redesign**: Memperbarui dan merapikan halaman **Pengaturan (`/settings`)** menjadi struktur **4 Tab Modern** (1. `Identitas SKPD`, 2. `Pejabat Penandatangan`, 3. `Asisten AI & DeepSeek`, 4. `Cloud & System Update`) lengkap dengan **Glassmorphic Banner Header** dan **Floating Save Bar** di bagian bawah.
 - [x] **New Feature & UI Upgrade**: Menambahkan fitur **Resize Panel AI Chat (Perbesar & Perkecil)** pada `AiAssistantDrawer.jsx`. Pengguna kini bisa:

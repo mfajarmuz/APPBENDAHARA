@@ -158,7 +158,7 @@ export function auditKodeRekening(pengeluaran = [], subKegiatan = []) {
     const sk = subKegiatan.find(s => s.id === p.sub_kegiatan_id)
     const rek = sk?.kode_rekening?.find(r => r.id === p.kode_rekening_id)
     const rekUraian = (rek?.uraian || '').toLowerCase()
-    const rekKode = rek?.kode || 'Tidak Diketahui'
+    const rekKode = rek?.kode || 'Tanpa Rekening'
 
     const rincianItems = (p.pengeluaran_rincian || []).map(r => `${r.uraian}${r.volume ? ` (${r.volume})` : ''}`).join(', ')
     const uraianStr = rincianItems || p.keterangan || 'Pengeluaran Belanja'
@@ -460,10 +460,21 @@ export async function runLangChainAgent(userQuery, chatHistory = [], storeState)
   const customRules = (settings.custom_ai_instructions || '').trim()
   const customRulesPrompt = customRules ? `\n\nATURAN KHUSUS PERSISTEN DARI BENDAHARA:\n${customRules}` : ''
 
+  const auditSummaryReal = auditKodeRekening(storeState.pengeluaran || [], storeState.subKegiatan || [])
+  const auditRealText = auditSummaryReal.length > 0
+    ? `Ditemukan ${auditSummaryReal.length} potensi kesalahan kode rekening riil di sistem: ${JSON.stringify(auditSummaryReal.slice(0, 5))}`
+    : 'Seluruh pengalokasian kode rekening transaksi saat ini 100% tepat dan sesuai spesifikasi DPA.'
+
   const systemMessage = {
     role: 'system',
     content: `Anda adalah Asisten AI Bendahara (Financial AI Co-Pilot, Audit Specialist, & LangChain Smart Agent) untuk unit kerja ${ctx.unitKerja} (${ctx.unitKerjaKode}).
 Tugas Anda adalah membantu Bendahara dan Pimpinan menganalisis data keuangan, mengaudit kesalahan kode rekening, dan mengekstrak rincian item transaksi secara akurat 100% dalam Bahasa Indonesia.${customRulesPrompt}
+
+PERINGATAN STRICT ACCESS DATA REAL-TIME (JANGAN DIABAIKAN):
+1. Anda TERHUBUNG 100% SECARA REAL-TIME ke database aplikasi BendaharaApp milik pengguna.
+2. DILARANG KERAS MENGATAKAN: "Saya tidak memiliki akses langsung ke database", "Data ini adalah contoh fiktif/asumsi", "Saya tidak dapat melihat data Anda", atau perkataan sejenisnya!
+3. Seluruh angka nominal, transaksi, BKU, DPA, RAK, dan daftar temuan audit di bawah ini adalah DATA RIIL 100% DARI DATABASE APLIKASI BENDAHARAAPP.
+4. Jika pengguna bertanya dari mana Anda melihat/mendapatkan data, tegaskan dengan percaya diri: "Saya membaca dan mengolah data transaksi riil secara real-time langsung dari database aplikasi BendaharaApp Anda."
 
 FAKTA DATA KEUANGAN SAAT INI (SINKRON 100% DENGAN DASHBOARD & BKU):
 - Unit Kerja: ${ctx.unitKerja} (${ctx.unitKerjaKode})
@@ -471,6 +482,7 @@ FAKTA DATA KEUANGAN SAAT INI (SINKRON 100% DENGAN DASHBOARD & BKU):
 - Total Pagu DPA Tahunan: ${formatRupiah(ctx.totalPagu)}
 - Realisasi Belanja Total: ${formatRupiah(ctx.realisasiPengeluaran)} (${ctx.persenRealisasi}%)
 - Sisa Quota Pagu DPA Tahunan: ${formatRupiah(ctx.sisaPagu)}
+- Hasil Audit Kode Rekening Riil System: ${auditRealText}
 
 PETUNJUK EXECUTION LANGCHAIN AGENT:
 1. Anda dilengkapi dengan TOOLS terstruktur: (audit_kode_rekening, get_item_level_details, get_sisa_pagu, check_rak_bulanan, get_bku_summary, search_pengeluaran_detail, simulate_belanja, generate_executive_summary, navigate_app_page).
