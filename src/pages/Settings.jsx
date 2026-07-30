@@ -1,6 +1,7 @@
+// src/pages/Settings.jsx
 import { useState, useEffect } from 'react'
 import { useStore } from '@/store/useStore'
-import { Save, Building2, UserCheck, RefreshCcw, AlertCircle, Laptop, Download, Power, Cloud, CheckCircle2, XCircle, Bot } from 'lucide-react'
+import { Save, Building2, UserCheck, RefreshCcw, AlertCircle, Laptop, Download, Power, Cloud, CheckCircle2, XCircle, Bot, Sparkles, Sliders, ShieldCheck } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -9,7 +10,7 @@ import * as api from '@/lib/api'
 
 /**
  * [HALAMAN: PENGATURAN]
- * Kelola identitas dinas, pejabat penandatangan, dan integrasi eksternal (Google Drive, DeepSeek AI).
+ * Kelola identitas dinas, pejabat penandatangan, integrasi Google Drive, dan DeepSeek AI Co-Pilot.
  */
 export default function Settings() {
   const isElectron = typeof window !== 'undefined' && !!window.api
@@ -18,6 +19,7 @@ export default function Settings() {
   const resetSettings = useStore(s => s.resetSettings)
   const user = useStore(s => s.user)
 
+  const [activeTab, setActiveTab] = useState('skpd') // 'skpd' | 'pejabat' | 'ai' | 'system'
   const [form, setForm] = useState({ ...settings })
   const [isSaving, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -102,18 +104,6 @@ export default function Settings() {
     }
   }
 
-  const handleLogoutDrive = async () => {
-    if (confirm('Apakah Anda yakin ingin memutus koneksi Google Drive?')) {
-      setDriveStatus({ loading: true, result: null })
-      try {
-        await api.logoutGoogleDrive()
-        setDriveStatus({ loading: false, result: null })
-      } catch (error) {
-        setDriveStatus({ loading: false, result: { success: false, error: error.message } })
-      }
-    }
-  }
-
   const handleTestDrive = async () => {
     setDriveStatus({ loading: true, result: null })
     try {
@@ -194,12 +184,9 @@ export default function Settings() {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    if (e) e.preventDefault()
     setIsSubmitting(true)
-    
-    // Artificial delay
-    await new Promise(r => setTimeout(r, 600))
-    
+    await new Promise(r => setTimeout(r, 400))
     updateSettings(form)
     setIsSubmitting(false)
     setShowSuccess(true)
@@ -214,520 +201,655 @@ export default function Settings() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">Pengaturan Aplikasi</h2>
-          <p className="text-sm text-slate-500">Kelola identitas dinas dan pejabat penandatangan laporan</p>
+    <div className="max-w-5xl mx-auto space-y-6 pb-20">
+      
+      {/* Header Banner */}
+      <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-indigo-700/40">
+        <div className="relative z-10 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-amber-300 shadow-inner shrink-0">
+            <Sliders size={24} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-black tracking-wide">Pengaturan Sistem BendaharaApp</h1>
+              <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[9px] uppercase font-black">
+                v1.2.3 Stable
+              </Badge>
+            </div>
+            <p className="text-xs text-indigo-200 mt-0.5 font-medium">
+              Kelola identitas dinas, Kop Surat BKU, Pejabat Penandatangan, dan Integrasi DeepSeek AI Co-Pilot
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
+
+        <div className="relative z-10 flex items-center gap-2.5 w-full sm:w-auto justify-end">
           {showSuccess && (
-            <div className="bg-emerald-50 text-emerald-600 text-xs font-bold px-4 py-2 rounded-full border border-emerald-100 animate-bounce">
-              ✓ Berhasil disimpan
+            <div className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 animate-pulse">
+              <CheckCircle2 size={14} /> Berhasil Disimpan
             </div>
           )}
+
           {user?.role !== 'viewer' && (
             <Button 
               variant="secondary" 
               onClick={() => setShowResetConfirm(true)}
-              className="text-xs font-bold border-slate-200"
+              className="text-xs font-bold bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-md"
             >
-              <RefreshCcw size={14} className="mr-2" /> Reset
+              <RefreshCcw size={14} className="mr-1.5" /> Reset
+            </Button>
+          )}
+
+          {user?.role !== 'viewer' && (
+            <Button 
+              onClick={handleSubmit} 
+              disabled={isSaving}
+              className="text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/20"
+            >
+              {isSaving ? 'Menyimpan...' : (
+                <span className="flex items-center gap-1.5">
+                  <Save size={14} /> Simpan Semua
+                </span>
+              )}
             </Button>
           )}
         </div>
       </div>
 
+      {/* Confirmation Reset Alert */}
       {showResetConfirm && (
-        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between animate-in fade-in slide-in-from-top-4">
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between animate-in fade-in slide-in-from-top-4 shadow-sm">
           <div className="flex items-center gap-3 text-amber-800">
-            <AlertCircle size={20} />
-            <p className="text-sm font-medium">Reset semua pengaturan ke nilai default?</p>
+            <AlertCircle size={20} className="shrink-0 text-amber-600" />
+            <p className="text-xs font-semibold">Apakah Anda yakin ingin mengembalikan seluruh pengaturan ke nilai awal bawaan pabrik?</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => setShowResetConfirm(false)} className="h-8 px-4 text-xs">Batal</Button>
-            <Button onClick={handleReset} className="h-8 px-4 text-xs bg-amber-600 hover:bg-amber-700">Ya, Reset</Button>
+            <Button variant="secondary" onClick={() => setShowResetConfirm(false)} className="h-8 px-3 text-xs font-bold">Batal</Button>
+            <Button onClick={handleReset} className="h-8 px-4 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white">Ya, Reset</Button>
           </div>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <fieldset disabled={user?.role === 'viewer'} className="space-y-6 border-0 p-0 m-0">
-          {/* Identitas Unit Kerja */}
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-6 text-indigo-600">
-            <Building2 size={18} />
-            <h3 className="font-bold text-sm uppercase tracking-wider">Identitas Unit Kerja</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="col-span-1">
-              <Input 
-                label="Kode Unit Kerja" 
-                value={form.unit_kerja_kode} 
-                onChange={e => setForm({...form, unit_kerja_kode: e.target.value})}
-                placeholder="Contoh: 5.02.0..."
-                required 
-              />
-            </div>
-            <div className="md:col-span-2">
-              <Input 
-                label="Nama Unit Kerja / SKPD" 
-                value={form.unit_kerja} 
-                onChange={e => setForm({...form, unit_kerja: e.target.value})}
-                placeholder="Contoh: UPTD PUSAT PENGELOLAAN PENDAPATAN DAERAH..."
-                required 
-              />
-            </div>
-            <div className="md:col-span-3">
-              <Input 
-                label="Lokasi (Kecamatan/Kota)" 
-                value={form.lokasi} 
-                onChange={e => setForm({...form, lokasi: e.target.value})}
-                placeholder="Contoh: Sukaraja"
-                required 
-              />
-            </div>
-            <div className="md:col-span-3">
-              <Input 
-                label="Nama Wilayah (Header)" 
-                value={form.lokasi_wilayah} 
-                onChange={e => setForm({...form, lokasi_wilayah: e.target.value})}
-                placeholder="Contoh: KABUPATEN TASIKMALAYA"
-                required 
-              />
-            </div>
-            <div className="md:col-span-3">
-              <Input 
-                label="Alamat Lengkap (Kop Surat)" 
-                value={form.alamat_kantor} 
-                onChange={e => setForm({...form, alamat_kantor: e.target.value})}
-                placeholder="Contoh: Jalan Raya Cikatomas Sukaraja Telepon (0265) 565149"
-                required 
-              />
-            </div>
-            <div className="md:col-span-2">
-              <Input 
-                label="Faksimil / E-mail (Kop Surat)" 
-                value={form.fax_email} 
-                onChange={e => setForm({...form, fax_email: e.target.value})}
-                placeholder="Faksimil : (0265) 566917 E-mail : p3dwkabtsm@gmail.com"
-              />
-            </div>
-            <div className="md:col-span-1">
-              <Input 
-                label="Kode Pos (Kop Surat)" 
-                value={form.kode_pos_line} 
-                onChange={e => setForm({...form, kode_pos_line: e.target.value})}
-                placeholder="Kabupaten Tasikmalaya – 46183"
-              />
-            </div>
-          </div>
-        </Card>
+      {/* Tab Bar Navigation */}
+      <div className="flex overflow-x-auto gap-2 p-1.5 bg-slate-100/80 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-2xs scrollbar-none">
+        <button
+          type="button"
+          onClick={() => setActiveTab('skpd')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap ${
+            activeTab === 'skpd'
+              ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/80'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+          }`}
+        >
+          <Building2 size={16} className={activeTab === 'skpd' ? 'text-indigo-600' : 'text-slate-400'} />
+          <span>Identitas SKPD & Kop Surat</span>
+        </button>
 
-        {/* Pejabat Penandatangan */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="p-6">
-            <div className="flex items-center gap-2 mb-6 text-indigo-600">
-              <UserCheck size={18} />
-              <h3 className="font-bold text-sm uppercase tracking-wider">Kuasa Pengguna Anggaran (KPA)</h3>
-            </div>
-            <div className="space-y-4">
-              <Input 
-                label="Jabatan" 
-                value={form.kpa_jabatan} 
-                onChange={e => setForm({...form, kpa_jabatan: e.target.value})}
-                required 
-              />
-              <Input 
-                label="Nama Lengkap & Gelar" 
-                value={form.kpa_nama} 
-                onChange={e => setForm({...form, kpa_nama: e.target.value})}
-                required 
-              />
-              <Input 
-                label="NIP" 
-                value={form.kpa_nip} 
-                onChange={e => setForm({...form, kpa_nip: e.target.value})}
-                required 
-              />
-            </div>
-          </Card>
+        <button
+          type="button"
+          onClick={() => setActiveTab('pejabat')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap ${
+            activeTab === 'pejabat'
+              ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/80'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+          }`}
+        >
+          <UserCheck size={16} className={activeTab === 'pejabat' ? 'text-indigo-600' : 'text-slate-400'} />
+          <span>Pejabat Penandatangan Laporan</span>
+        </button>
 
-          <Card className="p-6">
-            <div className="flex items-center gap-2 mb-6 text-indigo-600">
-              <UserCheck size={18} />
-              <h3 className="font-bold text-sm uppercase tracking-wider">Bendahara Pengeluaran</h3>
-            </div>
-            <div className="space-y-4">
-              <Input 
-                label="Jabatan" 
-                value={form.bp_jabatan} 
-                onChange={e => setForm({...form, bp_jabatan: e.target.value})}
-                required 
-              />
-              <Input 
-                label="Nama Lengkap & Gelar" 
-                value={form.bp_nama} 
-                onChange={e => setForm({...form, bp_nama: e.target.value})}
-                required 
-              />
-              <Input 
-                label="NIP" 
-                value={form.bp_nip} 
-                onChange={e => setForm({...form, bp_nip: e.target.value})}
-                required 
-              />
-            </div>
-          </Card>
+        <button
+          type="button"
+          onClick={() => setActiveTab('ai')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap ${
+            activeTab === 'ai'
+              ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/80'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+          }`}
+        >
+          <Bot size={16} className={activeTab === 'ai' ? 'text-indigo-600' : 'text-slate-400'} />
+          <span>Asisten AI & DeepSeek LLM</span>
+          {form.deepseek_api_key?.trim() ? (
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          ) : (
+            <span className="w-2 h-2 rounded-full bg-amber-400" />
+          )}
+        </button>
 
-          <Card className="p-6">
-            <div className="flex items-center gap-2 mb-6 text-indigo-600">
-              <UserCheck size={18} />
-              <h3 className="font-bold text-sm uppercase tracking-wider">Bendahara Pengeluaran Pembantu</h3>
-            </div>
-            <div className="space-y-4">
-              <Input 
-                label="Jabatan" 
-                value={form.bpp_jabatan} 
-                onChange={e => setForm({...form, bpp_jabatan: e.target.value})}
-                required 
-              />
-              <Input 
-                label="Nama Lengkap & Gelar" 
-                value={form.bpp_nama} 
-                onChange={e => setForm({...form, bpp_nama: e.target.value})}
-                required 
-              />
-              <Input 
-                label="NIP" 
-                value={form.bpp_nip} 
-                onChange={e => setForm({...form, bpp_nip: e.target.value})}
-                required 
-              />
-            </div>
-          </Card>
+        <button
+          type="button"
+          onClick={() => setActiveTab('system')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap ${
+            activeTab === 'system'
+              ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/80'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+          }`}
+        >
+          <Cloud size={16} className={activeTab === 'system' ? 'text-indigo-600' : 'text-slate-400'} />
+          <span>Integrasi Cloud & System Update</span>
+        </button>
+      </div>
 
-          <Card className="p-6">
-            <div className="flex items-center gap-2 mb-6 text-indigo-600">
-              <UserCheck size={18} />
-              <h3 className="font-bold text-sm uppercase tracking-wider">Pejabat Pelaksana Teknis Kegiatan (PPTK)</h3>
-            </div>
-            <div className="space-y-4">
-              <Input 
-                label="Jabatan" 
-                value={form.pptk_jabatan} 
-                onChange={e => setForm({...form, pptk_jabatan: e.target.value})}
-                required 
-              />
-              <Input 
-                label="Nama Lengkap & Gelar" 
-                value={form.pptk_nama} 
-                onChange={e => setForm({...form, pptk_nama: e.target.value})}
-                required 
-              />
-              <Input 
-                label="NIP" 
-                value={form.pptk_nip} 
-                onChange={e => setForm({...form, pptk_nip: e.target.value})}
-                required 
-              />
-            </div>
-          </Card>
-        </div>
+      <form onSubmit={handleSubmit}>
+        <fieldset disabled={user?.role === 'viewer'} className="space-y-6">
 
-        {user?.role !== 'viewer' && (
-          <div className="flex justify-end pt-4">
-            <Button type="submit" disabled={isSaving} className="px-8 h-12 shadow-lg shadow-indigo-600/20">
+          {/* TAB 1: IDENTITAS SKPD */}
+          {activeTab === 'skpd' && (
+            <Card className="p-6 space-y-6 border-t-4 border-t-indigo-600 shadow-md">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                  <Building2 size={20} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-slate-800">Identitas Organisasi & Header Kop Surat BKU</h3>
+                  <p className="text-xs text-slate-500">Data ini digunakan untuk header resmi Laporan BKU, DPA, SPJ, dan Berita Acara Pemeriksaan Kas.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <Input 
+                    label="Pemerintah Daerah (Header Baris 1)" 
+                    value={form.pemda_name} 
+                    onChange={e => setForm({...form, pemda_name: e.target.value})}
+                    placeholder="PEMERINTAH PROVINSI JAWA BARAT"
+                    required 
+                  />
+                </div>
+                <div>
+                  <Input 
+                    label="Kode Sub Kegiatan / SKPD" 
+                    value={form.unit_kerja_kode} 
+                    onChange={e => setForm({...form, unit_kerja_kode: e.target.value})}
+                    placeholder="5.02.0.00.0.00.02.0000"
+                    required 
+                  />
+                </div>
+                <div className="md:col-span-3">
+                  <Input 
+                    label="Nama Unit Kerja / SKPD Resmi (Header Baris 2)" 
+                    value={form.unit_kerja} 
+                    onChange={e => setForm({...form, unit_kerja: e.target.value})}
+                    placeholder="UPTD PUSAT PENGELOLAAN PENDAPATAN DAERAH KABUPATEN TASIKMALAYA"
+                    required 
+                  />
+                </div>
+                <div className="md:col-span-1">
+                  <Input 
+                    label="Lokasi Kecamatan/Kota (Tanggal Berita Acara)" 
+                    value={form.lokasi} 
+                    onChange={e => setForm({...form, lokasi: e.target.value})}
+                    placeholder="Sukaraja"
+                    required 
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Input 
+                    label="Nama Wilayah (Kop Surat Baris 3)" 
+                    value={form.lokasi_wilayah} 
+                    onChange={e => setForm({...form, lokasi_wilayah: e.target.value})}
+                    placeholder="KABUPATEN TASIKMALAYA"
+                    required 
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Input 
+                    label="Alamat Lengkap Kantor" 
+                    value={form.alamat_kantor} 
+                    onChange={e => setForm({...form, alamat_kantor: e.target.value})}
+                    placeholder="Jalan Raya Cikatomas Sukaraja"
+                    required 
+                  />
+                </div>
+                <div>
+                  <Input 
+                    label="Kode Pos" 
+                    value={form.kode_pos_line} 
+                    onChange={e => setForm({...form, kode_pos_line: e.target.value})}
+                    placeholder="46183"
+                  />
+                </div>
+                <div className="md:col-span-3">
+                  <Input 
+                    label="Faksimil & Telepon / E-mail Kantor" 
+                    value={form.fax_email} 
+                    onChange={e => setForm({...form, fax_email: e.target.value})}
+                    placeholder="Telepon (0265) 565149 Faksimil (0265) 566917 E-mail: p3dwkabtsm@gmail.com"
+                  />
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* TAB 2: PEJABAT PENANDATANGAN */}
+          {activeTab === 'pejabat' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                {/* KPA Card */}
+                <Card className="p-5 border-t-4 border-t-indigo-600 shadow-md">
+                  <div className="flex items-center gap-2 mb-4 text-indigo-700 border-b border-slate-100 pb-3">
+                    <UserCheck size={18} />
+                    <h3 className="font-black text-xs uppercase tracking-wider">Kuasa Pengguna Anggaran (KPA)</h3>
+                  </div>
+                  <div className="space-y-3.5">
+                    <Input 
+                      label="Nomenklatur Jabatan KPA" 
+                      value={form.kpa_jabatan} 
+                      onChange={e => setForm({...form, kpa_jabatan: e.target.value})}
+                      required 
+                    />
+                    <Input 
+                      label="Nama Lengkap & Gelar KPA" 
+                      value={form.kpa_nama} 
+                      onChange={e => setForm({...form, kpa_nama: e.target.value})}
+                      required 
+                    />
+                    <Input 
+                      label="NIP KPA" 
+                      value={form.kpa_nip} 
+                      onChange={e => setForm({...form, kpa_nip: e.target.value})}
+                      required 
+                    />
+                  </div>
+                </Card>
+
+                {/* BPP Card */}
+                <Card className="p-5 border-t-4 border-t-emerald-600 shadow-md">
+                  <div className="flex items-center gap-2 mb-4 text-emerald-700 border-b border-slate-100 pb-3">
+                    <UserCheck size={18} />
+                    <h3 className="font-black text-xs uppercase tracking-wider">Bendahara Pengeluaran Pembantu</h3>
+                  </div>
+                  <div className="space-y-3.5">
+                    <Input 
+                      label="Nomenklatur Jabatan Bendahara" 
+                      value={form.bpp_jabatan} 
+                      onChange={e => setForm({...form, bpp_jabatan: e.target.value})}
+                      required 
+                    />
+                    <Input 
+                      label="Nama Lengkap & Gelar Bendahara" 
+                      value={form.bpp_nama} 
+                      onChange={e => setForm({...form, bpp_nama: e.target.value})}
+                      required 
+                    />
+                    <Input 
+                      label="NIP Bendahara" 
+                      value={form.bpp_nip} 
+                      onChange={e => setForm({...form, bpp_nip: e.target.value})}
+                      required 
+                    />
+                  </div>
+                </Card>
+
+                {/* PPTK Card */}
+                <Card className="p-5 border-t-4 border-t-amber-500 shadow-md">
+                  <div className="flex items-center gap-2 mb-4 text-amber-700 border-b border-slate-100 pb-3">
+                    <UserCheck size={18} />
+                    <h3 className="font-black text-xs uppercase tracking-wider">Pejabat Pelaksana Teknis Kegiatan (PPTK)</h3>
+                  </div>
+                  <div className="space-y-3.5">
+                    <Input 
+                      label="Nomenklatur Jabatan PPTK" 
+                      value={form.pptk_jabatan} 
+                      onChange={e => setForm({...form, pptk_jabatan: e.target.value})}
+                      required 
+                    />
+                    <Input 
+                      label="Nama Lengkap & Gelar PPTK" 
+                      value={form.pptk_nama} 
+                      onChange={e => setForm({...form, pptk_nama: e.target.value})}
+                      required 
+                    />
+                    <Input 
+                      label="NIP PPTK" 
+                      value={form.pptk_nip} 
+                      onChange={e => setForm({...form, pptk_nip: e.target.value})}
+                      required 
+                    />
+                  </div>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: ASISTEN AI & DEEPSEEK */}
+          {activeTab === 'ai' && (
+            <Card className="p-6 space-y-6 border-t-4 border-t-indigo-600 shadow-md">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-800 text-white flex items-center justify-center font-bold shadow-sm">
+                    <Bot size={22} />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-sm text-slate-800 flex items-center gap-2">
+                      Integrasi DeepSeek LLM API & Custom AI Rules
+                    </h3>
+                    <p className="text-xs text-slate-500">Hubungkan API Key DeepSeek untuk percakapan AI interaktif, pencarian data keuangan, dan audit kode rekening.</p>
+                  </div>
+                </div>
+
+                {form.deepseek_api_key?.trim() ? (
+                  <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase text-[9px] font-black px-3 py-1">
+                    🟢 Connected (DeepSeek AI)
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="bg-amber-50 text-amber-700 border border-amber-200 uppercase text-[9px] font-black px-3 py-1">
+                    ⚠️ Mode Offline (Local Search)
+                  </Badge>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-2">
+                    <Input
+                      label="DeepSeek API Key"
+                      type="password"
+                      placeholder="sk-..."
+                      value={form.deepseek_api_key || ''}
+                      onChange={e => setForm({ ...form, deepseek_api_key: e.target.value })}
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Dapatkan API Key di <a href="https://platform.deepseek.com" target="_blank" rel="noreferrer" className="text-indigo-600 font-bold underline">platform.deepseek.com</a>. Kunci disimpan dengan aman di penyimpanan lokal Anda.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Model DeepSeek
+                    </label>
+                    <select
+                      value={form.deepseek_model || 'deepseek-chat'}
+                      onChange={e => setForm({ ...form, deepseek_model: e.target.value })}
+                      className="w-full text-xs font-medium px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-2xs"
+                    >
+                      {availableModels.map(model => (
+                        <option key={model.id} value={model.id}>
+                          {model.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Aturan & Instruksi Khusus AI */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-amber-500" />
+                    <span>Aturan & Instruksi Khusus AI (Custom Permanent Rules)</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={form.custom_ai_instructions || ''}
+                    onChange={e => setForm({ ...form, custom_ai_instructions: e.target.value })}
+                    placeholder="Contoh: Selalu sapa saya dengan 'Pak Bendahara'. Jangan gunakan angka desimal pada nominal Rupiah. Utamakan analisis belanja BBM."
+                    className="w-full text-xs font-medium p-3.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-2xs leading-relaxed text-slate-800 placeholder:text-slate-400"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Aturan ini akan disimpan dan disuntikkan secara permanen pada setiap percakapan dan analisis data keuangan oleh AI.
+                  </p>
+                </div>
+
+                {/* Test Result Alert */}
+                {deepseekTestStatus.result && (
+                  <div className={`p-4 rounded-2xl text-xs flex items-start gap-3 border transition-all animate-in fade-in slide-in-from-top-2 ${
+                    deepseekTestStatus.result.success 
+                      ? 'bg-emerald-50/60 border-emerald-100 text-emerald-800 shadow-inner' 
+                      : 'bg-rose-50/60 border-rose-100 text-rose-800 shadow-inner'
+                  }`}>
+                    {deepseekTestStatus.result.success ? (
+                      <>
+                        <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-black uppercase tracking-wider text-[10px] text-emerald-700 mb-0.5">Koneksi API Berhasil!</p>
+                          <p className="font-medium opacity-90">{deepseekTestStatus.result.message}</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-black uppercase tracking-wider text-[10px] text-rose-700 mb-0.5">Koneksi API Gagal</p>
+                          <p className="font-mono leading-relaxed mt-1 bg-white/60 p-2 rounded-lg border border-rose-100/50 break-all text-[10px] text-rose-900">{deepseekTestStatus.result.error}</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap justify-end items-center gap-3 pt-3 border-t border-slate-100">
+                  <Button
+                    type="button"
+                    onClick={handleFetchDeepSeekModels}
+                    disabled={isLoadingModels}
+                    variant="secondary"
+                    className="text-xs font-bold h-10 px-4 border-slate-200 text-slate-700 hover:bg-slate-50 shadow-none"
+                  >
+                    {isLoadingModels ? (
+                      <span className="flex items-center gap-2"><RefreshCcw size={14} className="animate-spin" /> Mengambil Model...</span>
+                    ) : (
+                      <span className="flex items-center gap-1.5">🔍 Cek Model Tersedia</span>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleTestDeepSeek}
+                    disabled={deepseekTestStatus.loading}
+                    variant="secondary"
+                    className="text-xs font-bold h-10 px-4 border-indigo-200 text-indigo-700 hover:bg-indigo-50 shadow-none"
+                  >
+                    {deepseekTestStatus.loading ? 'Menguji API Key...' : '⚡ Uji Koneksi DeepSeek API'}
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* TAB 4: GOOGLE DRIVE & SYSTEM UPDATE */}
+          {activeTab === 'system' && (
+            <div className="space-y-6">
+              
+              {/* Google Drive Integration */}
+              <Card className="p-6 border-t-4 border-t-emerald-500 shadow-md">
+                <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                      <Cloud size={22} />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm text-slate-800">Integrasi Google Drive Personal Backup</h3>
+                      <p className="text-xs text-slate-500">Unggah salinan berkas Bukti Bayar / Nota belanja langsung ke Google Drive pribadi Anda (OAuth 2.0).</p>
+                    </div>
+                  </div>
+
+                  {driveStatus.result?.success ? (
+                    <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase text-[9px] font-black px-3 py-1">TERHUBUNG</Badge>
+                  ) : (
+                    <Badge variant="secondary" className="bg-slate-100 text-slate-500 uppercase text-[9px] font-black px-3 py-1">BELUM LOGIN</Badge>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Fitur ini mengizinkan aplikasi mengunggah salinan Nota SPJ secara aman. Pastikan berkas <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-indigo-600 border border-slate-200 text-[10px]">oauth-credentials.json</code> sudah tersedia di direktori aplikasi.
+                  </p>
+
+                  {!isElectron && (
+                    <div className="p-4 rounded-2xl text-xs border bg-amber-50 border-amber-200 text-amber-800">
+                      <p className="font-black uppercase tracking-wider text-[10px] mb-1">Mode Web Browser Terdeteksi</p>
+                      <p>Login OAuth Google Drive membutuhkan aplikasi Electron desktop untuk mendengarkan callback autentikasi lokal secara aman.</p>
+                    </div>
+                  )}
+
+                  {driveStatus.result && (
+                    <div className={`p-4 rounded-2xl text-xs flex items-start gap-3 border transition-all animate-in fade-in slide-in-from-top-2 ${
+                      driveStatus.result.success 
+                        ? 'bg-emerald-50/60 border-emerald-100 text-emerald-800 shadow-inner' 
+                        : 'bg-rose-50/60 border-rose-100 text-rose-800 shadow-inner'
+                    }`}>
+                      {driveStatus.result.success ? (
+                        <>
+                          <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-black uppercase tracking-wider text-[10px] text-emerald-700 mb-0.5">Koneksi Google Drive Sukses!</p>
+                            <p className="font-medium opacity-90">Folder "Keuangan / Bukti Bayar-Transfer" akan otomatis dibuat di Google Drive pribadi Anda.</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-black uppercase tracking-wider text-[10px] text-rose-700 mb-0.5">Terjadi Kesalahan Login</p>
+                            <p className="font-mono leading-relaxed mt-1 bg-white/60 p-2 rounded-lg border border-rose-100/50 break-all text-[10px] text-rose-900">{driveStatus.result.error}</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap justify-end items-center gap-3 pt-3 border-t border-slate-100">
+                    {driveStatus.result?.success ? (
+                      <>
+                        <Button 
+                          type="button"
+                          onClick={handleLogoutDrive} 
+                          disabled={driveStatus.loading}
+                          variant="secondary"
+                          className="text-xs font-bold h-10 px-4 border-rose-200 text-rose-600 hover:bg-rose-50 shadow-none"
+                        >
+                          Putus Koneksi
+                        </Button>
+                        <Button 
+                          type="button"
+                          onClick={handleTestDrive} 
+                          disabled={driveStatus.loading}
+                          variant="secondary"
+                          className="text-xs font-bold h-10 px-4 border-slate-200 text-slate-600 hover:bg-slate-50 shadow-none"
+                        >
+                          {driveStatus.loading ? 'Menghubungkan...' : 'Cek Koneksi'}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button 
+                          type="button"
+                          onClick={handleTestDrive} 
+                          disabled={driveStatus.loading || !isElectron}
+                          variant="secondary"
+                          className="text-xs font-bold h-10 px-4 border-slate-200 text-slate-600 hover:bg-slate-50 shadow-none"
+                        >
+                          Cek Koneksi Tersimpan
+                        </Button>
+                        <Button 
+                          type="button"
+                          onClick={handleLoginDrive} 
+                          disabled={driveStatus.loading || !isElectron}
+                          className="text-xs font-bold h-10 px-5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/10 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          {driveStatus.loading ? (
+                            <span className="flex items-center gap-2"><RefreshCcw size={14} className="animate-spin" /> Membuka Login...</span>
+                          ) : (
+                            <span className="flex items-center gap-2">
+                              <Cloud size={14} />
+                              Hubungkan Akun Google (Login)
+                            </span>
+                          )}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </Card>
+
+              {/* Electron Auto Update */}
+              <Card className="p-6 border-t-4 border-t-slate-700 shadow-md">
+                <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold">
+                      <Laptop size={22} />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm text-slate-800">Pembaruan & Versi Aplikasi Desktop</h3>
+                      <p className="text-xs text-slate-500">Manajemen rilis otomatis dan update versi aplikasi Electron.</p>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-mono font-bold text-xs">
+                    v{window.api?.appVersion || '1.2.3'}
+                  </Badge>
+                </div>
+
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-2">
+                  <div className="flex-1 space-y-1.5">
+                    <p className="text-xs font-bold text-slate-700">Status System Update: <span className="text-indigo-600 font-mono">{updateStatus}</span></p>
+                    {!isElectron && (
+                      <p className="text-[11px] text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-100">
+                        Menu auto-update aktif penuh pada versi desktop Electron yang terinstall.
+                      </p>
+                    )}
+                    {updateInfo && updatePhase === 'available' && (
+                      <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                        Versi baru ditemukan: <span className="font-bold text-indigo-700">{updateInfo.version}</span> ({updateInfo.releaseDate})
+                      </p>
+                    )}
+                    
+                    {updatePhase === 'download-progress' && (
+                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mt-2">
+                        <div 
+                          className="bg-indigo-600 h-full transition-all duration-300" 
+                          style={{ width: `${downloadProgress}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2.5 shrink-0">
+                    {(updatePhase === 'idle' || updatePhase === 'not-available' || updatePhase === 'error') && (
+                      <Button onClick={handleCheckUpdate} variant="secondary" className="text-xs font-bold h-10 px-4" disabled={!isElectron}>
+                        <RefreshCcw size={14} className="mr-1.5" /> Cek Pembaruan
+                      </Button>
+                    )}
+
+                    {updatePhase === 'available' && (
+                      <Button onClick={handleDownloadUpdate} className="text-xs font-bold h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!isElectron}>
+                        <Download size={14} className="mr-1.5" /> Unduh Sekarang
+                      </Button>
+                    )}
+
+                    {updatePhase === 'downloaded' && (
+                      <Button onClick={handleInstallUpdate} className="text-xs font-bold h-10 px-4 bg-indigo-600 hover:bg-indigo-700 text-white" disabled={!isElectron}>
+                        <Power size={14} className="mr-1.5" /> Pasang & Restart
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </Card>
+
+            </div>
+          )}
+
+        </fieldset>
+      </form>
+
+      {/* Floating Save Footer Bar */}
+      {user?.role !== 'viewer' && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-slate-900/90 backdrop-blur-md text-white px-6 py-3 rounded-full shadow-2xl border border-slate-700/60 flex items-center gap-4 animate-in slide-in-from-bottom-5">
+          <span className="text-xs text-slate-300 font-medium hidden sm:inline">Perubahan pengaturan belum disimpan secara permanen</span>
+          <div className="flex items-center gap-2">
+            <Button 
+              type="button" 
+              onClick={handleSubmit} 
+              disabled={isSaving}
+              className="text-xs font-extrabold h-9 px-5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg rounded-full"
+            >
               {isSaving ? 'Menyimpan...' : (
-                <span className="flex items-center gap-2">
-                  <Save size={18} /> Simpan Perubahan
+                <span className="flex items-center gap-1.5">
+                  <Save size={14} /> Simpan Perubahan
                 </span>
               )}
             </Button>
           </div>
-        )}
-        </fieldset>
-      </form>
-
-      {/* Integrasi Google Drive */}
-      <Card className="p-6 mt-8 border-t-4 border-t-emerald-500 shadow-md shadow-emerald-500/5">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2 text-emerald-600">
-            <Cloud size={18} />
-            <h3 className="font-bold text-sm uppercase tracking-wider">Integrasi Google Drive</h3>
-          </div>
-          {driveStatus.result?.success ? (
-            <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase text-[9px] tracking-wider font-black px-3">TERHUBUNG</Badge>
-          ) : (
-            <Badge variant="secondary" className="bg-slate-100 text-slate-500 uppercase text-[9px] tracking-wider font-black px-3">BELUM LOGIN</Badge>
-          )}
         </div>
+      )}
 
-        <div className="space-y-4">
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Fitur ini memungkinkan aplikasi mengunggah berkas Bukti Bayar/Transfer langsung ke Google Drive pribadi Anda (<span className="font-semibold text-slate-700">Google OAuth 2.0</span>) memanfaatkan 15GB kuota gratis Anda secara resmi.
-            Pastikan berkas <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-indigo-600 border border-slate-200 text-[10px]">oauth-credentials.json</code> sudah diletakkan di direktori aplikasi sebelum memulai login.
-          </p>
-
-          {!isElectron && (
-            <div className="p-4 rounded-2xl text-xs border bg-amber-50 border-amber-200 text-amber-800">
-              <p className="font-black uppercase tracking-wider text-[10px] mb-1">Mode Web Terdeteksi</p>
-              <p>Login Google Drive tidak bisa dijalankan dari browser/Tailscale karena fitur ini bergantung pada Electron main process, browser lokal, dan callback OAuth di mesin desktop. Untuk login Google, jalankan app versi desktop Electron.</p>
-            </div>
-          )}
-
-          {driveStatus.result && (
-            <div className={`p-4 rounded-2xl text-xs flex items-start gap-3 border transition-all animate-in fade-in slide-in-from-top-2 ${
-              driveStatus.result.success 
-                ? 'bg-emerald-50/60 border-emerald-100 text-emerald-800 shadow-inner' 
-                : 'bg-rose-50/60 border-rose-100 text-rose-800 shadow-inner'
-            }`}>
-              {driveStatus.result.success ? (
-                <>
-                  <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-black uppercase tracking-wider text-[10px] text-emerald-700 mb-0.5">Koneksi Sukses!</p>
-                    <p className="font-medium opacity-90">Akun Google Drive pribadi Anda berhasil terhubung. Folder "Keuangan / Bukti Bayar-Transfer" akan otomatis dibuat di Drive utama Anda.</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <XCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-black uppercase tracking-wider text-[10px] text-rose-700 mb-0.5">Terjadi Kesalahan</p>
-                    <p className="font-mono leading-relaxed mt-1 bg-white/60 p-2 rounded-lg border border-rose-100/50 break-all text-[10px] text-rose-900">{driveStatus.result.error}</p>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          <div className="flex justify-end items-center gap-3 pt-4 border-t border-slate-100 mt-4">
-            {driveStatus.result?.success ? (
-              <>
-                <Button 
-                  onClick={handleLogoutDrive}
-                  disabled={driveStatus.loading}
-                  variant="secondary"
-                  className="text-xs font-bold h-10 px-4 text-rose-600 border-rose-200 hover:bg-rose-50 shadow-none"
-                >
-                  Putuskan Koneksi (Logout)
-                </Button>
-                <Button 
-                  onClick={handleTestDrive} 
-                  disabled={driveStatus.loading}
-                  variant="secondary"
-                  className="text-xs font-bold h-10 px-4 border-slate-200 text-slate-600 hover:bg-slate-50 shadow-none"
-                >
-                  {driveStatus.loading ? 'Menghubungkan...' : 'Cek Koneksi'}
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button 
-                  onClick={handleTestDrive} 
-                  disabled={driveStatus.loading || !isElectron}
-                  variant="secondary"
-                  className="text-xs font-bold h-10 px-4 border-slate-200 text-slate-600 hover:bg-slate-50 shadow-none"
-                >
-                  Cek Koneksi Tersimpan
-                </Button>
-                <Button 
-                  onClick={handleLoginDrive} 
-                  disabled={driveStatus.loading || !isElectron}
-                  className="text-xs font-bold h-10 px-5 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/10 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {driveStatus.loading ? (
-                    <span className="flex items-center gap-2"><RefreshCcw size={14} className="animate-spin" /> Membuka Login...</span>
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      <Cloud size={14} />
-                      Hubungkan Akun Google (Login)
-                    </span>
-                  )}
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </Card>
-
-      {/* Integrasi Asisten AI & DeepSeek API */}
-      <Card className="p-6 mt-8 border-t-4 border-t-indigo-600 shadow-md shadow-indigo-600/5">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2 text-indigo-600">
-            <Bot size={20} />
-            <h3 className="font-bold text-sm uppercase tracking-wider">Integrasi Asisten AI & DeepSeek API</h3>
-          </div>
-          {form.deepseek_api_key?.trim() ? (
-            <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase text-[9px] tracking-wider font-black px-3">
-              DeepSeek Terkonfigurasi
-            </Badge>
-          ) : (
-            <Badge variant="secondary" className="bg-amber-50 text-amber-700 border border-amber-200 uppercase text-[9px] tracking-wider font-black px-3">
-              Mode Lokal (Aturan Statis)
-            </Badge>
-          )}
-        </div>
-
-        <div className="space-y-4">
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Menghubungkan <strong className="text-slate-700">Asisten AI Bendahara</strong> dengan <strong className="text-indigo-600">DeepSeek LLM API</strong> untuk percakapan keuangan yang sangat luwes, ramah, dan cerdas dalam Bahasa Indonesia. Dapatkan API Key Anda di <a href="https://platform.deepseek.com" target="_blank" rel="noreferrer" className="text-indigo-600 font-bold underline">platform.deepseek.com</a>.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
-              <Input
-                label="DeepSeek API Key"
-                type="password"
-                placeholder="sk-..."
-                value={form.deepseek_api_key || ''}
-                onChange={e => setForm({ ...form, deepseek_api_key: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Pilih Model DeepSeek
-              </label>
-              <select
-                value={form.deepseek_model || 'deepseek-chat'}
-                onChange={e => setForm({ ...form, deepseek_model: e.target.value })}
-                className="w-full text-xs font-medium px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-2xs"
-              >
-                {availableModels.map(model => (
-                  <option key={model.id} value={model.id}>
-                    {model.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              📌 Aturan & Instruksi Khusus AI (Custom System Rules)
-            </label>
-            <textarea
-              rows={3}
-              value={form.custom_ai_instructions || ''}
-              onChange={e => setForm({ ...form, custom_ai_instructions: e.target.value })}
-              placeholder="Contoh: Selalu sapa saya dengan 'Pak Bendahara'. Jangan tampilkan angka desimal pada nominal Rupiah. Utamakan analisis transaksi BBM."
-              className="w-full text-xs font-medium p-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-2xs leading-relaxed text-slate-800"
-            />
-            <p className="text-[10px] text-slate-400 mt-1">
-              Aturan ini akan disimpan dan diingat oleh AI secara permanen pada setiap percakapan dan analisis data keuangan.
-            </p>
-          </div>
-
-          {deepseekTestStatus.result && (
-            <div className={`p-4 rounded-2xl text-xs flex items-start gap-3 border transition-all animate-in fade-in slide-in-from-top-2 ${
-              deepseekTestStatus.result.success 
-                ? 'bg-emerald-50/60 border-emerald-100 text-emerald-800 shadow-inner' 
-                : 'bg-rose-50/60 border-rose-100 text-rose-800 shadow-inner'
-            }`}>
-              {deepseekTestStatus.result.success ? (
-                <>
-                  <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-black uppercase tracking-wider text-[10px] text-emerald-700 mb-0.5">Koneksi Sukses!</p>
-                    <p className="font-medium opacity-90">{deepseekTestStatus.result.message}</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <XCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-black uppercase tracking-wider text-[10px] text-rose-700 mb-0.5">Koneksi Gagal</p>
-                    <p className="font-mono leading-relaxed mt-1 bg-white/60 p-2 rounded-lg border border-rose-100/50 break-all text-[10px] text-rose-900">{deepseekTestStatus.result.error}</p>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          <div className="flex flex-wrap justify-end items-center gap-3 pt-3 border-t border-slate-100">
-            <Button
-              type="button"
-              onClick={handleFetchDeepSeekModels}
-              disabled={isLoadingModels}
-              variant="secondary"
-              className="text-xs font-bold h-10 px-4 border-slate-200 text-slate-700 hover:bg-slate-50 shadow-none"
-            >
-              {isLoadingModels ? (
-                <span className="flex items-center gap-2"><RefreshCcw size={14} className="animate-spin" /> Mengambil Model...</span>
-              ) : (
-                <span className="flex items-center gap-1.5">🔍 Cek Model Tersedia</span>
-              )}
-            </Button>
-            <Button
-              type="button"
-              onClick={handleTestDeepSeek}
-              disabled={deepseekTestStatus.loading}
-              variant="secondary"
-              className="text-xs font-bold h-10 px-4 border-indigo-200 text-indigo-700 hover:bg-indigo-50 shadow-none"
-            >
-              {deepseekTestStatus.loading ? 'Menguji API Key...' : '⚡ Uji Koneksi DeepSeek API'}
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Pembaruan Aplikasi */}
-      <Card className="p-6 mt-8 border-t-4 border-t-indigo-500">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2 text-indigo-600">
-            <Laptop size={18} />
-            <h3 className="font-bold text-sm uppercase tracking-wider">Pembaruan Aplikasi</h3>
-          </div>
-          <Badge variant="secondary" className="bg-slate-100 text-slate-600">v{window.api?.appVersion || 'desktop'}</Badge>
-        </div>
-
-        <div className="flex flex-col md:flex-row items-center gap-6">
-          <div className="flex-1 space-y-2">
-            <p className="text-sm font-bold text-slate-700">Status: <span className="text-indigo-600">{updateStatus}</span></p>
-            {!isElectron && (
-              <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-100">
-                Menu pembaruan ini aktif penuh hanya di versi desktop Electron yang sudah di-install.
-              </p>
-            )}
-            {updateInfo && updatePhase === 'available' && (
-              <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                Versi baru ditemukan: <span className="font-bold">{updateInfo.version}</span> ({updateInfo.releaseDate})
-              </p>
-            )}
-            
-            {updatePhase === 'download-progress' && (
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-2">
-                <div 
-                  className="bg-indigo-600 h-full transition-all duration-300" 
-                  style={{ width: `${downloadProgress}%` }}
-                ></div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-3">
-            {(updatePhase === 'idle' || updatePhase === 'not-available' || updatePhase === 'error') ? (
-              <Button onClick={handleCheckUpdate} variant="secondary" className="text-xs" disabled={!isElectron}>
-                <RefreshCcw size={14} className="mr-2" /> Cek Pembaruan
-              </Button>
-            ) : null}
-
-            {updatePhase === 'available' && (
-              <Button onClick={handleDownloadUpdate} className="text-xs bg-emerald-600 hover:bg-emerald-700" disabled={!isElectron}>
-                <Download size={14} className="mr-2" /> Unduh Sekarang
-              </Button>
-            )}
-
-            {updatePhase === 'downloaded' && (
-              <Button onClick={handleInstallUpdate} className="text-xs bg-indigo-600 hover:bg-indigo-700" disabled={!isElectron}>
-                <Power size={14} className="mr-2" /> Pasang & Restart
-              </Button>
-            )}
-          </div>
-        </div>
-      </Card>
     </div>
   )
 }
-
