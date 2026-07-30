@@ -480,7 +480,7 @@ export function executeTool(name, args, storeState) {
 }
 
 /**
- * LangChain Agent Loop Runner
+ * LangChain Agent Loop Runner dengan Support Multi-Turn Cyclical Execution & DeepSeek DSML Parser
  */
 export async function runLangChainAgent(userQuery, chatHistory = [], storeState) {
   const settings = storeState?.settings || {}
@@ -551,100 +551,18 @@ PETUNJUK EXECUTION LANGCHAIN AGENT:
     content: cleanDsmlMarkup(msg.text || '')
   }))
 
-  const messagesPayload = [
+  let currentMessagesPayload = [
     systemMessage,
     ...formattedHistory,
     { role: 'user', content: userQuery }
   ]
 
-  // Step 1: Panggil DeepSeek API dengan Tools Schema
-  const response1 = await fetch('https://api.deepseek.com/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: apiModel,
-      messages: messagesPayload,
-      tools: LANGCHAIN_TOOLS,
-      tool_choice: 'auto',
-      temperature: 0.3
-    })
-  })
+  let capturedAction = null
+  const maxTurns = 4
 
-  if (!response1.ok) {
-    const errData = await response1.json().catch(() => ({}))
-    throw new Error(errData.error?.message || `HTTP ${response1.status}: ${response1.statusText}`)
-  }
-
-  const data1 = await response1.json()
-  const choiceMessage1 = data1.choices?.[0]?.message
-
-  if (!choiceMessage1) {
-    throw new Error('Tidak ada respons dari server AI.')
-  }
-
-  let toolCallsToRun = choiceMessage1.tool_calls || []
-
-  // JIKA DEEPSEEK MENYELIPKAN DSML MARKUP DI CONTENT ALIH-ALIH TOOL_CALLS NATIVE
-  if (toolCallsToRun.length === 0 && choiceMessage1.content && choiceMessage1.content.includes('DSML')) {
-    const dsmlCalls = parseDsmlToolCalls(choiceMessage1.content)
-    if (dsmlCalls.length > 0) {
-      toolCallsToRun = dsmlCalls.map((c, idx) => ({
-        id: `dsml_${idx}_${Date.now()}`,
-        function: {
-          name: c.name,
-          arguments: JSON.stringify(c.args)
-        }
-      }))
-    }
-  }
-
-  // Jika LLM memilih untuk memanggil Tool (baik Native Tool Call maupun DSML Parsed)
-  if (toolCallsToRun.length > 0) {
-    let capturedAction = null
-    const toolMessages = []
-
-    for (const toolCall of toolCallsToRun) {
-      const toolName = toolCall.function.name
-      let toolArgs = {}
-      try {
-        toolArgs = typeof toolCall.function.arguments === 'string'
-          ? JSON.parse(toolCall.function.arguments || '{}')
-          : toolCall.function.arguments || {}
-      } catch (e) { console.error('Failed to parse tool args', e) }
-
-      // Eksekusi Tool
-      const toolResultRaw = executeTool(toolName, toolArgs, storeState)
-
-      // Cek apakah tool menghasilkan aksi navigasi
-      try {
-        const parsed = JSON.parse(toolResultRaw)
-        if (parsed.action) capturedAction = parsed.action
-      } catch (e) { console.error('Failed to parse tool response', e) }
-
-      toolMessages.push({
-        role: 'tool',
-        tool_call_id: toolCall.id,
-        content: toolResultRaw
-      })
-    }
-
-    // Step 2: Kirimkan hasil Tool back to LLM untuk menghasilkan jawaban percakapan akhir
-    const cleanChoiceMessage1 = {
-      role: choiceMessage1.role,
-      content: cleanDsmlMarkup(choiceMessage1.content || ''),
-      tool_calls: choiceMessage1.tool_calls
-    }
-
-    const messagesPayload2 = [
-      ...messagesPayload,
-      cleanChoiceMessage1,
-      ...toolMessages
-    ]
-
-    const response2 = await fetch('https://api.deepseek.com/chat/completions', {
+  // Agent Multi-Turn Execution Loop (Mendukung hingga 4 siklus tool calling berurutan)
+  for (let turn = 0; turn < maxTurns; turn++) {
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -652,24 +570,89 @@ PETUNJUK EXECUTION LANGCHAIN AGENT:
       },
       body: JSON.stringify({
         model: apiModel,
-        messages: messagesPayload2,
+        messages: currentMessagesPayload,
+        tools: LANGCHAIN_TOOLS,
+        tool_choice: 'auto',
         temperature: 0.3
       })
     })
 
-    if (!response2.ok) {
-      const errData = await response2.json().catch(() => ({}))
-      throw new Error(errData.error?.message || `HTTP ${response2.status}`)
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}))
+      throw new Error(errData.error?.message || `HTTP ${response.status}: ${response.statusText}`)
     }
 
-    const data2 = await response2.json()
-    const rawFinalContent = data2.choices?.[0]?.message?.content || 'Maaf, tidak ada respons akhir dari Agent.'
-    const cleanedFinalText = cleanDsmlMarkup(rawFinalContent)
+    const data = await response.json()
+    const choiceMessage = data.choices?.[0]?.message
 
-    return { text: cleanedFinalText, action: capturedAction }
+    if (!choiceMessage) {
+      throw new Error('Tidak ada respons dari server AI.')
+    }
+
+    let toolCallsToRun = choiceMessage.tool_calls || []
+
+    // JIKA DEEPSEEK MENYELIPKAN DSML MARKUP DI CONTENT ALIH-ALIH TOOL_CALLS NATIVE
+    if (toolCallsToRun.length === 0 && choiceMessage.content && choiceMessage.content.includes('DSML')) {
+      const dsmlCalls = parseDsmlToolCalls(choiceMessage.content)
+      if (dsmlCalls.length > 0) {
+        toolCallsToRun = dsmlCalls.map((c, idx) => ({
+          id: `dsml_${turn}_${idx}_${Date.now()}`,
+          function: {
+            name: c.name,
+            arguments: JSON.stringify(c.args)
+          }
+        }))
+      }
+    }
+
+    // JIKA LLM MEMANGGIL TOOL
+    if (toolCallsToRun.length > 0) {
+      const toolMessages = []
+
+      for (const toolCall of toolCallsToRun) {
+        const toolName = toolCall.function.name
+        let toolArgs = {}
+        try {
+          toolArgs = typeof toolCall.function.arguments === 'string'
+            ? JSON.parse(toolCall.function.arguments || '{}')
+            : toolCall.function.arguments || {}
+        } catch (e) { console.error('Failed to parse tool args', e) }
+
+        // Eksekusi Tool
+        const toolResultRaw = executeTool(toolName, toolArgs, storeState)
+
+        // Cek aksi navigasi
+        try {
+          const parsed = JSON.parse(toolResultRaw)
+          if (parsed.action) capturedAction = parsed.action
+        } catch (e) { console.error('Failed to parse tool response', e) }
+
+        toolMessages.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: toolResultRaw
+        })
+      }
+
+      // Masukkan pesan assistant (dengan teks DSML dibersihkan) & hasil tool ke payload
+      const cleanMessage = {
+        role: choiceMessage.role,
+        content: cleanDsmlMarkup(choiceMessage.content || ''),
+        tool_calls: choiceMessage.tool_calls
+      }
+
+      currentMessagesPayload.push(cleanMessage)
+      currentMessagesPayload.push(...toolMessages)
+      // Lanjutkan loop ke turn berikutnya agar LLM memproses hasil tool!
+    } else {
+      // TIDAK ADA TOOL CALL LAGI: JAWABAN AKHIR LLM TERBENTUK
+      const cleanedFinalText = cleanDsmlMarkup(choiceMessage.content || '')
+      return { text: cleanedFinalText, action: capturedAction }
+    }
   }
 
-  // Jika LLM menjawab langsung tanpa tool call
-  const cleanedDirectText = cleanDsmlMarkup(choiceMessage1.content || '')
-  return { text: cleanedDirectText, action: null }
+  return { 
+    text: 'Telah mengeksekusi pencarian data keuangan. Silakan periksa rincian di atas.', 
+    action: capturedAction 
+  }
 }
