@@ -189,12 +189,20 @@ export default function Pengeluaran() {
       if (filterKodeRekening && p.kode_rekening_id !== filterKodeRekening) return false
       
       if (searchQuery) {
-        const query = searchQuery.toLowerCase()
+        const query = searchQuery.toLowerCase().trim()
         const rincianText = p.pengeluaran_rincian?.map(r => r.uraian).join(' ') || ''
         const headKeterangan = p.keterangan || ''
-        if (!rincianText.toLowerCase().includes(query) && !headKeterangan.toLowerCase().includes(query)) {
-          return false
-        }
+        const penerimaNama = p.penerima_nama || ''
+        const noBukti = p.no_bukti || p.nomor_ls || ''
+        const idStr = String(p.id || '')
+
+        const isMatch = rincianText.toLowerCase().includes(query) ||
+                        headKeterangan.toLowerCase().includes(query) ||
+                        penerimaNama.toLowerCase().includes(query) ||
+                        noBukti.toLowerCase().includes(query) ||
+                        idStr === query
+
+        if (!isMatch) return false
       }
 
       return true

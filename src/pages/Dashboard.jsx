@@ -640,7 +640,7 @@ export default function Dashboard() {
                                                                     e.stopPropagation()
                                                                     navigate('/pengeluaran', {
                                                                       state: {
-                                                                        searchKeyword: tx.no_bukti || tx.nomor_ls || tx.keterangan || String(tx.id),
+                                                                        searchKeyword: tx.pengeluaran_rincian?.[0]?.uraian || tx.keterangan || rincianText,
                                                                         highlightTxId: String(tx.id)
                                                                       }
                                                                     })
