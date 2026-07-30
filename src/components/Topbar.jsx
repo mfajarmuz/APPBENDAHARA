@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom'
-import { Calendar, LogOut, Menu } from 'lucide-react'
+import { Calendar, LogOut, Menu, Bot } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 
 const pageTitles = {
@@ -19,7 +19,7 @@ function today() {
   })
 }
 
-export default function Topbar({ onMenuClick }) {
+export default function Topbar({ onMenuClick, onAiClick }) {
   const { pathname } = useLocation()
   const title = pageTitles[pathname] ?? 'Bendahara App'
   const logout = useStore(s => s.logout)
@@ -36,7 +36,17 @@ export default function Topbar({ onMenuClick }) {
         </button>
         <h1 className="text-slate-900 font-bold text-lg hidden sm:block tracking-tight">{title}</h1>
       </div>
-      <div className="flex items-center gap-4 md:gap-6">
+      <div className="flex items-center gap-3 md:gap-4">
+        {/* Tombol Trigger Asisten AI */}
+        <button
+          onClick={onAiClick}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-bold text-xs hover:from-indigo-700 hover:to-indigo-800 transition-all shadow-md shadow-indigo-200 group"
+          title="Buka Asisten AI Bendahara"
+        >
+          <Bot size={15} className="text-emerald-300 group-hover:scale-110 transition-transform" />
+          <span className="hidden sm:inline">Asisten AI</span>
+        </button>
+
         <div className="hidden sm:flex items-center gap-2.5 text-slate-500 text-sm font-medium bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 shadow-inner">
           <Calendar size={14} className="text-indigo-500" />
           <span>{today()}</span>

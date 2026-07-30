@@ -1,0 +1,87 @@
+import { describe, it, expect } from 'vitest'
+import { buildFinancialContext, processAiQuery } from '../lib/aiAssistant'
+
+describe('Asisten AI Bendahara (Engine & Context)', () => {
+  const dummyState = {
+    settings: { unit_kerja: 'Dinas Keuangan', unit_kerja_kode: '5.01' },
+    subKegiatan: [
+      {
+        id: 'sk-1',
+        kode: '5.01.01.1.01',
+        nama: 'Penagihan Pajak Daerah',
+        kode_rekening: [
+          {
+            id: 'rek-1',
+            kode: '5.1.02.01.001',
+            uraian: 'Belanja Alat Tulis Kantor',
+            pagu_anggaran: 20000000,
+            rak_jan: 5000000,
+            rak_feb: 5000000,
+            rak_mar: 5000000,
+            rak_apr: 5000000
+          }
+        ]
+      }
+    ],
+    pengeluaran: [
+      {
+        id: 'p-1',
+        sub_kegiatan_id: 'sk-1',
+        kode_rekening_id: 'rek-1',
+        jumlah: 5000000,
+        jenis: 'GU',
+        tanggal: '2026-01-15'
+      }
+    ],
+    penerimaan: [
+      {
+        id: 'pen-1',
+        jumlah: 50000000,
+        tanggal: '2026-01-02'
+      }
+    ]
+  }
+
+  it('harus mengekstrak konteks keuangan dengan benar', () => {
+    const ctx = buildFinancialContext(dummyState)
+    expect(ctx.totalPagu).toBe(20000000)
+    expect(ctx.realisasiPengeluaran).toBe(5000000)
+    expect(ctx.sisaPagu).toBe(15000000)
+    expect(ctx.totalPenerimaan).toBe(50000000)
+    expect(ctx.saldoKasBku).toBe(45000000)
+  })
+
+  it('harus merespons pertanyaan sisa pagu DPA dalam Bahasa Indonesia', () => {
+    const res = processAiQuery('Berapa sisa pagu DPA?', dummyState)
+    expect(res.text).toContain('Ringkasan Pagu DPA')
+    expect(res.text).toContain('15.000.000')
+    expect(res.action.path).toBe('/anggaran')
+  })
+
+  it('harus merespons pertanyaan status RAK bulanan', () => {
+    const res = processAiQuery('Cek status RAK bulanan', dummyState)
+    expect(res.text).toContain('Status RAK Belanja Akumulatif')
+    expect(res.action.path).toBe('/anggaran')
+  })
+
+  it('harus merespons pertanyaan BKU dan saldo kas', () => {
+    const res = processAiQuery('Berapa saldo BKU saat ini?', dummyState)
+    expect(res.text).toContain('Ringkasan Buku Kas Umum (BKU)')
+    expect(res.text).toContain('45.000.000')
+    expect(res.action.path).toBe('/laporan')
+  })
+
+  it('harus memproses simulasi belanja dengan benar', () => {
+    const res = processAiQuery('Apakah cukup kalau saya keluarkan 10 juta bulan ini?', dummyState)
+    expect(res.text).toContain('Hasil Simulasi Rencana Belanja')
+    expect(res.text).toContain('MEMENUHI')
+    expect(res.action.path).toBe('/pengeluaran')
+  })
+
+  it('harus menghasilkan draf ringkasan eksekutif untuk Pimpinan', () => {
+    const res = processAiQuery('Buatkan ringkasan eksekutif untuk pimpinan', dummyState)
+    expect(res.text).toContain('Ringkasan Eksekutif Realisasi Anggaran')
+    expect(res.text).toContain('Dinas Keuangan')
+    expect(res.action.path).toBe('/laporan')
+  })
+})
