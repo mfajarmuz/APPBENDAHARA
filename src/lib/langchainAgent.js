@@ -76,6 +76,30 @@ export const LANGCHAIN_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'audit_kode_rekening',
+      description: 'Menganalisis dan mengaudit seluruh database transaksi pengeluaran untuk mendeteksi potensi kesalahan pengalokasian Kode Rekening (contoh: BBM diisi di rekening ATK, ATK diisi di rekening Pemeliharaan, dll).',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_item_level_details',
+      description: 'Mendapatkan data transaksi detail per rincian barang/item (nama item, volume, harga satuan, total nominal, kode rekening, nama rekening, sub kegiatan, tanggal, nomor bukti).',
+      parameters: {
+        type: 'object',
+        properties: {
+          sub_kegiatan_id: {
+            type: 'string',
+            description: 'ID atau nama Sub Kegiatan (opsional)'
+          }
+        }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'simulate_belanja',
       description: 'Mensimulasikan apakah alokasi RAK / Pagu DPA mencukupi untuk rencana nominal belanja tertentu.',
       parameters: {
@@ -123,6 +147,111 @@ export const LANGCHAIN_TOOLS = [
 ]
 
 /**
+ * Audit Kesalahan Kode Rekening (Deterministic Rule-Based Financial Audit)
+ */
+export function auditKodeRekening(pengeluaran = [], subKegiatan = []) {
+  const auditList = []
+
+  pengeluaran.forEach(p => {
+    if (p.jenis === 'Pajak' || p.jenis === 'Pajak LS') return
+
+    const sk = subKegiatan.find(s => s.id === p.sub_kegiatan_id)
+    const rek = sk?.kode_rekening?.find(r => r.id === p.kode_rekening_id)
+    const rekUraian = (rek?.uraian || '').toLowerCase()
+    const rekKode = rek?.kode || 'Tidak Diketahui'
+
+    const rincianItems = (p.pengeluaran_rincian || []).map(r => `${r.uraian}${r.volume ? ` (${r.volume})` : ''}`).join(', ')
+    const uraianStr = rincianItems || p.keterangan || 'Pengeluaran Belanja'
+    const desc = uraianStr.toLowerCase()
+
+    let mismatchNote = null
+
+    // Pattern 1: BBM
+    if (desc.match(/\b(bbm|bensin|pertamax|solar|dexlite|pertalite|shell|spbu)\b/i) &&
+        !rekUraian.includes('bahan bakar') && !rekUraian.includes('bbm') && !rekUraian.includes('pemeliharaan')) {
+      mismatchNote = `Transaksi BBM dialokasikan ke "${rek?.uraian || rekKode}". Rekening yang disarankan: Belanja Bahan Bakar Minyak/Gas.`
+    }
+    // Pattern 2: ATK / Alat Tulis Kantor
+    else if (desc.match(/\b(kertas|pulpen|pen|buku|map|tinta|toner|hvs|stopmap|amplop|stapler|atk)\b/i) &&
+             !rekUraian.includes('tulis') && !rekUraian.includes('atk') && !rekUraian.includes('cetak')) {
+      mismatchNote = `Transaksi ATK dialokasikan ke "${rek?.uraian || rekKode}". Rekening yang disarankan: Belanja Alat Tulis Kantor.`
+    }
+    // Pattern 3: Makanan & Minuman / Konsumsi
+    else if (desc.match(/\b(makan|minum|snack|nasi|katering|prasmanan|konsumsi|kue|coffee)\b/i) &&
+             !rekUraian.includes('makan') && !rekUraian.includes('minum') && !rekUraian.includes('jamuan')) {
+      mismatchNote = `Transaksi Konsumsi dialokasikan ke "${rek?.uraian || rekKode}". Rekening yang disarankan: Belanja Makanan dan Minuman.`
+    }
+    // Pattern 4: Perjalanan Dinas
+    else if (desc.match(/\b(dinas|sppd|tiket|pesawat|hotel|penginapan|uang harian|taksi|travel)\b/i) &&
+             !rekUraian.includes('perjalanan') && !rekUraian.includes('dinas')) {
+      mismatchNote = `Transaksi Perjalanan Dinas dialokasikan ke "${rek?.uraian || rekKode}". Rekening yang disarankan: Belanja Perjalanan Dinas.`
+    }
+    // Pattern 5: Honorarium
+    else if (desc.match(/\b(honor|honorarium|narasumber|insentif|upah|moderator)\b/i) &&
+             !rekUraian.includes('honor') && !rekUraian.includes('jasa') && !rekUraian.includes('tenaga')) {
+      mismatchNote = `Transaksi Honorarium dialokasikan ke "${rek?.uraian || rekKode}". Rekening yang disarankan: Belanja Honorarium / Jasa.`
+    }
+
+    if (mismatchNote) {
+      auditList.push({
+        id: p.id,
+        tanggal: p.tanggal || '',
+        uraian: uraianStr,
+        nominal: formatRupiah(p.jumlah || 0),
+        kodeRekeningSaatIni: `${rekKode} - ${rek?.uraian || 'N/A'}`,
+        catatanAudit: mismatchNote
+      })
+    }
+  })
+
+  return auditList
+}
+
+/**
+ * Ekstrak Detail Rincian Item Barang/Jasa Per Transaksi
+ */
+export function getItemLevelDetails(pengeluaran = [], subKegiatan = []) {
+  const itemList = []
+
+  pengeluaran.forEach(p => {
+    if (p.jenis === 'Pajak' || p.jenis === 'Pajak LS') return
+
+    const sk = subKegiatan.find(s => s.id === p.sub_kegiatan_id)
+    const rek = sk?.kode_rekening?.find(r => r.id === p.kode_rekening_id)
+
+    if (p.pengeluaran_rincian && p.pengeluaran_rincian.length > 0) {
+      p.pengeluaran_rincian.forEach(r => {
+        itemList.push({
+          tanggal: p.tanggal || '',
+          uraianItem: r.uraian || p.keterangan || 'Rincian Belanja',
+          volume: r.volume || '1',
+          hargaSatuan: formatRupiah(r.harga_satuan || r.jumlah || 0),
+          totalNominal: formatRupiah(r.jumlah || 0),
+          kodeRekening: rek?.kode || '',
+          namaRekening: rek?.uraian || '',
+          subKegiatan: sk?.nama || '',
+          noBukti: p.no_bukti || p.nomor_ls || '-'
+        })
+      })
+    } else {
+      itemList.push({
+        tanggal: p.tanggal || '',
+        uraianItem: p.keterangan || 'Pengeluaran Belanja',
+        volume: '1 Paket',
+        hargaSatuan: formatRupiah(p.jumlah || 0),
+        totalNominal: formatRupiah(p.jumlah || 0),
+        kodeRekening: rek?.kode || '',
+        namaRekening: rek?.uraian || '',
+        subKegiatan: sk?.nama || '',
+        noBukti: p.no_bukti || p.nomor_ls || '-'
+      })
+    }
+  })
+
+  return itemList
+}
+
+/**
  * Eksekutor Tool Deterministik yang Mengakses Zustand Store
  */
 export function executeTool(name, args, storeState) {
@@ -131,6 +260,23 @@ export function executeTool(name, args, storeState) {
   const currentMonthName = BULAN_NAMES[currentMonthIdx]
 
   switch (name) {
+    case 'audit_kode_rekening': {
+      const auditResults = auditKodeRekening(storeState.pengeluaran || [], storeState.subKegiatan || [])
+      return JSON.stringify({
+        totalTransaksiDiaudit: storeState.pengeluaran?.length || 0,
+        jumlahPotensiKesalahanKodeRekening: auditResults.length,
+        potensiKesalahan: auditResults
+      })
+    }
+
+    case 'get_item_level_details': {
+      const itemDetails = getItemLevelDetails(storeState.pengeluaran || [], storeState.subKegiatan || [])
+      return JSON.stringify({
+        totalItemDetail: itemDetails.length,
+        items: itemDetails
+      })
+    }
+
     case 'get_sisa_pagu': {
       const searchNama = (args?.sub_kegiatan_nama || '').toLowerCase()
       let filtered = ctx.subKegiatanSummary
@@ -314,24 +460,23 @@ export async function runLangChainAgent(userQuery, chatHistory = [], storeState)
 
   const systemMessage = {
     role: 'system',
-    content: `Anda adalah Asisten AI Bendahara (Financial AI Co-Pilot & LangChain Smart Agent) untuk unit kerja ${ctx.unitKerja} (${ctx.unitKerjaKode}).
-Tugas Anda adalah membantu Bendahara dan Pimpinan menganalisis data keuangan secara ramah, sopan, komunikatif, dan akurat 100% dalam Bahasa Indonesia.
+    content: `Anda adalah Asisten AI Bendahara (Financial AI Co-Pilot, Audit Specialist, & LangChain Smart Agent) untuk unit kerja ${ctx.unitKerja} (${ctx.unitKerjaKode}).
+Tugas Anda adalah membantu Bendahara dan Pimpinan menganalisis data keuangan, mengaudit kesalahan kode rekening, dan mengekstrak rincian item transaksi secara akurat 100% dalam Bahasa Indonesia.
 
 FAKTA DATA KEUANGAN SAAT INI (SINKRON 100% DENGAN DASHBOARD & BKU):
 - Unit Kerja: ${ctx.unitKerja} (${ctx.unitKerjaKode})
-- Saldo Kas Bendahara (Sama Persis dengan Kartu Dashboard): ${formatRupiah(ctx.saldoKasBku)} (Formula: Penerimaan UP/GU ${formatRupiah(ctx.penerimaanUPGU)} - Pengeluaran GU ${formatRupiah(ctx.pengeluaranGU)})
+- Saldo Kas Bendahara (Dashboard): ${formatRupiah(ctx.saldoKasBku)} (Penerimaan UP/GU ${formatRupiah(ctx.penerimaanUPGU)} - Pengeluaran GU ${formatRupiah(ctx.pengeluaranGU)})
 - Total Pagu DPA Tahunan: ${formatRupiah(ctx.totalPagu)}
 - Realisasi Belanja Total: ${formatRupiah(ctx.realisasiPengeluaran)} (${ctx.persenRealisasi}%)
-  • Realisasi Belanja GU/UP: ${formatRupiah(ctx.pengeluaranGU)}
-  • Realisasi Belanja LS (Direct KASDA): ${formatRupiah(ctx.pengeluaranLS)}
 - Sisa Quota Pagu DPA Tahunan: ${formatRupiah(ctx.sisaPagu)}
 
 PETUNJUK EXECUTION LANGCHAIN AGENT:
-1. Anda dilengkapi dengan TOOLS terstruktur (get_sisa_pagu, check_rak_bulanan, get_bku_summary, search_pengeluaran_detail, simulate_belanja, generate_executive_summary, navigate_app_page).
-2. Jika pengguna menanyakan sisa pagu, alokasi RAK, saldo BKU/Dashboard, pencarian transaksi spesifik (seperti BBM, ATK, dll), atau simulasi belanja, PANGGIL TOOL YANG RELEVAN terlebih dahulu untuk mendapatkan data fakta terbaru.
-3. Selalu gunakan angka Saldo Kas Bendahara yang SAMA PERSIS dengan Dashboard (${formatRupiah(ctx.saldoKasBku)}). Jika pengguna menanyakan selisih dengan transaksi LS, jelaskan dengan ramah bahwa transaksi LS dibayarkan langsung oleh Kasda sehingga tidak mengurangi saldo kas tunai/bank Bendahara.
-4. JIKA pengguna meminta untuk membuka/melihat laporan, BKU, DPA, atau pengeluaran, panggil tool 'navigate_app_page'.
-5. Selalu ingat konteks percakapan sebelumnya untuk menjawab pertanyaan sambungan secara intuitif.`
+1. Anda dilengkapi dengan TOOLS terstruktur: (audit_kode_rekening, get_item_level_details, get_sisa_pagu, check_rak_bulanan, get_bku_summary, search_pengeluaran_detail, simulate_belanja, generate_executive_summary, navigate_app_page).
+2. Jika pengguna meminta untuk "audit kesalahan kode rekening", "analisis kesalahan rekening", atau "cek pengalokasian rekening", PANGGIL TOOL 'audit_kode_rekening'.
+3. Jika pengguna meminta "detail transaksi per item", "rincian barang", atau "tampilkan item transaksi", PANGGIL TOOL 'get_item_level_details'.
+4. Selalu gunakan format Tabel Markdown (| Header 1 | Header 2 |) ketika menyajikan data audit, rincian transaksi per item, sisa pagu, atau BKU.
+5. JIKA pengguna meminta untuk membuka/melihat laporan, BKU, DPA, atau pengeluaran, panggil tool 'navigate_app_page'.
+6. Selalu ingat konteks percakapan sebelumnya untuk menjawab pertanyaan sambungan secara intuitif.`
   }
 
   // Format riwayat chat LangChain (Multi-Turn Conversation Memory)

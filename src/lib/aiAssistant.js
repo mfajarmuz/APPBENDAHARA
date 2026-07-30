@@ -1,6 +1,6 @@
 // src/lib/aiAssistant.js
 import { formatRupiah, persen } from './format'
-import { runLangChainAgent } from './langchainAgent'
+import { runLangChainAgent, auditKodeRekening, getItemLevelDetails } from './langchainAgent'
 
 const BULAN_NAMES = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -179,6 +179,49 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
   }
 
   // FALLBACK: Smart Multi-Target Engine (Mode Offline / Tanpa DeepSeek API Key)
+
+  // AUDIT KESALAHAN KODE REKENING (MODE OFFLINE)
+  if (query.includes('audit') || query.includes('salah kode') || query.includes('kesalahan kode') || query.includes('salah rekening') || query.includes('analisis rekening')) {
+    const auditResults = auditKodeRekening(storeState.pengeluaran || [], storeState.subKegiatan || [])
+    
+    let responseText = `### 🛡️ Hasil Audit Kesalahan Kode Rekening Transaksi\n\n`
+    responseText += `- **Total Transaksi Diaudit**: ${storeState.pengeluaran?.length || 0} Transaksi\n`
+    responseText += `- **Potensi Kesalahan Ditemukan**: **${auditResults.length} Transaksi**\n\n`
+
+    if (auditResults.length > 0) {
+      responseText += `| Tanggal | Uraian Transaksi | Nominal | Rekening Saat Ini | Catatan Audit & Rekomendasi |\n`
+      responseText += `| :--- | :--- | :--- | :--- | :--- |\n`
+      auditResults.forEach(a => {
+        responseText += `| ${a.tanggal} | ${a.uraian} | **${a.nominal}** | ${a.kodeRekeningSaatIni} | ${a.catatanAudit} |\n`
+      })
+    } else {
+      responseText += `✅ **100% Sesuai Spesifikasi**: Seluruh transaksi pengeluaran telah dialokasikan ke Kode Rekening yang tepat tanpa ditemukan pengalokasian ganjil.\n`
+    }
+
+    return {
+      text: responseText,
+      action: { type: 'NAVIGATE', path: '/pengeluaran', label: 'Buka Halaman Pengeluaran' }
+    }
+  }
+
+  // RINCIAN TRANSAKSI DETAIL PER ITEM (MODE OFFLINE)
+  if (query.includes('detail item') || query.includes('rincian item') || query.includes('detail barang') || query.includes('rincian barang') || query.includes('item transaksi') || query.includes('detail transaksi')) {
+    const itemDetails = getItemLevelDetails(storeState.pengeluaran || [], storeState.subKegiatan || [])
+    
+    let responseText = `### 📋 Rincian Transaksi Detail Per Item Barang/Jasa\n\n`
+    responseText += `Total Rincian Item: **${itemDetails.length} Item**\n\n`
+
+    responseText += `| Tanggal | Uraian Item / Barang | Vol | Hrg Satuan | Total | Kode Rekening | Sub Kegiatan | No. Bukti |\n`
+    responseText += `| :--- | :--- | :---: | :--- | :--- | :--- | :--- | :--- |\n`
+    itemDetails.forEach(it => {
+      responseText += `| ${it.tanggal} | ${it.uraianItem} | ${it.volume} | ${it.hargaSatuan} | **${it.totalNominal}** | ${it.kodeRekening} | ${it.subKegiatan} | ${it.noBukti} |\n`
+    })
+
+    return {
+      text: responseText,
+      action: { type: 'NAVIGATE', path: '/pengeluaran', label: 'Buka Halaman Pengeluaran' }
+    }
+  }
 
   // PRIORITAS 1: PANCARIAN SPESIFIK ITEM/REKENING/KATA KUNCI (e.g. BBM, ATK, Listrik, Kendaraan, dll)
   const ignoreWords = new Set(['check', 'cek', 'belanja', 'total', 'berapa', 'sampai', 'dengan', 'sekarang', 'pada', 'yang', 'ada', 'di', 'ke', 'dari', 'ini', 'apa', 'tolong', 'cari', 'sebutkan', 'rekap', 'ya', 'kah', 'dong', 'kamu', 'bisa', 'saja', 'sistem', 'pagu', 'sisa', 'anggaran', 'dashboard', 'menunjukan', 'menunjukkan'])

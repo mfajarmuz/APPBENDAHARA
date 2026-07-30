@@ -54,7 +54,7 @@ describe('Asisten AI Bendahara (Engine & Context)', () => {
   })
 
   it('harus mengeksekusi LangChain Tools secara deterministik', () => {
-    expect(LANGCHAIN_TOOLS.length).toBe(7)
+    expect(LANGCHAIN_TOOLS.length).toBe(9)
 
     const paguRes = JSON.parse(executeTool('get_sisa_pagu', {}, dummyState))
     expect(paguRes.totalPagu).toContain('20.000.000')
@@ -62,6 +62,13 @@ describe('Asisten AI Bendahara (Engine & Context)', () => {
     const searchRes = JSON.parse(executeTool('search_pengeluaran_detail', { keyword: 'bbm' }, dummyState))
     expect(searchRes.jumlahTransaksi).toBe(1)
     expect(searchRes.totalNominal).toContain('750.000')
+
+    const auditRes = JSON.parse(executeTool('audit_kode_rekening', {}, dummyState))
+    expect(auditRes.potensiKesalahan.length).toBe(1)
+    expect(auditRes.potensiKesalahan[0].catatanAudit).toContain('BBM')
+
+    const itemRes = JSON.parse(executeTool('get_item_level_details', {}, dummyState))
+    expect(itemRes.totalItemDetail).toBe(1)
 
     const simRes = JSON.parse(executeTool('simulate_belanja', { nominal: 5000000 }, dummyState))
     expect(simRes.hasilSimulasi[0].status).toContain('MEMENUHI')

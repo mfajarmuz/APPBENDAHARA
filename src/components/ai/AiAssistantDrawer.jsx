@@ -7,22 +7,22 @@ import { processAiQuery } from '@/lib/aiAssistant'
 
 const DEFAULT_WELCOME_TEXT = `Halo! Saya **Asisten AI Bendahara**. Saya dapat membantu Anda menganalisis data keuangan secara akurat:
 
+- **Audit Kesalahan Kode Rekening**: *"Audit apakah ada transaksi yang salah kode rekening?"*
+- **Detail Transaksi Per Item**: *"Tampilkan rincian transaksi detail per item barang"*
 - **Cari Pengeluaran Spesifik**: *"Check belanja BBM total berapa sampai dengan sekarang?"*
 - **Pagu DPA & Sisa Anggaran**: *"Berapa sisa pagu Sub Kegiatan?"*
 - **Status RAK Bulanan**: *"Cek status RAK akumulatif bulan ini"*
-- **Saldo BKU**: *"Berapa saldo kas BKU saat ini?"*
-- **Simulasi Belanja**: *"Apakah sisa pagu cukup untuk belanja 20 juta?"*
-- **Laporan Eksekutif**: *"Buatkan ringkasan eksekutif penyerapan anggaran"*
+- **Saldo BKU & Dashboard**: *"Berapa saldo kas BKU saat ini?"*
 
 *(Tips: Masukkan DeepSeek API Key pada Pengaturan untuk obrolan AI yang lebih luwes & cerdas)*`
 
 const QUICK_CHIPS = [
+  '🛡️ Audit Kesalahan Kode Rekening',
+  '📋 Detail Transaksi Per Item',
   '📊 Pagu DPA & Sisa Anggaran',
   '💰 Saldo Kas BKU & Dashboard',
   '⛽ Rekap Belanja BBM',
-  '📝 Belanja ATK Total Berapa?',
-  '📅 Status RAK Akumulatif',
-  '📄 Ringkasan Eksekutif Pimpinan'
+  '📅 Status RAK Akumulatif'
 ]
 
 export default function AiAssistantDrawer({ isOpen, open, onClose }) {
