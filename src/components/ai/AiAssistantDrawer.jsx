@@ -14,6 +14,16 @@ const QUICK_CHIPS = [
   '📑 Buat Ringkasan Eksekutif'
 ]
 
+const DEFAULT_WELCOME_TEXT = `Halo! Saya **Asisten AI Bendahara**. Saya dapat membantu Anda menganalisis data keuangan secara akurat:
+
+- **Pagu DPA & Sisa Anggaran**: *"Berapa sisa pagu Sub Kegiatan?"*
+- **Status RAK Bulanan**: *"Cek status RAK akumulatif bulan ini"*
+- **Saldo BKU**: *"Berapa saldo kas BKU saat ini?"*
+- **Simulasi Belanja**: *"Apakah sisa pagu cukup untuk belanja 20 juta?"*
+- **Laporan Eksekutif**: *"Buatkan ringkasan eksekutif penyerapan anggaran"*
+
+Pilih salah satu pertanyaan di atas atau ketik langsung di kolom obrolan!`
+
 export default function AiAssistantDrawer({ open, onClose }) {
   const navigate = useNavigate()
   const storeState = useStore()
@@ -21,7 +31,7 @@ export default function AiAssistantDrawer({ open, onClose }) {
     {
       id: 'welcome',
       sender: 'ai',
-      text: processAiQuery('', storeState).text,
+      text: DEFAULT_WELCOME_TEXT,
       timestamp: new Date()
     }
   ])
@@ -57,7 +67,7 @@ export default function AiAssistantDrawer({ open, onClose }) {
       const aiMsg = {
         id: (Date.now() + 1).toString(),
         sender: 'ai',
-        text: response.text,
+        text: response.text || '',
         action: response.action,
         timestamp: new Date()
       }
@@ -74,19 +84,21 @@ export default function AiAssistantDrawer({ open, onClose }) {
     }
   }
 
-  const handleReset = async () => {
-    const initRes = await processAiQuery('', storeState)
+  const handleReset = () => {
     setMessages([
       {
         id: Date.now().toString(),
         sender: 'ai',
-        text: initRes.text,
+        text: DEFAULT_WELCOME_TEXT,
         timestamp: new Date()
       }
     ])
   }
 
   const renderFormattedText = (text) => {
+    if (!text || typeof text !== 'string') {
+      return <p className="text-xs text-slate-700 leading-relaxed">{String(text || '')}</p>
+    }
     return text.split('\n').map((line, idx) => {
       if (line.startsWith('### ')) {
         return <h3 key={idx} className="text-sm font-black text-indigo-700 mt-2 mb-1 border-b border-indigo-100 pb-1">{line.replace('### ', '')}</h3>
