@@ -37,4 +37,4 @@ Setiap fitur atau perbaikan besar harus mengikuti alur kerja berikut:
 - **Long-Term Memory**: Setiap fakta teknis (importance >= 4) WAJIB disimpan di `.gemini/memory/[agent-name]/facts.yaml`.
 - **Shared Knowledge**: Keputusan arsitektur harus dicatat di `.gemini/memory/shared/`.
 - Integritas finansial (Pagu, Saldo, Pajak) divalidasi oleh Security Agent sebelum deployment.
-- `PROGRESS.md` diperbarui oleh Manager Agent di akhir setiap siklus tugas.
+- `PROGRESS.md` dan Artefak Jurnal Pengembangan (`jurnal_pengembangan_bendaharaapp.md`) WAJIB diperbarui oleh Orchestrator / Manager Agent di akhir setiap siklus perubahan tugas atau perbaikan.
