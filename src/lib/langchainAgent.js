@@ -47,6 +47,69 @@ export function parseDsmlToolCalls(content = '') {
 }
 
 /**
+ * Formatter Otomatis Hasil Tool Menjadi Tabel Markdown
+ */
+export function formatExecutedToolResults(toolExecutions = [], userQuery = '') {
+  if (!toolExecutions || toolExecutions.length === 0) return ''
+
+  let text = ''
+
+  for (const exec of toolExecutions) {
+    const { name, data } = exec
+    if (!data) continue
+
+    if (name === 'search_pengeluaran_detail') {
+      const kw = data.keyword || userQuery
+      const list = data.transaksi || []
+      text += `### 🔎 Hasil Pencarian Transaksi: "${kw}"\n\n`
+      text += `Total Ditemukan: **${data.jumlahTransaksi || list.length} Transaksi** (Total Nominal: **${data.totalNominal || 'Rp 0'}**)\n\n`
+
+      if (list.length > 0) {
+        text += `| Tanggal | Uraian / Rincian Transaksi | Nominal | Kode & Nama Rekening | Sub Kegiatan | No. Bukti |\n`
+        text += `| :--- | :--- | :--- | :--- | :--- | :--- |\n`
+        list.forEach(t => {
+          text += `| ${t.tanggal} | ${t.uraian} | **${t.nominal}** | ${t.rekening || '-'} | ${t.subKegiatan || '-'} | ${t.noBukti || '-'} |\n`
+        })
+      } else {
+        text += `ℹ️ Tidak ditemukan transaksi pengeluaran yang mencocokkan kata kunci "${kw}" di database.\n`
+      }
+      text += `\n`
+    } else if (name === 'audit_kode_rekening') {
+      const list = data.potensiKesalahan || []
+      text += `### 🛡️ Hasil Audit Kesalahan Kode Rekening Transaksi\n\n`
+      text += `- **Total Transaksi Diaudit**: ${data.totalTransaksiDiaudit || 0} Transaksi\n`
+      text += `- **Potensi Kesalahan Ditemukan**: **${data.jumlahPotensiKesalahanKodeRekening || list.length} Transaksi**\n\n`
+
+      if (list.length > 0) {
+        text += `| Tanggal | Uraian Transaksi | Nominal | Rekening Saat Ini | Catatan Audit & Rekomendasi |\n`
+        text += `| :--- | :--- | :--- | :--- | :--- |\n`
+        list.forEach(a => {
+          text += `| ${a.tanggal} | ${a.uraian} | **${a.nominal}** | ${a.kodeRekeningSaatIni} | ${a.catatanAudit} |\n`
+        })
+      } else {
+        text += `✅ **100% Sesuai Spesifikasi**: Seluruh transaksi pengeluaran telah dialokasikan ke Kode Rekening yang tepat.\n`
+      }
+      text += `\n`
+    } else if (name === 'get_item_level_details') {
+      const list = data.items || []
+      text += `### 📋 Rincian Transaksi Detail Per Item Barang/Jasa\n\n`
+      text += `Total Rincian Item: **${data.totalItemDetail || list.length} Item**\n\n`
+
+      if (list.length > 0) {
+        text += `| Tanggal | Uraian Item / Barang | Vol | Hrg Satuan | Total | Kode Rekening | Sub Kegiatan | No. Bukti |\n`
+        text += `| :--- | :--- | :---: | :--- | :--- | :--- | :--- | :--- |\n`
+        list.slice(0, 30).forEach(it => {
+          text += `| ${it.tanggal} | ${it.uraianItem} | ${it.volume} | ${it.hargaSatuan} | **${it.totalNominal}** | ${it.kodeRekening} | ${it.subKegiatan} | ${it.noBukti} |\n`
+        })
+      }
+      text += `\n`
+    }
+  }
+
+  return text.trim()
+}
+
+/**
  * Definisi Structured Tools ala LangChain untuk Agent Execution
  */
 export const LANGCHAIN_TOOLS = [
@@ -480,7 +543,7 @@ export function executeTool(name, args, storeState) {
 }
 
 /**
- * LangChain Agent Loop Runner dengan Support Multi-Turn Cyclical Execution & DeepSeek DSML Parser
+ * LangChain Agent Loop Runner dengan Support Multi-Turn Cyclical Execution, DSML Parser & Tool Result Markdown Formatter
  */
 export async function runLangChainAgent(userQuery, chatHistory = [], storeState) {
   const settings = storeState?.settings || {}
@@ -558,6 +621,7 @@ PETUNJUK EXECUTION LANGCHAIN AGENT:
   ]
 
   let capturedAction = null
+  const executedToolsList = []
   const maxTurns = 4
 
   // Agent Multi-Turn Execution Loop (Mendukung hingga 4 siklus tool calling berurutan)
@@ -621,10 +685,11 @@ PETUNJUK EXECUTION LANGCHAIN AGENT:
         // Eksekusi Tool
         const toolResultRaw = executeTool(toolName, toolArgs, storeState)
 
-        // Cek aksi navigasi
+        // Rekam hasil eksekusi tool untuk auto-formatting fallback
         try {
           const parsed = JSON.parse(toolResultRaw)
           if (parsed.action) capturedAction = parsed.action
+          executedToolsList.push({ name: toolName, data: parsed })
         } catch (e) { console.error('Failed to parse tool response', e) }
 
         toolMessages.push({
@@ -646,13 +711,24 @@ PETUNJUK EXECUTION LANGCHAIN AGENT:
       // Lanjutkan loop ke turn berikutnya agar LLM memproses hasil tool!
     } else {
       // TIDAK ADA TOOL CALL LAGI: JAWABAN AKHIR LLM TERBENTUK
-      const cleanedFinalText = cleanDsmlMarkup(choiceMessage.content || '')
+      let cleanedFinalText = cleanDsmlMarkup(choiceMessage.content || '')
+
+      // Jika teks LLM kosong / sangat pendek / hanya template fallback sedang ada tool yang sudah dieksekusi:
+      if (!cleanedFinalText || cleanedFinalText.length < 25 || cleanedFinalText.includes('Telah mengeksekusi')) {
+        const formattedTable = formatExecutedToolResults(executedToolsList, userQuery)
+        if (formattedTable) {
+          cleanedFinalText = formattedTable
+        }
+      }
+
       return { text: cleanedFinalText, action: capturedAction }
     }
   }
 
+  // Jika mencapai maxTurns, selalu kembalikan tabel Markdown dari hasil tool yang berhasil dieksekusi!
+  const fallbackFormatted = formatExecutedToolResults(executedToolsList, userQuery)
   return { 
-    text: 'Telah mengeksekusi pencarian data keuangan. Silakan periksa rincian di atas.', 
+    text: fallbackFormatted || 'Telah mengeksekusi pencarian data keuangan. Silakan periksa rincian di atas.', 
     action: capturedAction 
   }
 }
