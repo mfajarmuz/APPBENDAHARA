@@ -97,6 +97,27 @@ export function buildFinancialContext(state) {
     }
   })
 
+  // Daftar Rincian Transaksi Pengeluaran untuk Pencarian Detail (e.g., BBM, ATK, Makanan, dll)
+  const transactionsList = pengeluaran
+    .filter(p => p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS')
+    .map(p => {
+      const rincianStr = (p.pengeluaran_rincian || []).map(r => `${r.uraian}${r.volume ? ` (${r.volume})` : ''}`).join(', ')
+      const desc = rincianStr || p.keterangan || 'Pengeluaran Belanja'
+      const sk = subKegiatan.find(s => s.id === p.sub_kegiatan_id)
+      const rek = sk?.kode_rekening?.find(r => r.id === p.kode_rekening_id)
+
+      return {
+        id: p.id,
+        tanggal: p.tanggal || '',
+        uraian: desc,
+        keterangan: p.keterangan || '',
+        jumlah: p.jumlah || 0,
+        no_bukti: p.no_bukti || p.nomor_ls || '',
+        sub_kegiatan: sk?.nama || '',
+        rekening: rek?.uraian || ''
+      }
+    })
+
   return {
     unitKerja: settings.unit_kerja || 'Unit Kerja',
     unitKerjaKode: settings.unit_kerja_kode || '',
@@ -107,13 +128,14 @@ export function buildFinancialContext(state) {
     totalPenerimaan,
     saldoKasBku,
     subKegiatanSummary,
+    transactionsList,
     pengeluaran,
     penerimaan
   }
 }
 
 /**
- * Engine Pemroses Pertanyaan Bahasa Indonesia (Hybrid: DeepSeek API + Local Rule Engine Fallback)
+ * Engine Pemroses Pertanyaan Bahasa Indonesia (Hybrid: DeepSeek API + Local Smart Engine)
  */
 export async function processAiQuery(queryText, storeState) {
   if (!queryText || typeof queryText !== 'string') {
@@ -143,13 +165,18 @@ FAKTA DATA KEUANGAN SAAT INI (100% AKURAT, GUNAKAN ANGKANYA SAMA PERSIS):
 - Sisa Quota Pagu DPA: ${formatRupiah(ctx.sisaPagu)}
 - Total Penerimaan Kas: ${formatRupiah(ctx.totalPenerimaan)}
 - Saldo Kas BKU Posisi Saat Ini: ${formatRupiah(ctx.saldoKasBku)}
-- Ringkasan Sub Kegiatan (${ctx.subKegiatanSummary.length} Sub Kegiatan):
+
+DAFTAR SUB KEGIATAN:
 ${ctx.subKegiatanSummary.map((sk, i) => `  ${i+1}. ${sk.kode} - ${sk.nama}: Pagu ${formatRupiah(sk.pagu)}, Realisasi ${formatRupiah(sk.realisasi)} (${sk.persen}%), Sisa Pagu ${formatRupiah(sk.sisa)}`).join('\n')}
+
+DAFTAR TRANSAKSI PENGELUARAN SAAT INI (${ctx.transactionsList.length} Transaksi):
+${ctx.transactionsList.map((t, i) => `  ${i+1}. [Tgl: ${t.tanggal}] ${t.uraian} (Ket: ${t.keterangan}, Rekening: ${t.rekening}) -> ${formatRupiah(t.jumlah)} [No Bukti: ${t.no_bukti}]`).join('\n')}
 
 PETUNJUK RESPONS:
 1. Jawab pertanyaan pengguna dengan gaya bahasa yang luwes, alami, dan membantu layaknya rekan kerja keuangan berpengalaman.
-2. Selalu gunakan angka pasti dari data di atas saat ditanya nominal atau status pagu/BKU.
-3. Jika pengguna meminta untuk membuka laporan/bku/anggaran/pengeluaran, Anda boleh menyertakan [ACTION:NAVIGATE:/path_halaman] di akhir jawaban (contoh: [ACTION:NAVIGATE:/laporan], [ACTION:NAVIGATE:/anggaran], [ACTION:NAVIGATE:/pengeluaran]).`
+2. Jika pengguna menanyakan belanja tertentu (seperti BBM, ATK, perjalanan dinas, makanan, honor, dll), cari dan hitung dari DAFTAR TRANSAKSI PENGELUARAN di atas lalu sebutkan totalnya serta rincian transaksinya.
+3. Selalu gunakan angka pasti dari data di atas.
+4. Jika pengguna meminta untuk membuka laporan/bku/anggaran/pengeluaran, Anda boleh menyertakan [ACTION:NAVIGATE:/path_halaman] di akhir jawaban (contoh: [ACTION:NAVIGATE:/laporan], [ACTION:NAVIGATE:/anggaran], [ACTION:NAVIGATE:/pengeluaran]).`
 
     try {
       const rawText = await callDeepSeekApi(apiKey, apiModel, systemPrompt, queryText)
@@ -175,7 +202,41 @@ PETUNJUK RESPONS:
     }
   }
 
-  // FALLBACK: Local Deterministic Engine (Mode Offline / Tanpa API Key)
+  // FALLBACK: Local Smart Engine (Mode Offline / Tanpa DeepSeek API Key)
+  const ignoreWords = new Set(['check', 'cek', 'belanja', 'total', 'berapa', 'sampai', 'dengan', 'sekarang', 'pada', 'yang', 'ada', 'di', 'ke', 'dari', 'ini', 'apa', 'tolong', 'cari', 'sebutkan', 'rekap', 'ya', 'kah', 'dong'])
+  const searchKeywords = query
+    .split(/\s+/)
+    .map(w => w.replace(/[^\w]/g, '').trim())
+    .filter(w => w.length > 1 && !ignoreWords.has(w))
+
+  // Jika pengguna mencari item belanja spesifik (e.g. "bbm", "atk", "makanan", "honor")
+  if (searchKeywords.length > 0 && (query.includes('belanja') || query.includes('check') || query.includes('cek') || query.includes('total') || query.includes('cari'))) {
+    const matchedTransactions = ctx.transactionsList.filter(t => {
+      const fullContent = `${t.uraian} ${t.keterangan} ${t.sub_kegiatan} ${t.rekening}`.toLowerCase()
+      return searchKeywords.some(kw => fullContent.includes(kw))
+    })
+
+    if (matchedTransactions.length > 0) {
+      const totalMatchJumlah = matchedTransactions.reduce((sum, t) => sum + t.jumlah, 0)
+      const keywordLabel = searchKeywords.join(' ').toUpperCase()
+
+      let responseText = `### 🔎 Rekap Pengeluaran: "${keywordLabel}"\n\n`
+      responseText += `- **Total Pengeluaran**: **${formatRupiah(totalMatchJumlah)}**\n`
+      responseText += `- **Jumlah Transaksi**: ${matchedTransactions.length} Transaksi\n\n`
+      responseText += `#### Rincian Transaksi:\n`
+      matchedTransactions.forEach((t, idx) => {
+        responseText += `${idx + 1}. **${t.tanggal}** - ${t.uraian}\n`
+        responseText += `   - Nominal: **${formatRupiah(t.jumlah)}** ${t.no_bukti ? `| No. Bukti: ${t.no_bukti}` : ''}\n`
+        if (t.rekening) responseText += `   - Rekening: *${t.rekening}*\n`
+      })
+
+      return {
+        text: responseText,
+        action: { type: 'NAVIGATE', path: '/pengeluaran', label: 'Buka Halaman Pengeluaran' }
+      }
+    }
+  }
+
   // 1. RINGKASAN EKSEKUTIF UNTUK PIMPINAN
   if (query.includes('eksekutif') || query.includes('pimpinan') || query.includes('triwulan')) {
     let responseText = `### 📑 Ringkasan Eksekutif Realisasi Anggaran\n\n`
@@ -300,6 +361,7 @@ PETUNJUK RESPONS:
   // DEFAULT GUIDE RESPONSE
   return {
     text: `Halo! Saya **Asisten AI Bendahara**. Saya dapat membantu Anda menganalisis data keuangan secara akurat:\n\n` +
+          `- **Cari Pengeluaran Spesifik**: *"Check belanja BBM total berapa sampai dengan sekarang?"*\n` +
           `- **Pagu DPA & Sisa Anggaran**: *"Berapa sisa pagu Sub Kegiatan?"*\n` +
           `- **Status RAK Bulanan**: *"Cek status RAK akumulatif bulan ini"*\n` +
           `- **Saldo BKU**: *"Berapa saldo kas BKU saat ini?"*\n` +

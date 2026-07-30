@@ -28,7 +28,8 @@ describe('Asisten AI Bendahara (Engine & Context)', () => {
         id: 'p-1',
         sub_kegiatan_id: 'sk-1',
         kode_rekening_id: 'rek-1',
-        jumlah: 5000000,
+        keterangan: 'Pembelian BBM Kendaraan Operasional',
+        jumlah: 750000,
         jenis: 'GU',
         tanggal: '2026-01-15'
       }
@@ -45,17 +46,24 @@ describe('Asisten AI Bendahara (Engine & Context)', () => {
   it('harus mengekstrak konteks keuangan dengan benar', () => {
     const ctx = buildFinancialContext(dummyState)
     expect(ctx.totalPagu).toBe(20000000)
-    expect(ctx.realisasiPengeluaran).toBe(5000000)
-    expect(ctx.sisaPagu).toBe(15000000)
+    expect(ctx.realisasiPengeluaran).toBe(750000)
+    expect(ctx.sisaPagu).toBe(19250000)
     expect(ctx.totalPenerimaan).toBe(50000000)
-    expect(ctx.saldoKasBku).toBe(45000000)
+    expect(ctx.saldoKasBku).toBe(49250000)
   })
 
   it('harus merespons pertanyaan sisa pagu DPA dalam Bahasa Indonesia', async () => {
     const res = await processAiQuery('Berapa sisa pagu DPA?', dummyState)
     expect(res.text).toContain('Ringkasan Pagu DPA')
-    expect(res.text).toContain('15.000.000')
+    expect(res.text).toContain('19.250.000')
     expect(res.action.path).toBe('/anggaran')
+  })
+
+  it('harus merespons pencarian transaksi item spesifik (BBM/ATK/dll)', async () => {
+    const res = await processAiQuery('check belanja bbm total berapa sampai dengan sekarang?', dummyState)
+    expect(res.text).toContain('Rekap Pengeluaran: "BBM"')
+    expect(res.text).toContain('750.000')
+    expect(res.action.path).toBe('/pengeluaran')
   })
 
   it('harus merespons pertanyaan status RAK bulanan', async () => {
@@ -67,7 +75,7 @@ describe('Asisten AI Bendahara (Engine & Context)', () => {
   it('harus merespons pertanyaan BKU dan saldo kas', async () => {
     const res = await processAiQuery('Berapa saldo BKU saat ini?', dummyState)
     expect(res.text).toContain('Ringkasan Buku Kas Umum (BKU)')
-    expect(res.text).toContain('45.000.000')
+    expect(res.text).toContain('49.250.000')
     expect(res.action.path).toBe('/laporan')
   })
 
