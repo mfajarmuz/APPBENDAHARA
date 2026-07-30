@@ -603,6 +603,22 @@ export default function Settings() {
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              📌 Aturan & Instruksi Khusus AI (Custom System Rules)
+            </label>
+            <textarea
+              rows={3}
+              value={form.custom_ai_instructions || ''}
+              onChange={e => setForm({ ...form, custom_ai_instructions: e.target.value })}
+              placeholder="Contoh: Selalu sapa saya dengan 'Pak Bendahara'. Jangan tampilkan angka desimal pada nominal Rupiah. Utamakan analisis transaksi BBM."
+              className="w-full text-xs font-medium p-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-2xs leading-relaxed text-slate-800"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">
+              Aturan ini akan disimpan dan diingat oleh AI secara permanen pada setiap percakapan dan analisis data keuangan.
+            </p>
+          </div>
+
           {deepseekTestStatus.result && (
             <div className={`p-4 rounded-2xl text-xs flex items-start gap-3 border transition-all animate-in fade-in slide-in-from-top-2 ${
               deepseekTestStatus.result.success 

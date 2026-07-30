@@ -457,11 +457,13 @@ export async function runLangChainAgent(userQuery, chatHistory = [], storeState)
   }
 
   const ctx = buildFinancialContext(storeState)
+  const customRules = (settings.custom_ai_instructions || '').trim()
+  const customRulesPrompt = customRules ? `\n\nATURAN KHUSUS PERSISTEN DARI BENDAHARA:\n${customRules}` : ''
 
   const systemMessage = {
     role: 'system',
     content: `Anda adalah Asisten AI Bendahara (Financial AI Co-Pilot, Audit Specialist, & LangChain Smart Agent) untuk unit kerja ${ctx.unitKerja} (${ctx.unitKerjaKode}).
-Tugas Anda adalah membantu Bendahara dan Pimpinan menganalisis data keuangan, mengaudit kesalahan kode rekening, dan mengekstrak rincian item transaksi secara akurat 100% dalam Bahasa Indonesia.
+Tugas Anda adalah membantu Bendahara dan Pimpinan menganalisis data keuangan, mengaudit kesalahan kode rekening, dan mengekstrak rincian item transaksi secara akurat 100% dalam Bahasa Indonesia.${customRulesPrompt}
 
 FAKTA DATA KEUANGAN SAAT INI (SINKRON 100% DENGAN DASHBOARD & BKU):
 - Unit Kerja: ${ctx.unitKerja} (${ctx.unitKerjaKode})
@@ -480,7 +482,7 @@ PETUNJUK EXECUTION LANGCHAIN AGENT:
   }
 
   // Format riwayat chat LangChain (Multi-Turn Conversation Memory)
-  const formattedHistory = chatHistory.slice(-6).map(msg => ({
+  const formattedHistory = chatHistory.slice(-8).map(msg => ({
     role: msg.sender === 'user' ? 'user' : 'assistant',
     content: msg.text || ''
   }))
