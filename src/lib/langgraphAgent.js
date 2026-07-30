@@ -3,18 +3,106 @@ import { formatRupiah, persen } from './format'
 import { buildFinancialContext } from './aiAssistant'
 
 /**
- * [LANGGRAPH STATE GRAPH ARCHITECTURE]
- * Arsitektur Agent Siklik Multi-Node untuk Audit Keuangan & Diagnostik Masalah Keuangan APBD
+ * [LANGGRAPH SUPERCHARGED MEMORY ARCHITECTURE]
+ * 1. State Checkpointer (Short-Term Thread Checkpointer Memory)
+ * 2. Knowledge Store (Long-Term Cross-Thread Memory)
+ * 3. Dynamic Context Trimmer (Token Window Management)
+ * 4. Multi-Node Audit & Reasoning Engine
  */
 
+const MEMORY_STORAGE_KEY = 'APP_BENDAHARA_LANGGRAPH_CHECKPOINTS_V1'
+const KNOWLEDGE_STORE_KEY = 'APP_BENDAHARA_LANGGRAPH_KNOWLEDGE_STORE_V1'
+
 /**
- * State Graph State Interface
+ * Tool 1: LangGraph Local Checkpointer (State Checkpoint Memory)
+ * Mempersistem status Graph State ke dalam Storage Lokal
  */
-export function createInitialGraphState(userQuery, storeState, chatHistory = []) {
+export const langGraphCheckpointer = {
+  getCheckpoint(threadId = 'default-session') {
+    try {
+      const raw = localStorage.getItem(MEMORY_STORAGE_KEY)
+      if (!raw) return null
+      const parsed = JSON.parse(raw)
+      return parsed[threadId] || null
+    } catch (e) {
+      console.warn('Failed to load LangGraph checkpoint:', e)
+      return null
+    }
+  },
+
+  saveCheckpoint(threadId = 'default-session', stateData) {
+    try {
+      const raw = localStorage.getItem(MEMORY_STORAGE_KEY)
+      const store = raw ? JSON.parse(raw) : {}
+      store[threadId] = {
+        timestamp: new Date().toISOString(),
+        lastAuditFindings: stateData.auditFindings || [],
+        lastAnalysisSummary: stateData.analysisSummary || null,
+        step: stateData.step || 'COMPLETED'
+      }
+      localStorage.setItem(MEMORY_STORAGE_KEY, JSON.stringify(store))
+    } catch (e) {
+      console.warn('Failed to save LangGraph checkpoint:', e)
+    }
+  }
+}
+
+/**
+ * Tool 2: LangGraph Cross-Thread Knowledge Store (Long-Term Memory)
+ * Menyimpan profil instansi, aturan khusus, dan statistik histori audit
+ */
+export const langGraphKnowledgeStore = {
+  getKnowledge() {
+    try {
+      const raw = localStorage.getItem(KNOWLEDGE_STORE_KEY)
+      return raw ? JSON.parse(raw) : { auditLogs: [], userPreferences: {} }
+    } catch (e) {
+      return { auditLogs: [], userPreferences: {} }
+    }
+  },
+
+  recordAuditLog(summary) {
+    try {
+      const store = this.getKnowledge()
+      store.auditLogs.unshift({
+        timestamp: new Date().toISOString(),
+        score: summary.healthScore,
+        status: summary.healthStatus,
+        findingsCount: summary.totalFindings
+      })
+      // Simpan maksimal 20 log audit terakhir
+      store.auditLogs = store.auditLogs.slice(0, 20)
+      localStorage.setItem(KNOWLEDGE_STORE_KEY, JSON.stringify(store))
+    } catch (e) {
+      console.warn('Failed to record audit log to Knowledge Store:', e)
+    }
+  }
+}
+
+/**
+ * Tool 3: Dynamic Context Trimmer (Token Window Trimmer)
+ * Memangkas pesan-pesan lama agar hemat token DeepSeek & respons instan < 1s
+ */
+export function trimMessages(messages = [], maxMessages = 8) {
+  if (!Array.isArray(messages)) return []
+  if (messages.length <= maxMessages) return messages
+  return messages.slice(-maxMessages)
+}
+
+/**
+ * State Graph Initializer dengan Restorasi Checkpoint Memory
+ */
+export function createInitialGraphState(userQuery, storeState, chatHistory = [], threadId = 'default-session') {
+  const savedCheckpoint = langGraphCheckpointer.getCheckpoint(threadId)
+  const knowledge = langGraphKnowledgeStore.getKnowledge()
+
   return {
     query: userQuery,
     storeState,
-    chatHistory,
+    chatHistory: trimMessages(chatHistory, 8),
+    threadId,
+    savedCheckpoint,
+    knowledgeStore: knowledge,
     context: null,
     auditFindings: [],
     analysisSummary: null,
@@ -25,7 +113,6 @@ export function createInitialGraphState(userQuery, storeState, chatHistory = [])
 
 /**
  * NODE 1: Ingestion Node
- * Menarik fakta data BKU, DPA, RAK, Pajak, dan Transaksi dari Zustand Store
  */
 export function nodeIngestFinancialData(state) {
   const ctx = buildFinancialContext(state.storeState)
@@ -38,13 +125,6 @@ export function nodeIngestFinancialData(state) {
 
 /**
  * NODE 2: Deep Multi-Dimension Audit Engine Node
- * Memeriksa 6 Dimensi Kepatuhan Keuangan & Potensi Masalah Transaksi:
- * 1. Pengalokasian Kode Rekening (Account Misallocation)
- * 2. Batas Quota RAK & Pagu Overbudget
- * 3. Kelengkapan Administrasi & Nomor Bukti (Administrative Completeness)
- * 4. Kepatuhan Potongan Pajak (PPN/PPh 21/22/23)
- * 5. Potensi Duplikasi Pembayaran (Duplicate Payments)
- * 6. Anomali Lonjakan Nominal Belanja (Expense Anomalies)
  */
 export function nodeMultiAngleAudit(state) {
   const { storeState, context } = state
@@ -195,7 +275,6 @@ export function nodeMultiAngleAudit(state) {
 
 /**
  * NODE 3: Reasoning Node
- * Menganalisis tingkat keparahan (Severity Index) dan menyusun sintesis masalah
  */
 export function nodeDiagnosticReasoning(state) {
   const { auditFindings } = state
@@ -219,6 +298,9 @@ export function nodeDiagnosticReasoning(state) {
     healthStatus
   }
 
+  // Simpan hasil audit ke Long-Term Knowledge Store
+  langGraphKnowledgeStore.recordAuditLog(summary)
+
   return {
     ...state,
     analysisSummary: summary,
@@ -228,15 +310,15 @@ export function nodeDiagnosticReasoning(state) {
 
 /**
  * NODE 4: Report Formatting Node
- * Menghasilkan Laporan Audit LangGraph dalam Format Markdown Tabel
  */
 export function nodeFormatAuditReport(state) {
-  const { auditFindings, analysisSummary, context, query } = state
+  const { auditFindings, analysisSummary, query, knowledgeStore } = state
   const isAuditQuery = query.toLowerCase().includes('audit') || 
                        query.toLowerCase().includes('salah') || 
                        query.toLowerCase().includes('masalah') || 
                        query.toLowerCase().includes('evaluasi') ||
-                       query.toLowerCase().includes('cek')
+                       query.toLowerCase().includes('cek') ||
+                       query.toLowerCase().includes('periksa')
 
   if (!isAuditQuery && auditFindings.length === 0) {
     return {
@@ -245,7 +327,7 @@ export function nodeFormatAuditReport(state) {
     }
   }
 
-  let text = `### 🕸️ Hasil Audit Diagnostik Keuangan (LangGraph Multi-Node Engine)\n\n`
+  let text = `### 🕸️ Hasil Audit Diagnostik Keuangan (LangGraph Supercharged Memory Engine)\n\n`
   text += `**Skor Kesehatan Administrasi Keuangan**: **${analysisSummary.healthScore}/100** (${analysisSummary.healthStatus})\n\n`
 
   text += `| Indikator Evaluasi | Jumlah Temuan |\n`
@@ -268,6 +350,12 @@ export function nodeFormatAuditReport(state) {
     text += `✅ **100% Sesuai Spesifikasi**: Seluruh transaksi pengeluaran telah diperiksa oleh LangGraph Multi-Node Engine. Tidak ditemukan pengalokasian ganjil, transaksi ganda, atau pelanggaran pagu DPA.\n`
   }
 
+  // Jika ada riwayat audit tersimpan di Long-Term Memory, tampilkan tren singkatnya
+  if (knowledgeStore?.auditLogs && knowledgeStore.auditLogs.length > 1) {
+    const lastLog = knowledgeStore.auditLogs[1]
+    text += `\n*📈 Catatan Tren Memori*: Evaluasi sebelumnya mencatat skor **${lastLog.score}/100** dengan **${lastLog.findingsCount} temuan**.\n`
+  }
+
   return {
     ...state,
     finalText: text,
@@ -277,24 +365,27 @@ export function nodeFormatAuditReport(state) {
 }
 
 /**
- * Runner LangGraph Cyclical Execution Loop
+ * Runner LangGraph Cyclical Execution Loop dengan Dynamic Checkpointer & Knowledge Memory
  */
-export async function runLangGraphAgent(userQuery, storeState, chatHistory = []) {
-  let state = createInitialGraphState(userQuery, storeState, chatHistory)
+export async function runLangGraphAgent(userQuery, storeState, chatHistory = [], threadId = 'default-session') {
+  let state = createInitialGraphState(userQuery, storeState, chatHistory, threadId)
 
   // Step 1: Ingestion
   state = nodeIngestFinancialData(state)
 
-  // Step 2: Audit Engine
+  // Step 2: Multi-Angle Audit Engine
   state = nodeMultiAngleAudit(state)
 
-  // Step 3: Diagnostic Reasoning
+  // Step 3: Diagnostic Reasoning & Knowledge Store Persist
   state = nodeDiagnosticReasoning(state)
 
   // Step 4: Report Formatting
   state = nodeFormatAuditReport(state)
 
-  // Jika query meminta audit / evaluasi / masalah
+  // Simpan Checkpoint status ke Storage Lokal
+  langGraphCheckpointer.saveCheckpoint(threadId, state)
+
+  // Jika query berhubungan dengan audit / evaluasi / masalah
   const q = userQuery.toLowerCase()
   if (q.includes('audit') || q.includes('salah') || q.includes('masalah') || q.includes('evaluasi') || q.includes('cek rekening') || q.includes('periksa')) {
     return {
@@ -303,6 +394,5 @@ export async function runLangGraphAgent(userQuery, storeState, chatHistory = [])
     }
   }
 
-  // Jika query bukan audit khusus, teruskan ke LangChain LLM jika ada API Key
   return null
 }

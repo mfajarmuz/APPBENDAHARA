@@ -121,7 +121,7 @@ describe('Asisten AI Bendahara (Engine & Context)', () => {
 
   it('harus mengeksekusi LangGraph Agent Multi-Node State Graph Audit', async () => {
     const res = await runLangGraphAgent('Lakukan audit masalah transaksi', dummyState)
-    expect(res.text).toContain('LangGraph Multi-Node Engine')
+    expect(res.text).toContain('LangGraph Supercharged Memory Engine')
     expect(res.text).toContain('Skor Kesehatan Administrasi Keuangan')
     expect(res.action.path).toBe('/pengeluaran')
   })
