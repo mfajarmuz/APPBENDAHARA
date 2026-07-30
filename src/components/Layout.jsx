@@ -67,7 +67,7 @@ export default function Layout() {
       </button>
 
       {/* AI Assistant Drawer */}
-      <AiAssistantDrawer open={isAiOpen} onClose={() => setIsAiOpen(false)} />
+      <AiAssistantDrawer isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} />
     </div>
   )
 }

@@ -25,7 +25,8 @@ const QUICK_CHIPS = [
   '📄 Ringkasan Eksekutif Pimpinan'
 ]
 
-export default function AiAssistantDrawer({ isOpen, onClose }) {
+export default function AiAssistantDrawer({ isOpen, open, onClose }) {
+  const visible = isOpen ?? open
   const storeState = useStore()
   const navigate = useNavigate()
   
@@ -46,10 +47,10 @@ export default function AiAssistantDrawer({ isOpen, onClose }) {
   }
 
   useEffect(() => {
-    if (isOpen) scrollToBottom()
-  }, [messages, isOpen])
+    if (visible) scrollToBottom()
+  }, [messages, visible])
 
-  if (!isOpen) return null
+  if (!visible) return null
 
   const handleSend = async (textToSend) => {
     const text = textToSend || inputText
