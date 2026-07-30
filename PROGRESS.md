@@ -4,6 +4,7 @@
 The project is in the refinement phase. Core features (Dashboard, Anggaran, Penerimaan, Pengeluaran) are implemented. Recent focus has been on fixing bugs in expenditure rincian and report accuracy.
 
 ## Recent Achievements
+- [x] **Bug Fix & Prompt Hardening**: Memperbaiki masalah AI halusinasi yang menjawab *"Saya tidak memiliki akses langsung ke database..."*. Menginjeksikan **Strict Real-Time Data Access Warning** & **Ringkasan Temuan Audit Riil Sistem** langsung ke konteks awal `systemMessage` di `langchainAgent.js` dan menambahkan pemroses pertanyaan sumber data di `langgraphAgent.js`. AI kini dengan tegas mengonfirmasi bahwa data yang disajikan adalah 100% data riil dari database BendaharaApp.
 - [x] **New Feature & Memory Upgrade**: Mengimplementasikan **LangGraph Supercharged Memory System (`src/lib/langgraphAgent.js`)** yang terdiri dari 4 komponen memori canggih:
   - **`langGraphCheckpointer`**: State Checkpoint Memory persisten yang menyimpan snapshot status percakapan dan audit di penyimpanan lokal lintas restart aplikasi.
   - **`langGraphKnowledgeStore`**: Long-Term Cross-Thread Knowledge Memory yang mengumpulkan histori skor audit dan tren kesehatan administrasi keuangan instansi dari waktu ke waktu.

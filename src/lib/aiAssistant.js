@@ -152,7 +152,7 @@ export function buildFinancialContext(state) {
 }
 
 /**
- * Engine Pemroses Pertanyaan Bahasa Indonesia (Hybrid: LangGraph State Engine + LangChain LLM + Smart Search)
+ * Engine Pemroses Pertanyaan Bahasa Indonesia (Hybrid: DeepSeek LLM Agent + LangGraph State Engine + Smart Search)
  */
 export async function processAiQuery(queryText, storeState, chatHistory = []) {
   if (!queryText || typeof queryText !== 'string' || !queryText.trim()) {
@@ -167,25 +167,25 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
   const currentMonthIdx = new Date().getMonth()
   const currentMonthName = BULAN_NAMES[currentMonthIdx]
 
-  // LANGGRAPH AGENT: Jalankan Multi-Node State Graph jika pertanyaan berhubungan dengan audit / evaluasi / masalah
+  const apiKey = storeState?.settings?.deepseek_api_key?.trim()
+
+  // UTAMA: JIKA TERDAPAT DEEPSEEK API KEY, UTAMAKAN EXECUTION LANGCHAIN/DEEPSEEK LLM AGENT!
+  if (apiKey) {
+    try {
+      const res = await runLangChainAgent(queryText, chatHistory, storeState)
+      if (res && res.text) {
+        return res
+      }
+    } catch (err) {
+      console.warn('DeepSeek LLM Agent Error, fallback to LangGraph/Local engine:', err.message)
+    }
+  }
+
+  // FALLBACK (Mode Offline / Tanpa DeepSeek API Key atau saat DeepSeek Error)
   const langgraphRes = await runLangGraphAgent(queryText, storeState, chatHistory)
   if (langgraphRes) {
     return langgraphRes
   }
-
-  const apiKey = storeState?.settings?.deepseek_api_key?.trim()
-
-  // JIKA TERDAPAT API KEY: Eksekusi LangChain Agent dengan Structured Tools & Memory!
-  if (apiKey) {
-    try {
-      const res = await runLangChainAgent(queryText, chatHistory, storeState)
-      return res
-    } catch (err) {
-      console.warn('LangChain Agent Error, fallback to local engine:', err.message)
-    }
-  }
-
-  // FALLBACK: Smart Multi-Target Engine (Mode Offline / Tanpa DeepSeek API Key)
 
   // AUDIT KESALAHAN KODE REKENING (MODE OFFLINE)
   if (query.includes('audit') || query.includes('salah kode') || query.includes('kesalahan kode') || query.includes('salah rekening') || query.includes('analisis rekening')) {
