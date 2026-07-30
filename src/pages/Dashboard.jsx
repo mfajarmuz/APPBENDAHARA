@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, Fragment } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ChevronDown, TrendingUp, TrendingDown, Wallet, PieChart as PieIcon, Info, ExternalLink } from 'lucide-react'
+import { ChevronRight, ChevronDown, TrendingUp, TrendingDown, Wallet, PieChart as PieIcon, Info, ExternalLink, Search } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { formatRupiah, formatTanggal, persen } from '@/lib/format'
 import { getBkuRows } from '@/lib/bku'
