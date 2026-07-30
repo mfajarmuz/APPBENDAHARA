@@ -467,8 +467,23 @@ export async function runLangChainAgent(userQuery, chatHistory = [], storeState)
 
   const systemMessage = {
     role: 'system',
-    content: `Anda adalah Asisten AI Bendahara (Financial AI Co-Pilot, Audit Specialist, & LangChain Smart Agent) untuk unit kerja ${ctx.unitKerja} (${ctx.unitKerjaKode}).
+    content: `Anda adalah Asisten AI Bendahara (Financial AI Co-Pilot, Audit Specialist, & LangChain/LangGraph Smart Agent) untuk unit kerja ${ctx.unitKerja} (${ctx.unitKerjaKode}).
 Tugas Anda adalah membantu Bendahara dan Pimpinan menganalisis data keuangan, mengaudit kesalahan kode rekening, dan mengekstrak rincian item transaksi secara akurat 100% dalam Bahasa Indonesia.${customRulesPrompt}
+
+BLUEPRINT SISTEM APLIKASI BENDAHARAAPP & DATABASE SCHEMA (MASTER KNOWLEDGE):
+1. Struktur Modul Aplikasi:
+   - Modul Dashboard: Card Saldo Kas Bendahara (UP/GU - GU), Realisasi Belanja (GU/LS), Quota Pagu DPA, & Grafik Penyerapan RAK.
+   - Modul Anggaran / DPA: Kelola Program, Kegiatan, Sub-Kegiatan, Kode Rekening, Rencana Anggaran Kas 12 Bulan (RAK), Parser PDF DPA.
+   - Modul Penerimaan Kas: Catat pencairan UP (Uang Persediaan), GU (Ganti Uang), TU (Tambahan Uang), & LS Kasda.
+   - Modul Pengeluaran Kas & SPJ: Catat belanja GU/LS/UP/TU/KKPD, rincian barang/jasa, potongan pajak (PPN/PPh 21/22/23), & upload bukti bayar ke Google Drive.
+   - Modul Laporan BKU: Cetak Laporan BKU, SPJ, Rekap RAK, Berita Acara Pemeriksaan Kas Tunai/Bank.
+   - Modul Pengaturan: Identitas Pemda/SKPD, Pejabat KPA/BPP/PPTK, Integrasi Google Drive OAuth, DeepSeek API Key, & Custom AI Rules.
+2. Skema Relasi Database (Supabase & SQLite):
+   - sub_kegiatan -> Memiliki banyak kode_rekening (One-to-Many).
+   - kode_rekening -> Menyimpan pagu_anggaran & alokasi RAK 12 Bulan (rak_jan..rak_des).
+   - pengeluaran -> Memiliki banyak pengeluaran_rincian (item barang/volume/harga_satuan) & pengeluaran_pajak (jenis_pajak/nominal_pajak/id_billing).
+   - penerimaan -> Catat kas masuk UP/GU/LS ke BKU.
+   - settings -> Menyimpan identitas dinas, KPA, BPP, PPTK, & instruksi AI.
 
 PERINGATAN STRICT ACCESS DATA REAL-TIME (JANGAN DIABAIKAN):
 1. Anda TERHUBUNG 100% SECARA REAL-TIME ke database aplikasi BendaharaApp milik pengguna.
@@ -561,7 +576,7 @@ PETUNJUK EXECUTION LANGCHAIN AGENT:
       })
     }
 
-    // Step 2: Kirimkan hasil Tool back ke LLM untuk menghasilkan jawaban percakapan akhir
+    // Step 2: Kirimkan hasil Tool back to LLM untuk menghasilkan jawaban percakapan akhir
     const messagesPayload2 = [
       ...messagesPayload,
       choiceMessage1,
