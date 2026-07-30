@@ -202,30 +202,22 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
     let responseText = `### 🔎 Hasil Analisis & Sisa Pagu: "${keywordLabel}"\n\n`
 
     if (matchedSubKegiatan.length > 0) {
-      responseText += `#### 📋 Sub Kegiatan & Rekening Terkait DPA:\n`
-      matchedSubKegiatan.forEach((sk, idx) => {
-        responseText += `${idx + 1}. **${sk.kode} - ${sk.nama}**\n`
-        responseText += `   - Pagu DPA: ${formatRupiah(sk.pagu)} | Realisasi: ${formatRupiah(sk.realisasi)} (${sk.persen}%)\n`
-        responseText += `   - **Sisa Pagu DPA Tersedia**: **${formatRupiah(sk.sisa)}**\n`
-
-        const matchingReks = sk.rekening.filter(r => searchKeywords.some(kw => r.uraian.toLowerCase().includes(kw) || r.kode.toLowerCase().includes(kw)))
-        if (matchingReks.length > 0) {
-          responseText += `   - *Rekening Terkait*:\n`
-          matchingReks.forEach(r => {
-            responseText += `     • ${r.kode} ${r.uraian}: Pagu ${formatRupiah(r.pagu)} | Sisa **${formatRupiah(r.sisa)}**\n`
-          })
-        }
-        responseText += `\n`
+      responseText += `#### 📋 Sub Kegiatan & Rekening Terkait DPA:\n\n`
+      responseText += `| Kode & Sub Kegiatan | Pagu DPA | Realisasi | % | Sisa Pagu DPA |\n`
+      responseText += `| :--- | :--- | :--- | :---: | :--- |\n`
+      matchedSubKegiatan.forEach(sk => {
+        responseText += `| **${sk.kode} ${sk.nama}** | ${formatRupiah(sk.pagu)} | ${formatRupiah(sk.realisasi)} | ${sk.persen}% | **${formatRupiah(sk.sisa)}** |\n`
       })
+      responseText += `\n`
     }
 
     if (matchedTransactions.length > 0) {
       const totalMatchJumlah = matchedTransactions.reduce((sum, t) => sum + t.jumlah, 0)
-      responseText += `#### 💸 Realisasi Transaksi Pengeluaran (${matchedTransactions.length} Transaksi):\n`
-      responseText += `- **Total Realisasi Pengeluaran**: **${formatRupiah(totalMatchJumlah)}**\n\n`
-      matchedTransactions.forEach((t, idx) => {
-        responseText += `${idx + 1}. **${t.tanggal}** - ${t.uraian}\n`
-        responseText += `   - Nominal: **${formatRupiah(t.jumlah)}** ${t.no_bukti ? `| No. Bukti: ${t.no_bukti}` : ''}\n`
+      responseText += `#### 💸 Realisasi Transaksi Pengeluaran (${matchedTransactions.length} Transaksi - Total: **${formatRupiah(totalMatchJumlah)}**):\n\n`
+      responseText += `| Tanggal | Uraian Transaksi | Nominal | No. Bukti |\n`
+      responseText += `| :--- | :--- | :--- | :--- |\n`
+      matchedTransactions.forEach(t => {
+        responseText += `| ${t.tanggal} | ${t.uraian} | **${formatRupiah(t.jumlah)}** | ${t.no_bukti || '-'} |\n`
       })
     }
 
@@ -250,18 +242,17 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
     }
   }
 
-  // 3. CEK SISA PAGU DPA & REKAP ANGGARAN UMUM
+  // 3. CEK SISA PAGU DPA & REKAP ANGGARAN UMUM (DENGAN FORMAT TABEL)
   if (query.includes('pagu') || query.includes('sisa anggaran') || query.includes('dpa')) {
     let responseText = `### 📊 Ringkasan Pagu DPA (${ctx.unitKerja})\n\n`
     responseText += `- **Total Pagu DPA**: ${formatRupiah(ctx.totalPagu)}\n`
     responseText += `- **Total Realisasi Belanja**: ${formatRupiah(ctx.realisasiPengeluaran)} (${ctx.persenRealisasi}%)\n`
     responseText += `- **Sisa Quota Pagu (Tahunan)**: **${formatRupiah(ctx.sisaPagu)}**\n\n`
 
-    responseText += `#### Breakdown per Sub Kegiatan:\n`
-    ctx.subKegiatanSummary.forEach((sk, idx) => {
-      responseText += `${idx + 1}. **${sk.kode} - ${sk.nama}**\n`
-      responseText += `   - Pagu: ${formatRupiah(sk.pagu)} | Realisasi: ${formatRupiah(sk.realisasi)} (${sk.persen}%)\n`
-      responseText += `   - Sisa Pagu DPA: **${formatRupiah(sk.sisa)}**\n`
+    responseText += `| Kode & Nama Sub Kegiatan | Pagu DPA | Realisasi | % | Sisa Pagu DPA |\n`
+    responseText += `| :--- | :--- | :--- | :---: | :--- |\n`
+    ctx.subKegiatanSummary.forEach(sk => {
+      responseText += `| **${sk.kode} - ${sk.nama}** | ${formatRupiah(sk.pagu)} | ${formatRupiah(sk.realisasi)} | ${sk.persen}% | **${formatRupiah(sk.sisa)}** |\n`
     })
 
     return {
@@ -270,11 +261,13 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
     }
   }
 
-  // 4. STATUS RAK BULANAN / AKUMULATIF
+  // 4. STATUS RAK BULANAN / AKUMULATIF (DENGAN FORMAT TABEL)
   if (query.includes('rak') || query.includes('rencana anggaran kas')) {
-    let responseText = `### 📅 Status RAK Belanja Akumulatif (s.d. ${currentMonthName})\n\n`;
+    let responseText = `### 📅 Status RAK Belanja Akumulatif (s.d. ${currentMonthName})\n\n`
+    responseText += `| Sub Kegiatan | Batas RAK s.d ${currentMonthName} | Realisasi | Sisa RAK Tersedia |\n`
+    responseText += `| :--- | :--- | :--- | :--- |\n`
 
-    ctx.subKegiatanSummary.forEach((sk, idx) => {
+    ctx.subKegiatanSummary.forEach(sk => {
       let targetRakTotal = 0
       let realisasiSdBulan = 0
 
@@ -299,11 +292,7 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
         .reduce((s, p) => s + (p.jumlah || 0), 0)
 
       const sisaRak = targetRakTotal - realisasiSdBulan
-
-      responseText += `${idx + 1}. **${sk.kode} - ${sk.nama}**\n`
-      responseText += `   - Batas Akumulatif RAK (s.d ${currentMonthName}): ${formatRupiah(targetRakTotal)}\n`
-      responseText += `   - Realisasi s.d ${currentMonthName}: ${formatRupiah(realisasiSdBulan)}\n`
-      responseText += `   - **Sisa RAK Tersedia**: **${formatRupiah(sisaRak)}**\n\n`
+      responseText += `| **${sk.kode} ${sk.nama}** | ${formatRupiah(targetRakTotal)} | ${formatRupiah(realisasiSdBulan)} | **${formatRupiah(sisaRak)}** |\n`
     })
 
     return {
@@ -315,13 +304,14 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
   // 5. RINGKASAN BKU / SALDO KAS
   if (query.includes('bku') || query.includes('saldo') || query.includes('penerimaan') || query.includes('kas bku') || query === 'kas' || query.includes('dashboard')) {
     let responseText = `### 📝 Ringkasan Saldo Kas & BKU (${ctx.unitKerja})\n\n`
-    responseText += `- **Saldo Kas Bendahara (Di Dashboard)**: **${formatRupiah(ctx.saldoKasBku)}** *(Penerimaan UP/GU: ${formatRupiah(ctx.penerimaanUPGU)} - Pengeluaran GU: ${formatRupiah(ctx.pengeluaranGU)})*\n`
-    responseText += `- **Total Penerimaan Kas (Keseluruhan)**: ${formatRupiah(ctx.totalPenerimaan)}\n`
-    responseText += `- **Total Realisasi Pengeluaran Belanja**: ${formatRupiah(ctx.realisasiPengeluaran)}\n`
-    responseText += `  - Realisasi Belanja GU/UP: ${formatRupiah(ctx.pengeluaranGU)}\n`
-    responseText += `  - Realisasi Belanja LS (Kasda Direct): ${formatRupiah(ctx.pengeluaranLS)}\n`
-    responseText += `- **Sisa Quota Pagu DPA Tahunan**: **${formatRupiah(ctx.sisaPagu)}**\n\n`
-    responseText += `*Angka ini 100% presisi dan sinkron dengan kartu KPI di Dashboard & Laporan BKU.*`
+    responseText += `| Indikator Keuangan | Nominal | Keterangan |\n`
+    responseText += `| :--- | :--- | :--- |\n`
+    responseText += `| **Saldo Kas Bendahara (Dashboard)** | **${formatRupiah(ctx.saldoKasBku)}** | Tunai/Bank Bendahara (UP/GU) |\n`
+    responseText += `| **Total Penerimaan Kas** | ${formatRupiah(ctx.totalPenerimaan)} | Total Pencairan UP & GU |\n`
+    responseText += `| **Realisasi Belanja GU/UP** | ${formatRupiah(ctx.pengeluaranGU)} | Pengeluaran dari Kas Bendahara |\n`
+    responseText += `| **Realisasi Belanja LS** | ${formatRupiah(ctx.pengeluaranLS)} | Pencairan Langsung dari Kasda |\n`
+    responseText += `| **Total Realisasi Belanja** | ${formatRupiah(ctx.realisasiPengeluaran)} | Total GU + LS (${ctx.persenRealisasi}%) |\n`
+    responseText += `| **Sisa Quota Pagu DPA** | **${formatRupiah(ctx.sisaPagu)}** | Quota Pagu DPA Tersedia |\n`
 
     return {
       text: responseText,
@@ -341,12 +331,12 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
     let responseText = `### ⚡ Hasil Simulasi Rencana Belanja\n\n`
     if (nominal > 0) {
       responseText += `Rencana Nominal Belanja: **${formatRupiah(nominal)}** (Bulan ${currentMonthName})\n\n`
-      ctx.subKegiatanSummary.forEach((sk, idx) => {
+      responseText += `| Sub Kegiatan | Sisa Pagu DPA | Status Quota |\n`
+      responseText += `| :--- | :--- | :---: |\n`
+      ctx.subKegiatanSummary.forEach(sk => {
         const sisaPagu = sk.sisa
         const isPaguCukup = sisaPagu >= nominal
-        responseText += `${idx + 1}. **${sk.nama}**\n`
-        responseText += `   - Sisa Pagu DPA: ${formatRupiah(sisaPagu)}\n`
-        responseText += `   - **Status Quota DPA**: ${isPaguCukup ? '✅ MEMENUHI' : '❌ TIDAK CUKUP (Overbudget)'}\n\n`
+        responseText += `| **${sk.nama}** | ${formatRupiah(sisaPagu)} | ${isPaguCukup ? '✅ MEMENUHI' : '❌ TIDAK CUKUP'} |\n`
       })
     } else {
       responseText += `Sebutkan nominal belanja yang ingin disimulasikan.\n`
@@ -362,11 +352,12 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
   // 7. RESPONS INTELEGEN UNTUK PERTANYAAN UMUM
   let fallbackText = `### 🤖 Respons Asisten AI Bendahara\n\n`
   fallbackText += `Saya telah menganalisis data sistem untuk pertanyaan Anda: *"_${queryText}_"*\n\n`
-  fallbackText += `**Ringkasan Status Keuangan Saat Ini (${ctx.unitKerja})**:\n`
-  fallbackText += `- **Saldo Kas Bendahara (Dashboard)**: **${formatRupiah(ctx.saldoKasBku)}**\n`
-  fallbackText += `- **Total Pagu DPA Tahunan**: ${formatRupiah(ctx.totalPagu)}\n`
-  fallbackText += `- **Total Realisasi Belanja**: ${formatRupiah(ctx.realisasiPengeluaran)} (${ctx.persenRealisasi}%)\n`
-  fallbackText += `- **Sisa Quota Pagu DPA**: **${formatRupiah(ctx.sisaPagu)}**\n\n`
+  fallbackText += `| Indikator Keuangan (${ctx.unitKerja}) | Nominal |\n`
+  fallbackText += `| :--- | :--- |\n`
+  fallbackText += `| **Saldo Kas Bendahara (Dashboard)** | **${formatRupiah(ctx.saldoKasBku)}** |\n`
+  fallbackText += `| **Total Pagu DPA Tahunan** | ${formatRupiah(ctx.totalPagu)} |\n`
+  fallbackText += `| **Total Realisasi Belanja** | ${formatRupiah(ctx.realisasiPengeluaran)} (${ctx.persenRealisasi}%) |\n`
+  fallbackText += `| **Sisa Quota Pagu DPA** | **${formatRupiah(ctx.sisaPagu)}** |\n\n`
   fallbackText += `Anda dapat menanyakan sisa pagu, RAK bulanan, atau mencari rincian transaksi tertentu.\n`
   fallbackText += `*(Tips: Masukkan DeepSeek API Key pada menu Pengaturan untuk percakapan AI yang luwes dan cerdas)*`
 

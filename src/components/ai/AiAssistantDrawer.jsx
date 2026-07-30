@@ -1,35 +1,37 @@
 // src/components/ai/AiAssistantDrawer.jsx
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Bot, Send, X, RotateCcw, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react'
+import { useNavigate } from 'react'
+import { Bot, Send, Sparkles, X, RotateCcw, ArrowRight } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { processAiQuery } from '@/lib/aiAssistant'
-import Button from '@/components/ui/Button'
-
-const QUICK_CHIPS = [
-  '📊 Cek Sisa Pagu DPA',
-  '📅 Status RAK Bulan Ini',
-  '📝 Ringkasan BKU',
-  '⚡ Simulasi Belanja 15 Juta',
-  '📑 Buat Ringkasan Eksekutif'
-]
 
 const DEFAULT_WELCOME_TEXT = `Halo! Saya **Asisten AI Bendahara**. Saya dapat membantu Anda menganalisis data keuangan secara akurat:
 
+- **Cari Pengeluaran Spesifik**: *"Check belanja BBM total berapa sampai dengan sekarang?"*
 - **Pagu DPA & Sisa Anggaran**: *"Berapa sisa pagu Sub Kegiatan?"*
 - **Status RAK Bulanan**: *"Cek status RAK akumulatif bulan ini"*
 - **Saldo BKU**: *"Berapa saldo kas BKU saat ini?"*
 - **Simulasi Belanja**: *"Apakah sisa pagu cukup untuk belanja 20 juta?"*
 - **Laporan Eksekutif**: *"Buatkan ringkasan eksekutif penyerapan anggaran"*
 
-Pilih salah satu pertanyaan di atas atau ketik langsung di kolom obrolan!`
+*(Tips: Masukkan DeepSeek API Key pada Pengaturan untuk obrolan AI yang lebih luwes & cerdas)*`
 
-export default function AiAssistantDrawer({ open, onClose }) {
-  const navigate = useNavigate()
+const QUICK_CHIPS = [
+  '📊 Pagu DPA & Sisa Anggaran',
+  '💰 Saldo Kas BKU & Dashboard',
+  '⛽ Rekap Belanja BBM',
+  '📝 Belanja ATK Total Berapa?',
+  '📅 Status RAK Akumulatif',
+  '📄 Ringkasan Eksekutif Pimpinan'
+]
+
+export default function AiAssistantDrawer({ isOpen, onClose }) {
   const storeState = useStore()
+  const navigate = useNavigate()
+  
   const [messages, setMessages] = useState([
     {
-      id: 'welcome',
+      id: 'welcome-1',
       sender: 'ai',
       text: DEFAULT_WELCOME_TEXT,
       timestamp: new Date()
@@ -37,15 +39,17 @@ export default function AiAssistantDrawer({ open, onClose }) {
   ])
   const [inputText, setInputText] = useState('')
   const [isTyping, setIsTyping] = useState(false)
-  const chatEndRef = useRef(null)
+  const messagesEndRef = useRef(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   useEffect(() => {
-    if (open) {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [open, messages])
+    if (isOpen) scrollToBottom()
+  }, [messages, isOpen])
 
-  if (!open) return null
+  if (!isOpen) return null
 
   const handleSend = async (textToSend) => {
     const text = textToSend || inputText
@@ -95,32 +99,96 @@ export default function AiAssistantDrawer({ open, onClose }) {
     ])
   }
 
+  /**
+   * Parser Format Markdown Rich Text dengan Dukungan Tabel HTML / Tailwind
+   */
   const renderFormattedText = (text) => {
     if (!text || typeof text !== 'string') {
       return <p className="text-xs text-slate-700 leading-relaxed">{String(text || '')}</p>
     }
-    return text.split('\n').map((line, idx) => {
+
+    const lines = text.split('\n')
+    const elements = []
+    let i = 0
+
+    while (i < lines.length) {
+      const line = lines[i]
+
+      // Deteksi Awal Baris Tabel Markdown (Mengandung karakter '|')
+      if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+        const tableLines = []
+        while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+          tableLines.push(lines[i].trim())
+          i++
+        }
+
+        if (tableLines.length >= 2) {
+          const headerRow = tableLines[0]
+            .split('|')
+            .slice(1, -1)
+            .map(cell => cell.trim())
+
+          // Baris data (Abaikan baris pembatas |---|)
+          const bodyRows = tableLines.slice(1).filter(r => !r.match(/^\|[\s\-:\t]+\|/))
+
+          elements.push(
+            <div key={`table-${i}`} className="my-2.5 overflow-x-auto rounded-xl border border-slate-200 shadow-2xs bg-white">
+              <table className="w-full text-left text-[11px] border-collapse">
+                <thead className="bg-gradient-to-r from-indigo-900 to-indigo-800 text-white font-bold uppercase tracking-wider text-[10px]">
+                  <tr>
+                    {headerRow.map((col, cIdx) => (
+                      <th key={cIdx} className="px-2.5 py-2 border-b border-indigo-700 whitespace-nowrap">
+                        {parseBold(col)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {bodyRows.map((rStr, rIdx) => {
+                    const cells = rStr.split('|').slice(1, -1).map(c => c.trim())
+                    return (
+                      <tr key={rIdx} className="even:bg-slate-50/60 hover:bg-indigo-50/50 transition-colors">
+                        {cells.map((cell, cIdx) => (
+                          <td key={cIdx} className="px-2.5 py-1.5 text-slate-700 whitespace-nowrap">
+                            {parseBold(cell)}
+                          </td>
+                        ))}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
+          continue
+        }
+      }
+
+      // Baris Non-Tabel Biasa
       if (line.startsWith('### ')) {
-        return <h3 key={idx} className="text-sm font-black text-indigo-700 mt-2 mb-1 border-b border-indigo-100 pb-1">{line.replace('### ', '')}</h3>
+        elements.push(<h3 key={i} className="text-sm font-black text-indigo-700 mt-2.5 mb-1 border-b border-indigo-100 pb-1">{line.replace('### ', '')}</h3>)
+      } else if (line.startsWith('#### ')) {
+        elements.push(<h4 key={i} className="text-xs font-bold text-slate-800 mt-2 mb-1">{line.replace('#### ', '')}</h4>)
+      } else if (line.startsWith('- ')) {
+        elements.push(<li key={i} className="text-xs text-slate-700 ml-3 list-disc my-0.5">{parseBold(line.replace('- ', ''))}</li>)
+      } else if (line.match(/^\d+\./)) {
+        elements.push(<p key={i} className="text-xs font-bold text-slate-800 mt-1.5 mb-0.5">{parseBold(line)}</p>)
+      } else if (line.startsWith('   - ')) {
+        elements.push(<p key={i} className="text-[11px] text-slate-600 ml-4 font-mono leading-relaxed">{parseBold(line.replace('   - ', ''))}</p>)
+      } else if (!line.trim()) {
+        elements.push(<div key={i} className="h-1.5" />)
+      } else {
+        elements.push(<p key={i} className="text-xs text-slate-700 leading-relaxed my-0.5">{parseBold(line)}</p>)
       }
-      if (line.startsWith('#### ')) {
-        return <h4 key={idx} className="text-xs font-bold text-slate-800 mt-2 mb-1">{line.replace('#### ', '')}</h4>
-      }
-      if (line.startsWith('- ')) {
-        return <li key={idx} className="text-xs text-slate-700 ml-3 list-disc my-0.5">{parseBold(line.replace('- ', ''))}</li>
-      }
-      if (line.match(/^\d+\./)) {
-        return <p key={idx} className="text-xs font-bold text-slate-800 mt-1.5 mb-0.5">{parseBold(line)}</p>
-      }
-      if (line.startsWith('   - ')) {
-        return <p key={idx} className="text-[11px] text-slate-600 ml-4 font-mono leading-relaxed">{parseBold(line.replace('   - ', ''))}</p>
-      }
-      if (!line.trim()) return <div key={idx} className="h-1.5" />
-      return <p key={idx} className="text-xs text-slate-700 leading-relaxed my-0.5">{parseBold(line)}</p>
-    })
+
+      i++
+    }
+
+    return elements
   }
 
   function parseBold(str) {
+    if (!str) return ''
     const parts = str.split(/(\*\*.*?\*\*)/g)
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
@@ -217,64 +285,76 @@ export default function AiAssistantDrawer({ open, onClose }) {
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
           {messages.map(msg => (
             <div 
-              key={msg.id} 
+              key={msg.id}
               className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.sender === 'ai' && (
-                <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-1">
-                  <Bot size={16} />
+                <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                  <Bot size={18} />
                 </div>
               )}
 
-              <div className={`max-w-[85%] rounded-2xl p-3.5 shadow-xs border ${
+              <div className={`max-w-[85%] rounded-2xl p-3.5 shadow-xs ${
                 msg.sender === 'user'
-                  ? 'bg-indigo-600 text-white border-indigo-600 rounded-tr-none'
-                  : 'bg-white text-slate-800 border-slate-200/80 rounded-tl-none space-y-2'
+                  ? 'bg-indigo-600 text-white rounded-tr-xs font-medium text-xs'
+                  : 'bg-white border border-slate-200 text-slate-800 rounded-tl-xs'
               }`}>
                 {msg.sender === 'user' ? (
-                  <p className="text-xs font-semibold">{msg.text}</p>
+                  <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
                 ) : (
-                  <div>
+                  <div className="space-y-1">
                     {renderFormattedText(msg.text)}
 
                     {msg.action && (
-                      <div className="pt-2 mt-2 border-t border-slate-100 flex justify-end">
-                        <Button
-                          type="button"
-                          variant="primary"
-                          size="xs"
+                      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-[10px] text-slate-500 font-medium">Aksi Direkomendasikan:</span>
+                        <button
                           onClick={() => {
-                            navigate(msg.action.path)
+                            if (msg.action.path) navigate(msg.action.path)
                             onClose()
                           }}
-                          className="text-[10px] font-black bg-indigo-600 hover:bg-indigo-700 flex items-center gap-1.5 shadow-sm"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold text-xs transition-colors border border-indigo-200 shadow-2xs"
                         >
-                          <span>{msg.action.label}</span>
-                          <ArrowRight size={12} />
-                        </Button>
+                          <span>{msg.action.label || 'Buka Halaman'}</span>
+                          <ArrowRight size={14} />
+                        </button>
                       </div>
                     )}
                   </div>
                 )}
-                <span className={`text-[8px] font-mono block mt-1 text-right ${
+                
+                <span className={`text-[9px] block mt-1.5 text-right font-medium ${
                   msg.sender === 'user' ? 'text-indigo-200' : 'text-slate-400'
                 }`}>
-                  {new Date(msg.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
+
+              {msg.sender === 'user' && (
+                <div className="w-8 h-8 rounded-lg bg-slate-800 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5 text-xs font-bold">
+                  U
+                </div>
+              )}
             </div>
           ))}
 
           {isTyping && (
-            <div className="flex gap-3 items-center text-slate-400 text-xs font-bold bg-white p-3 rounded-2xl border border-slate-200 w-fit">
-              <Bot size={16} className="text-indigo-600 animate-spin" />
-              <span>Memproses kalkulasi data keuangan...</span>
+            <div className="flex gap-3 justify-start items-center">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <Bot size={18} />
+              </div>
+              <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-xs px-4 py-3 shadow-xs flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
             </div>
           )}
-          <div ref={chatEndRef} />
+
+          <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Bar Footer */}
+        {/* Input Bar */}
         <div className="p-3 bg-white border-t border-slate-200 shrink-0">
           <form 
             onSubmit={(e) => {
@@ -286,23 +366,21 @@ export default function AiAssistantDrawer({ open, onClose }) {
             <input
               type="text"
               value={inputText}
-              onChange={e => setInputText(e.target.value)}
-              placeholder="Tanyakan sisa pagu, RAK, BKU, atau simulasi belanja..."
-              className="flex-1 text-xs font-medium px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white transition-all"
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Ketik pertanyaan keuangan Anda..."
+              className="flex-1 text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400"
+              disabled={isTyping}
             />
-            <Button
+            <button
               type="submit"
               disabled={!inputText.trim() || isTyping}
-              className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center justify-center shrink-0 shadow-md disabled:opacity-50"
+              className="p-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white rounded-xl transition-colors shadow-sm shrink-0 flex items-center justify-center"
             >
-              <Send size={14} />
-            </Button>
+              <Send size={16} />
+            </button>
           </form>
-          <div className="flex items-center justify-between text-[9px] text-slate-400 font-bold px-1 mt-2">
-            <span className="flex items-center gap-1">
-              <ShieldCheck size={10} className="text-emerald-500" /> Bebas Halusinasi — 100% Data Zustand Store
-            </span>
-            <span>Tekan Enter ↵</span>
+          <div className="mt-1.5 text-center">
+            <span className="text-[9px] text-slate-400 font-medium">Verifikasi 100% data keuangan Zustand Store</span>
           </div>
         </div>
 
