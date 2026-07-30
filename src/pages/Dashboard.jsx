@@ -89,6 +89,8 @@ export default function Dashboard() {
   const [expandedItems, setExpandedItems] = useState({})
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [expandedRakSk, setExpandedRakSk] = useState({})
+  const [drillQuery, setDrillQuery] = useState('')
+  const [searchRekTx, setSearchRekTx] = useState({})
 
   const toggleExpand = (id) => {
     setExpandedItems(prev => {
@@ -428,10 +430,31 @@ export default function Dashboard() {
 
       {/* Detail Realisasi Anggaran (Drill-down Hierarkis) - Full Width */}
       <Card>
-        <h2 className="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
-          <span className="w-1 h-4 bg-emerald-600 rounded-full" />
-          Detail Realisasi Anggaran (Drill-down Hierarkis)
-        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <span className="w-1 h-4 bg-emerald-600 rounded-full" />
+            Detail Realisasi Anggaran (Drill-down Hierarkis)
+          </h2>
+          <div className="relative w-full sm:w-72">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={drillQuery}
+              onChange={(e) => setDrillQuery(e.target.value)}
+              placeholder="Cari transaksi, Uraian, BKU, Kode..."
+              className="w-full pl-9 pr-7 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all placeholder:text-slate-400 text-slate-800 font-medium"
+            />
+            {drillQuery && (
+              <button 
+                onClick={() => setDrillQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                title="Hapus Pencarian"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
         {hierarchicalData.length === 0 ? (
           <EmptyState message="Belum ada data anggaran" />
         ) : (
@@ -576,89 +599,138 @@ export default function Dashboard() {
 
                                           {isRekExpanded && (
                                             <div className="bg-white border-t border-slate-200/70 p-3 space-y-2">
-                                              <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-                                                <span>Rincian Transaksi Pengeluaran ({txList.length})</span>
-                                              </div>
-                                              {txList.length === 0 ? (
-                                                <div className="p-3 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200 text-slate-400 text-xs font-medium italic">
-                                                  Belum ada transaksi pengeluaran tercatat pada kode rekening ini.
-                                                </div>
-                                              ) : (
-                                                  <div className="overflow-x-auto rounded-lg border border-slate-200/60">
-                                                    <table className="w-full text-left text-xs border-collapse min-w-[650px]">
-                                                      <thead>
-                                                        <tr className="bg-slate-50 text-[9px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                                                          <th className="py-2 px-3 text-center w-20">No. BKU</th>
-                                                          <th className="py-2 px-3">Bulan BKU</th>
-                                                          <th className="py-2 px-3">Tanggal</th>
-                                                          <th className="py-2 px-3">Jenis</th>
-                                                          <th className="py-2 px-3">Uraian / Rincian</th>
-                                                          <th className="py-2 px-3 text-right">Jumlah</th>
-                                                          <th className="py-2 px-3 text-center w-24">Aksi</th>
-                                                        </tr>
-                                                      </thead>
-                                                      <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                                                        {txList.map(tx => {
-                                                          const bkuInfo = bkuIndexMap[tx.id] || { noUrut: '-', bulanBku: '-' }
-                                                          const rincianText = tx.pengeluaran_rincian?.length > 0
-                                                            ? tx.pengeluaran_rincian.map(r => `${r.uraian}${r.volume ? ` (${r.volume} ${r.satuan || ''})` : ''}`).join(', ')
-                                                            : tx.keterangan || 'Belanja'
+                                              {(() => {
+                                                const localQuery = (searchRekTx[rek.id] || '').toLowerCase().trim()
+                                                const globalQuery = drillQuery.toLowerCase().trim()
 
-                                                          return (
-                                                            <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
-                                                              <td className="py-2 px-3 text-[10px] font-mono font-black text-indigo-600 text-center whitespace-nowrap">
-                                                                #{bkuInfo.noUrut}
-                                                              </td>
-                                                              <td className="py-2 px-3 text-[10px] font-bold text-slate-700 whitespace-nowrap">
-                                                                {bkuInfo.bulanBku}
-                                                              </td>
-                                                              <td className="py-2 px-3 text-[10px] font-mono font-bold text-slate-600 whitespace-nowrap">
-                                                                {formatTanggal(tx.tanggal)}
-                                                              </td>
-                                                              <td className="py-2 px-3 whitespace-nowrap">
-                                                                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
-                                                                  tx.jenis === 'LS' ? 'bg-blue-100 text-blue-700' :
-                                                                  tx.jenis === 'GU' ? 'bg-emerald-100 text-emerald-700' :
-                                                                  'bg-amber-100 text-amber-700'
-                                                                }`}>
-                                                                  {tx.jenis}
-                                                                </span>
-                                                              </td>
-                                                              <td className="py-2 px-3 text-slate-800 text-[11px] font-medium leading-tight">
-                                                                <div>{rincianText}</div>
-                                                                {tx.penerima_nama && (
-                                                                  <span className="text-[9px] text-slate-400 block font-bold mt-0.5">Penerima: {tx.penerima_nama}</span>
-                                                                )}
-                                                              </td>
-                                                              <td className="py-2 px-3 text-right font-black font-mono text-slate-900 whitespace-nowrap">
-                                                                {formatRupiah(tx.jumlah)}
-                                                              </td>
-                                                              <td className="py-2 px-3 text-center whitespace-nowrap">
-                                                                <button
-                                                                  type="button"
-                                                                  onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    navigate('/pengeluaran', {
-                                                                      state: {
-                                                                        searchKeyword: tx.pengeluaran_rincian?.[0]?.uraian || tx.keterangan || rincianText,
-                                                                        highlightTxId: String(tx.id)
-                                                                      }
-                                                                    })
-                                                                  }}
-                                                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 rounded-md text-[10px] font-extrabold transition-all shadow-xs cursor-pointer group"
-                                                                  title="Loncat ke Halaman Pengeluaran untuk transaksi ini"
-                                                                >
-                                                                  <span>Buka</span>
-                                                                  <ExternalLink size={10} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                                                                </button>
-                                                              </td>
+                                                const filteredTxList = txList.filter(tx => {
+                                                  const bkuInfo = bkuIndexMap[tx.id] || { noUrut: '-', bulanBku: '-' }
+                                                  const rincianText = (tx.pengeluaran_rincian?.map(r => r.uraian).join(' ') || tx.keterangan || '').toLowerCase()
+                                                  const penerima = (tx.penerima_nama || '').toLowerCase()
+                                                  const noBukti = (tx.no_bukti || tx.nomor_ls || '').toLowerCase()
+                                                  const bkuNo = `#${bkuInfo.noUrut}`.toLowerCase()
+                                                  const jenis = (tx.jenis || '').toLowerCase()
+                                                  const nominal = String(tx.jumlah || '')
+
+                                                  const fullStr = `${rincianText} ${penerima} ${noBukti} ${bkuNo} ${jenis} ${nominal}`
+
+                                                  if (localQuery && !fullStr.includes(localQuery)) return false
+                                                  if (globalQuery && !fullStr.includes(globalQuery)) return false
+                                                  return true
+                                                })
+
+                                                return (
+                                                  <>
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                                                      <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                                        <span>Rincian Transaksi Pengeluaran ({filteredTxList.length} dari {txList.length})</span>
+                                                      </div>
+                                                      <div className="relative w-full sm:w-64">
+                                                        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                        <input
+                                                          type="text"
+                                                          value={searchRekTx[rek.id] || ''}
+                                                          onChange={(e) => setSearchRekTx(prev => ({ ...prev, [rek.id]: e.target.value }))}
+                                                          placeholder="Cari uraian, BKU, penerima..."
+                                                          className="w-full pl-7 pr-7 py-1 text-[11px] bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-1 focus:ring-emerald-500 outline-none text-slate-700 placeholder:text-slate-400 font-medium"
+                                                        />
+                                                        {searchRekTx[rek.id] && (
+                                                          <button 
+                                                            onClick={() => setSearchRekTx(prev => ({ ...prev, [rek.id]: '' }))}
+                                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                                                            title="Hapus Pencarian"
+                                                          >
+                                                            ×
+                                                          </button>
+                                                        )}
+                                                      </div>
+                                                    </div>
+
+                                                    {filteredTxList.length === 0 ? (
+                                                      <div className="p-3 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200 text-slate-400 text-xs font-medium italic">
+                                                        {txList.length === 0 
+                                                          ? 'Belum ada transaksi pengeluaran tercatat pada kode rekening ini.'
+                                                          : 'Tidak ada transaksi yang cocok dengan kata kunci pencarian.'}
+                                                      </div>
+                                                    ) : (
+                                                      <div className="overflow-x-auto rounded-lg border border-slate-200/60">
+                                                        <table className="w-full text-left text-xs border-collapse min-w-[650px]">
+                                                          <thead>
+                                                            <tr className="bg-slate-50 text-[9px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                                                              <th className="py-2 px-3 text-center w-20">No. BKU</th>
+                                                              <th className="py-2 px-3">Bulan BKU</th>
+                                                              <th className="py-2 px-3">Tanggal</th>
+                                                              <th className="py-2 px-3">Jenis</th>
+                                                              <th className="py-2 px-3">Uraian / Rincian</th>
+                                                              <th className="py-2 px-3 text-right">Jumlah</th>
+                                                              <th className="py-2 px-3 text-center w-24">Aksi</th>
                                                             </tr>
-                                                          )
-                                                        })}
-                                                      </tbody>
-                                                    </table>
-                                                  </div>
-                                              )}
+                                                          </thead>
+                                                          <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                                                            {filteredTxList.map(tx => {
+                                                              const bkuInfo = bkuIndexMap[tx.id] || { noUrut: '-', bulanBku: '-' }
+                                                              const rincianText = tx.pengeluaran_rincian?.length > 0
+                                                                ? tx.pengeluaran_rincian.map(r => `${r.uraian}${r.volume ? ` (${r.volume} ${r.satuan || ''})` : ''}`).join(', ')
+                                                                : tx.keterangan || 'Belanja'
+
+                                                              return (
+                                                                <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
+                                                                  <td className="py-2 px-3 text-[10px] font-mono font-black text-indigo-600 text-center whitespace-nowrap">
+                                                                    #{bkuInfo.noUrut}
+                                                                  </td>
+                                                                  <td className="py-2 px-3 text-[10px] font-bold text-slate-700 whitespace-nowrap">
+                                                                    {bkuInfo.bulanBku}
+                                                                  </td>
+                                                                  <td className="py-2 px-3 text-[10px] font-mono font-bold text-slate-600 whitespace-nowrap">
+                                                                    {formatTanggal(tx.tanggal)}
+                                                                  </td>
+                                                                  <td className="py-2 px-3 whitespace-nowrap">
+                                                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                                                                      tx.jenis === 'LS' ? 'bg-blue-100 text-blue-700' :
+                                                                      tx.jenis === 'GU' ? 'bg-emerald-100 text-emerald-700' :
+                                                                      'bg-amber-100 text-amber-700'
+                                                                    }`}>
+                                                                      {tx.jenis}
+                                                                    </span>
+                                                                  </td>
+                                                                  <td className="py-2 px-3 text-slate-800 text-[11px] font-medium leading-tight">
+                                                                    <div>{rincianText}</div>
+                                                                    {tx.penerima_nama && (
+                                                                      <span className="text-[9px] text-slate-400 block font-bold mt-0.5">Penerima: {tx.penerima_nama}</span>
+                                                                    )}
+                                                                  </td>
+                                                                  <td className="py-2 px-3 text-right font-black font-mono text-slate-900 whitespace-nowrap">
+                                                                    {formatRupiah(tx.jumlah)}
+                                                                  </td>
+                                                                  <td className="py-2 px-3 text-center whitespace-nowrap">
+                                                                    <button
+                                                                      type="button"
+                                                                      onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        navigate('/pengeluaran', {
+                                                                          state: {
+                                                                            searchKeyword: tx.pengeluaran_rincian?.[0]?.uraian || tx.keterangan || rincianText,
+                                                                            highlightTxId: String(tx.id)
+                                                                          }
+                                                                        })
+                                                                      }}
+                                                                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 rounded-md text-[10px] font-extrabold transition-all shadow-xs cursor-pointer group"
+                                                                      title="Loncat ke Halaman Pengeluaran untuk transaksi ini"
+                                                                    >
+                                                                      <span>Buka</span>
+                                                                      <ExternalLink size={10} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                                                                    </button>
+                                                                  </td>
+                                                                </tr>
+                                                              )
+                                                            })}
+                                                          </tbody>
+                                                        </table>
+                                                      </div>
+                                                    )}
+                                                  </>
+                                                )
+                                              })()}
                                             </div>
                                           )}
                                         </div>
