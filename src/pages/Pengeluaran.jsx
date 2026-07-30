@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Plus, Trash2, PlusCircle, MinusCircle, Pencil, FileDown, Download, Filter, RefreshCcw, ArrowUp, ArrowDown, Printer, FileText, Paperclip, X } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { formatRupiah, formatTanggal, persen } from '@/lib/format'
@@ -72,17 +73,27 @@ export default function Pengeluaran() {
   const [selectedPdf, setSelectedPdf] = useState(null) // { path, name }
   const [isDragging, setIsDragging] = useState(false)
   
+  const location = useLocation()
+  const highlightTxId = location.state?.highlightTxId || null
+
   // Advanced Filters
-  const [filterBulan, setFilterBulan] = useState(String(new Date().getMonth()))
+  const [filterBulan, setFilterBulan] = useState(() => location.state?.highlightTxId ? '' : String(new Date().getMonth()))
   const [filterJenis, setFilterJenis] = useState('')
   const [filterProgram, setFilterProgram] = useState('')
   const [filterKegiatan, setFilterKegiatan] = useState('')
   const [filterSubKegiatan, setFilterSubKegiatan] = useState('')
   const [filterKodeRekening, setFilterKodeRekening] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(() => location.state?.searchKeyword || '')
   const [sortConfig, setSortConfig] = useState({ key: 'tanggal', direction: 'desc' })
   
   const [deleteId, setDeleteId] = useState(null)
+
+  useEffect(() => {
+    if (location.state?.searchKeyword || location.state?.highlightTxId) {
+      if (location.state.searchKeyword) setSearchQuery(location.state.searchKeyword)
+      if (location.state.highlightTxId) setFilterBulan('')
+    }
+  }, [location.state])
 
   useEffect(() => {
     fetchSubKegiatan()
@@ -1044,8 +1055,17 @@ export default function Pengeluaran() {
                     ? item.pengeluaran_rincian.map(r => r.uraian).join(', ')
                     : item.keterangan || '-'
 
+                  const isHighlighted = String(item.id) === String(highlightTxId)
+
                   return (
-                    <tr key={item.id} className="hover:bg-indigo-50/30 transition-colors group">
+                    <tr 
+                      key={item.id} 
+                      className={`transition-colors group ${
+                        isHighlighted 
+                          ? 'bg-emerald-100/70 hover:bg-emerald-100 font-semibold ring-2 ring-emerald-500/50' 
+                          : 'hover:bg-indigo-50/30'
+                      }`}
+                    >
                       <td className="px-6 py-4 text-xs text-slate-400 font-medium text-center">{idx + 1}</td>
                       <td className="px-6 py-4 text-xs text-slate-600 font-semibold text-center">{formatTanggal(item.tanggal)}</td>
                       <td className="px-6 py-4 text-center">

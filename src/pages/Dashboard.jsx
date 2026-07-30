@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, Fragment } from 'react'
-import { ChevronRight, ChevronDown, TrendingUp, TrendingDown, Wallet, PieChart as PieIcon, Info } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronRight, ChevronDown, TrendingUp, TrendingDown, Wallet, PieChart as PieIcon, Info, ExternalLink } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { formatRupiah, formatTanggal, persen } from '@/lib/format'
 import { getBkuRows } from '@/lib/bku'
@@ -76,6 +77,7 @@ function InteractiveKPICard({ label, value, subtext, variant = 'primary', icon: 
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const subKegiatan = useStore(s => s.subKegiatan)
   const pengeluaran = useStore(s => s.pengeluaran)
   const penerimaan = useStore(s => s.penerimaan)
@@ -582,60 +584,80 @@ export default function Dashboard() {
                                                   Belum ada transaksi pengeluaran tercatat pada kode rekening ini.
                                                 </div>
                                               ) : (
-                                                <div className="overflow-x-auto rounded-lg border border-slate-200/60">
-                                                  <table className="w-full text-left text-xs border-collapse min-w-[550px]">
-                                                    <thead>
-                                                      <tr className="bg-slate-50 text-[9px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                                                        <th className="py-2 px-3 text-center w-20">No. BKU</th>
-                                                        <th className="py-2 px-3">Bulan BKU</th>
-                                                        <th className="py-2 px-3">Tanggal</th>
-                                                        <th className="py-2 px-3">Jenis</th>
-                                                        <th className="py-2 px-3">Uraian / Rincian</th>
-                                                        <th className="py-2 px-3 text-right">Jumlah</th>
-                                                      </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                                                      {txList.map(tx => {
-                                                        const bkuInfo = bkuIndexMap[tx.id] || { noUrut: '-', bulanBku: '-' }
-                                                        const rincianText = tx.pengeluaran_rincian?.length > 0
-                                                          ? tx.pengeluaran_rincian.map(r => `${r.uraian}${r.volume ? ` (${r.volume} ${r.satuan || ''})` : ''}`).join(', ')
-                                                          : tx.keterangan || 'Belanja'
+                                                  <div className="overflow-x-auto rounded-lg border border-slate-200/60">
+                                                    <table className="w-full text-left text-xs border-collapse min-w-[650px]">
+                                                      <thead>
+                                                        <tr className="bg-slate-50 text-[9px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                                                          <th className="py-2 px-3 text-center w-20">No. BKU</th>
+                                                          <th className="py-2 px-3">Bulan BKU</th>
+                                                          <th className="py-2 px-3">Tanggal</th>
+                                                          <th className="py-2 px-3">Jenis</th>
+                                                          <th className="py-2 px-3">Uraian / Rincian</th>
+                                                          <th className="py-2 px-3 text-right">Jumlah</th>
+                                                          <th className="py-2 px-3 text-center w-24">Aksi</th>
+                                                        </tr>
+                                                      </thead>
+                                                      <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                                                        {txList.map(tx => {
+                                                          const bkuInfo = bkuIndexMap[tx.id] || { noUrut: '-', bulanBku: '-' }
+                                                          const rincianText = tx.pengeluaran_rincian?.length > 0
+                                                            ? tx.pengeluaran_rincian.map(r => `${r.uraian}${r.volume ? ` (${r.volume} ${r.satuan || ''})` : ''}`).join(', ')
+                                                            : tx.keterangan || 'Belanja'
 
-                                                        return (
-                                                          <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
-                                                            <td className="py-2 px-3 text-[10px] font-mono font-black text-indigo-600 text-center whitespace-nowrap">
-                                                              #{bkuInfo.noUrut}
-                                                            </td>
-                                                            <td className="py-2 px-3 text-[10px] font-bold text-slate-700 whitespace-nowrap">
-                                                              {bkuInfo.bulanBku}
-                                                            </td>
-                                                            <td className="py-2 px-3 text-[10px] font-mono font-bold text-slate-600 whitespace-nowrap">
-                                                              {formatTanggal(tx.tanggal)}
-                                                            </td>
-                                                            <td className="py-2 px-3 whitespace-nowrap">
-                                                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
-                                                                tx.jenis === 'LS' ? 'bg-blue-100 text-blue-700' :
-                                                                tx.jenis === 'GU' ? 'bg-emerald-100 text-emerald-700' :
-                                                                'bg-amber-100 text-amber-700'
-                                                              }`}>
-                                                                {tx.jenis}
-                                                              </span>
-                                                            </td>
-                                                            <td className="py-2 px-3 text-slate-800 text-[11px] font-medium leading-tight">
-                                                              <div>{rincianText}</div>
-                                                              {tx.penerima_nama && (
-                                                                <span className="text-[9px] text-slate-400 block font-bold mt-0.5">Penerima: {tx.penerima_nama}</span>
-                                                              )}
-                                                            </td>
-                                                            <td className="py-2 px-3 text-right font-black font-mono text-slate-900 whitespace-nowrap">
-                                                              {formatRupiah(tx.jumlah)}
-                                                            </td>
-                                                          </tr>
-                                                        )
-                                                      })}
-                                                    </tbody>
-                                                  </table>
-                                                </div>
+                                                          return (
+                                                            <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
+                                                              <td className="py-2 px-3 text-[10px] font-mono font-black text-indigo-600 text-center whitespace-nowrap">
+                                                                #{bkuInfo.noUrut}
+                                                              </td>
+                                                              <td className="py-2 px-3 text-[10px] font-bold text-slate-700 whitespace-nowrap">
+                                                                {bkuInfo.bulanBku}
+                                                              </td>
+                                                              <td className="py-2 px-3 text-[10px] font-mono font-bold text-slate-600 whitespace-nowrap">
+                                                                {formatTanggal(tx.tanggal)}
+                                                              </td>
+                                                              <td className="py-2 px-3 whitespace-nowrap">
+                                                                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                                                                  tx.jenis === 'LS' ? 'bg-blue-100 text-blue-700' :
+                                                                  tx.jenis === 'GU' ? 'bg-emerald-100 text-emerald-700' :
+                                                                  'bg-amber-100 text-amber-700'
+                                                                }`}>
+                                                                  {tx.jenis}
+                                                                </span>
+                                                              </td>
+                                                              <td className="py-2 px-3 text-slate-800 text-[11px] font-medium leading-tight">
+                                                                <div>{rincianText}</div>
+                                                                {tx.penerima_nama && (
+                                                                  <span className="text-[9px] text-slate-400 block font-bold mt-0.5">Penerima: {tx.penerima_nama}</span>
+                                                                )}
+                                                              </td>
+                                                              <td className="py-2 px-3 text-right font-black font-mono text-slate-900 whitespace-nowrap">
+                                                                {formatRupiah(tx.jumlah)}
+                                                              </td>
+                                                              <td className="py-2 px-3 text-center whitespace-nowrap">
+                                                                <button
+                                                                  type="button"
+                                                                  onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    navigate('/pengeluaran', {
+                                                                      state: {
+                                                                        searchKeyword: tx.no_bukti || tx.nomor_ls || tx.keterangan || String(tx.id),
+                                                                        highlightTxId: String(tx.id)
+                                                                      }
+                                                                    })
+                                                                  }}
+                                                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 rounded-md text-[10px] font-extrabold transition-all shadow-xs cursor-pointer group"
+                                                                  title="Loncat ke Halaman Pengeluaran untuk transaksi ini"
+                                                                >
+                                                                  <span>Buka</span>
+                                                                  <ExternalLink size={10} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                                                                </button>
+                                                              </td>
+                                                            </tr>
+                                                          )
+                                                        })}
+                                                      </tbody>
+                                                    </table>
+                                                  </div>
                                               )}
                                             </div>
                                           )}
