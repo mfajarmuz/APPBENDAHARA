@@ -1,6 +1,6 @@
 // src/pages/Anggaran.jsx
 import { useEffect, useState, useMemo } from 'react'
-import { Plus, ChevronDown, ChevronRight, Pencil, Trash2, Folder, List, Tag, FileText } from 'lucide-react'
+import { Plus, ChevronDown, ChevronRight, Pencil, Trash2, Folder, List, Tag, FileText, Lock, Unlock, ShieldCheck, AlertTriangle } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { formatRupiah, persen } from '@/lib/format'
 import Card from '@/components/ui/Card'
@@ -33,6 +33,7 @@ export default function Anggaran() {
   const isLoading = useStore(s => s.isLoading)
   const fetchSubKegiatan = useStore(s => s.fetchSubKegiatan)
   const fetchPengeluaran = useStore(s => s.fetchPengeluaran)
+  const updateSettings = useStore(s => s.updateSettings)
   
   const updateProgram = useStore(s => s.updateProgram)
   const addProgram = useStore(s => s.addProgram)
@@ -48,6 +49,34 @@ export default function Anggaran() {
   const parseRakPdf = useStore(s => s.parseRakPdf)
   const saveBulkRekening = useStore(s => s.saveBulkRekening)
   const user = useStore(s => s.user)
+
+  // State Penguncian Anggaran DPA / Lock Guard State
+  const [isDpaLocked, setIsDpaLocked] = useState(() => {
+    if (settings?.is_dpa_locked !== undefined) return Boolean(settings.is_dpa_locked)
+    const local = localStorage.getItem('bendahara_dpa_locked')
+    return local !== null ? local === 'true' : true // Default ter-kunci demi keamanan finansial
+  })
+
+  const toggleDpaLock = async () => {
+    const nextState = !isDpaLocked
+    setIsDpaLocked(nextState)
+    localStorage.setItem('bendahara_dpa_locked', String(nextState))
+    try {
+      if (updateSettings) {
+        await updateSettings({ is_dpa_locked: nextState })
+      }
+    } catch (e) {
+      console.error('Failed to sync DPA lock to settings', e)
+    }
+  }
+
+  const checkDpaLockGuard = () => {
+    if (isDpaLocked) {
+      alert('Penguncian Anggaran DPA sedang AKTIF 🔒.\n\nSilakan tekan tombol "DPA Terkunci" di bagian atas halaman untuk membuka kunci sebelum mengubah atau menghapus data DPA.')
+      return true
+    }
+    return false
+  }
 
   const [expanded, setExpanded] = useState({})
   const [expandedRak, setExpandedRak] = useState({})
@@ -200,6 +229,7 @@ export default function Anggaran() {
   }
 
   async function handleSaveInlineRak(rek, skId) {
+    if (checkDpaLockGuard()) return
     const data = inlineRak[rek.id] || {}
     const payload = {
       id: rek.id,
@@ -248,11 +278,13 @@ export default function Anggaran() {
 
   // Sub Kegiatan
   function openNewSk(kegId) {
+    if (checkDpaLockGuard()) return
     setEditingSk(null)
     setSkForm({ ...EMPTY_SK, kegiatan_id: kegId })
     setSkModal(true)
   }
   function openEditSk(sk) {
+    if (checkDpaLockGuard()) return
     setEditingSk(sk)
     setSkForm({ kode: sk.kode, nama: sk.nama, sumber_dana: sk.sumber_dana, tahun_anggaran: String(sk.tahun_anggaran), kegiatan_id: sk.kegiatan_id })
     setSkModal(true)
@@ -273,11 +305,13 @@ export default function Anggaran() {
 
   // Program
   function openNewProg() {
+    if (checkDpaLockGuard()) return
     setEditingProgId(null)
     setProgForm(EMPTY_PARENT)
     setProgModal(true)
   }
   function openEditProg(prog) {
+    if (checkDpaLockGuard()) return
     setEditingProgId(prog.id); setProgForm({ kode: prog.kode, nama: prog.nama }); setProgModal(true)
   }
   async function handleProgSubmit(e) {
@@ -295,11 +329,13 @@ export default function Anggaran() {
 
   // Kegiatan
   function openNewKeg(progId) {
+    if (checkDpaLockGuard()) return
     setEditingKegId(null)
     setKegForm({ ...EMPTY_PARENT, program_id: progId })
     setKegModal(true)
   }
   function openEditKeg(keg) {
+    if (checkDpaLockGuard()) return
     setEditingKegId(keg.id); setKegForm({ kode: keg.kode, nama: keg.nama, program_id: keg.program_id }); setKegModal(true)
   }
   async function handleKegSubmit(e) {
@@ -316,8 +352,12 @@ export default function Anggaran() {
   }
 
   // Rekening
-  function openNewRek(skId) { setEditingRekId(null); setRekParentId(skId); setRekForm(EMPTY_REK); setRekModal(true) }
+  function openNewRek(skId) { 
+    if (checkDpaLockGuard()) return
+    setEditingRekId(null); setRekParentId(skId); setRekForm(EMPTY_REK); setRekModal(true) 
+  }
   function openEditRek(rek, skId) {
+    if (checkDpaLockGuard()) return
     setEditingRekId(rek.id); setRekParentId(skId); setRekForm({
       kode: rek.kode,
       uraian: rek.uraian,
@@ -405,6 +445,7 @@ export default function Anggaran() {
   }
 
   async function handleImportPdfClick() {
+    if (checkDpaLockGuard()) return
     try {
       const selectedFile = await (window.api ? window.api.selectPdfFile() : null)
       if (!selectedFile) return
@@ -471,10 +512,45 @@ export default function Anggaran() {
             </div>
             {user?.role !== 'viewer' && (
               <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-start sm:justify-end">
-                <Button variant="secondary" onClick={handleImportPdfClick} disabled={isParsing} className="h-12 border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 shadow-sm transition-all shrink-0">
+                <Button 
+                  variant={isDpaLocked ? 'secondary' : 'warning'} 
+                  onClick={toggleDpaLock} 
+                  className={`h-12 border transition-all shrink-0 font-extrabold shadow-sm ${
+                    isDpaLocked 
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100' 
+                      : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                  }`}
+                  title={isDpaLocked ? "Buka Penguncian DPA untuk mengedit/menghapus anggaran" : "Kunci DPA untuk mencegah perubahan atau penghapusan yang tidak disengaja"}
+                >
+                  {isDpaLocked ? (
+                    <>
+                      <Lock size={18} className="text-emerald-600" />
+                      <span>DPA Terkunci</span>
+                    </>
+                  ) : (
+                    <>
+                      <Unlock size={18} className="text-amber-600" />
+                      <span>Kunci Anggaran DPA</span>
+                    </>
+                  )}
+                </Button>
+
+                <Button 
+                  variant="secondary" 
+                  onClick={handleImportPdfClick} 
+                  disabled={isParsing || isDpaLocked} 
+                  className={`h-12 border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 shadow-sm transition-all shrink-0 ${isDpaLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  title={isDpaLocked ? "DPA Terkunci. Buka Kunci DPA untuk mengimpor RAK dari PDF" : "Import RAK dari PDF"}
+                >
                   <FileText size={18} /> {isParsing ? 'Membaca PDF...' : 'Import RAK dari PDF'}
                 </Button>
-                <Button onClick={openNewProg} className="h-12 shadow-md shadow-indigo-600/20 shrink-0">
+
+                <Button 
+                  onClick={openNewProg} 
+                  disabled={isDpaLocked}
+                  className={`h-12 shadow-md shadow-indigo-600/20 shrink-0 ${isDpaLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  title={isDpaLocked ? "DPA Terkunci. Buka Kunci DPA untuk menambah Program baru" : "Tambah Program"}
+                >
                   <Plus size={18} /> Tambah Program
                 </Button>
               </div>
@@ -482,6 +558,55 @@ export default function Anggaran() {
           </div>
         </div>
       </div>
+
+      {/* Banner Status Penguncian DPA */}
+      {isDpaLocked ? (
+        <div className="bg-emerald-50/90 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-emerald-900 text-xs shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-emerald-600 text-white rounded-xl shrink-0 shadow-xs">
+              <ShieldCheck size={20} />
+            </div>
+            <div>
+              <p className="font-black text-emerald-950 text-xs flex items-center gap-2">
+                <span>Penguncian Anggaran DPA Aktif</span>
+                <span className="bg-emerald-200/80 text-emerald-900 text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider">🔒 Data Aman</span>
+              </p>
+              <p className="text-[11px] text-emerald-700 mt-0.5 font-medium">
+                Seluruh Pagu Anggaran, Sub Kegiatan, Kode Rekening, & RAK 12 Bulan dikunci untuk mencegah perubahan atau penghapusan yang tidak disengaja.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={toggleDpaLock}
+            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition-all shrink-0 cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+          >
+            <Unlock size={14} /> Buka Kunci Mode Edit
+          </button>
+        </div>
+      ) : (
+        <div className="bg-amber-50/90 border border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-900 text-xs shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-amber-500 text-white rounded-xl shrink-0 shadow-xs animate-pulse">
+              <AlertTriangle size={20} />
+            </div>
+            <div>
+              <p className="font-black text-amber-950 text-xs flex items-center gap-2">
+                <span>Mode Edit Anggaran Terbuka</span>
+                <span className="bg-amber-200 text-amber-900 text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider">🔓 Mode Edit</span>
+              </p>
+              <p className="text-[11px] text-amber-800 mt-0.5 font-medium">
+                Anda dapat menambah, mengedit, atau menghapus Program, Sub Kegiatan, Kode Rekening, dan RAK Belanja. Ingat untuk **Kunci DPA** kembali setelah selesai.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={toggleDpaLock}
+            className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs rounded-xl transition-all shrink-0 cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+          >
+            <Lock size={14} /> Kunci Anggaran DPA Sekarang
+          </button>
+        </div>
+      )}
 
       {hierarchicalData.length === 0 ? (
         <Card><EmptyState message="Belum ada data anggaran" /></Card>
