@@ -23,8 +23,13 @@ export default function Settings() {
   const [showSuccess, setShowSuccess] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
 
-  // DeepSeek API test state
+  // DeepSeek API test & models state
   const [deepseekTestStatus, setDeepseekTestStatus] = useState({ loading: false, result: null })
+  const [availableModels, setAvailableModels] = useState([
+    { id: 'deepseek-chat', name: 'deepseek-chat (V3 - Default, Cepat & Cerdas)' },
+    { id: 'deepseek-reasoner', name: 'deepseek-reasoner (R1 - Penalaran Mendalam)' }
+  ])
+  const [isLoadingModels, setIsLoadingModels] = useState(false)
 
   // Auto-update states
   const [updateStatus, setUpdateStatus] = useState(isElectron ? 'Standby' : 'Mode web aktif')
@@ -150,6 +155,41 @@ export default function Settings() {
       setDeepseekTestStatus({ loading: false, result: { success: true, message: 'DeepSeek API Key Valid & Siap Digunakan!' } })
     } catch (err) {
       setDeepseekTestStatus({ loading: false, result: { success: false, error: err.message } })
+    }
+  }
+
+  const handleFetchDeepSeekModels = async () => {
+    if (!form.deepseek_api_key?.trim()) {
+      setDeepseekTestStatus({ loading: false, result: { success: false, error: 'Masukkan DeepSeek API Key terlebih dahulu.' } })
+      return
+    }
+    setIsLoadingModels(true)
+    try {
+      const response = await fetch('https://api.deepseek.com/models', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${form.deepseek_api_key.trim()}`
+        }
+      })
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}))
+        throw new Error(errJson.error?.message || `HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      if (Array.isArray(data.data) && data.data.length > 0) {
+        const fetched = data.data.map(m => ({
+          id: m.id,
+          name: `${m.id} ${m.id === 'deepseek-chat' ? '(V3 General)' : m.id === 'deepseek-reasoner' ? '(R1 Reasoning)' : ''}`
+        }))
+        setAvailableModels(fetched)
+        setDeepseekTestStatus({ loading: false, result: { success: true, message: `Berhasil mengambil ${data.data.length} model DeepSeek dari server!` } })
+      }
+    } catch (err) {
+      setDeepseekTestStatus({ loading: false, result: { success: false, error: `Gagal mengambil daftar model: ${err.message}` } })
+    } finally {
+      setIsLoadingModels(false)
     }
   }
 
@@ -546,12 +586,20 @@ export default function Settings() {
               />
             </div>
             <div>
-              <Input
-                label="Model DeepSeek"
-                placeholder="deepseek-chat"
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Pilih Model DeepSeek
+              </label>
+              <select
                 value={form.deepseek_model || 'deepseek-chat'}
                 onChange={e => setForm({ ...form, deepseek_model: e.target.value })}
-              />
+                className="w-full text-xs font-medium px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-2xs"
+              >
+                {availableModels.map(model => (
+                  <option key={model.id} value={model.id}>
+                    {model.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -581,13 +629,26 @@ export default function Settings() {
             </div>
           )}
 
-          <div className="flex justify-end items-center gap-3 pt-3 border-t border-slate-100">
+          <div className="flex flex-wrap justify-end items-center gap-3 pt-3 border-t border-slate-100">
+            <Button
+              type="button"
+              onClick={handleFetchDeepSeekModels}
+              disabled={isLoadingModels}
+              variant="secondary"
+              className="text-xs font-bold h-10 px-4 border-slate-200 text-slate-700 hover:bg-slate-50 shadow-none"
+            >
+              {isLoadingModels ? (
+                <span className="flex items-center gap-2"><RefreshCcw size={14} className="animate-spin" /> Mengambil Model...</span>
+              ) : (
+                <span className="flex items-center gap-1.5">🔍 Cek Model Tersedia</span>
+              )}
+            </Button>
             <Button
               type="button"
               onClick={handleTestDeepSeek}
               disabled={deepseekTestStatus.loading}
               variant="secondary"
-              className="text-xs font-bold h-10 px-4 border-slate-200 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 shadow-none"
+              className="text-xs font-bold h-10 px-4 border-indigo-200 text-indigo-700 hover:bg-indigo-50 shadow-none"
             >
               {deepseekTestStatus.loading ? 'Menguji API Key...' : '⚡ Uji Koneksi DeepSeek API'}
             </Button>
