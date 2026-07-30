@@ -41,6 +41,7 @@ export default function AiAssistantDrawer({ isOpen, open, onClose }) {
   const [inputText, setInputText] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef(null)
+  const inputRef = useRef(null)
 
   // State untuk Resize / Perbesar & Perkecil Panel Chat
   const [drawerWidth, setDrawerWidth] = useState(540)
@@ -52,7 +53,13 @@ export default function AiAssistantDrawer({ isOpen, open, onClose }) {
   }
 
   useEffect(() => {
-    if (visible) scrollToBottom()
+    if (visible) {
+      scrollToBottom()
+      const timer = setTimeout(() => {
+        inputRef.current?.focus()
+      }, 150)
+      return () => clearTimeout(timer)
+    }
   }, [messages, visible])
 
   // Drag handler untuk resizer di tepi kiri drawer
@@ -463,33 +470,44 @@ export default function AiAssistantDrawer({ isOpen, open, onClose }) {
         </div>
 
         {/* Input Bar */}
-        <div className="p-3 bg-white border-t border-slate-200 shrink-0">
+        <div className="p-3 bg-white border-t border-slate-200 shrink-0 relative z-20">
           <div className="max-w-4xl mx-auto">
             <form 
               onSubmit={(e) => {
                 e.preventDefault()
                 handleSend()
               }}
-              className="flex items-center gap-2"
+              className="flex items-end gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:bg-white focus-within:border-indigo-500 transition-all shadow-xs"
             >
-              <input
-                type="text"
+              <textarea
+                ref={inputRef}
+                rows={1}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder="Ketik pertanyaan keuangan Anda..."
-                className="flex-1 text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400"
-                disabled={isTyping}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    if (inputText.trim() && !isTyping) {
+                      handleSend()
+                    }
+                  }
+                }}
+                placeholder={isTyping ? "AI sedang menganalisis & mengetik jawaban..." : "Ketik pertanyaan keuangan Anda (Tekan Enter untuk mengirim)..."}
+                className="flex-1 text-xs px-2 py-1.5 bg-transparent border-0 outline-none resize-none min-h-[36px] max-h-[120px] text-slate-800 placeholder:text-slate-400 font-medium"
+                readOnly={isTyping}
               />
               <button
                 type="submit"
                 disabled={!inputText.trim() || isTyping}
-                className="p-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white rounded-xl transition-colors shadow-sm shrink-0 flex items-center justify-center"
+                className="p-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white rounded-lg transition-all shadow-sm shrink-0 flex items-center justify-center cursor-pointer disabled:cursor-not-allowed mb-0.5"
+                title="Kirim Pesan"
               >
                 <Send size={16} />
               </button>
             </form>
-            <div className="mt-1.5 text-center">
+            <div className="mt-1.5 text-center flex items-center justify-between px-1">
               <span className="text-[9px] text-slate-400 font-medium">Verifikasi 100% data keuangan Zustand Store</span>
+              <span className="text-[9px] text-slate-400 font-medium hidden sm:inline">Enter kirim • Shift+Enter baris baru</span>
             </div>
           </div>
         </div>
