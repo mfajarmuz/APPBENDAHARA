@@ -1,7 +1,7 @@
 // src/components/ai/AiAssistantDrawer.jsx
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bot, Send, Sparkles, X, RotateCcw, ArrowRight } from 'lucide-react'
+import { Bot, Send, Sparkles, X, RotateCcw, ArrowRight, Maximize2, Minimize2, GripVertical, Check } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { processAiQuery } from '@/lib/aiAssistant'
 
@@ -42,6 +42,11 @@ export default function AiAssistantDrawer({ isOpen, open, onClose }) {
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef(null)
 
+  // State untuk Resize / Perbesar & Perkecil Panel Chat
+  const [drawerWidth, setDrawerWidth] = useState(540)
+  const [sizeMode, setSizeMode] = useState('normal') // 'normal' (540px), 'wide' (900px), 'full' (100vw), 'custom'
+  const [isDragging, setIsDragging] = useState(false)
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -49,6 +54,36 @@ export default function AiAssistantDrawer({ isOpen, open, onClose }) {
   useEffect(() => {
     if (visible) scrollToBottom()
   }, [messages, visible])
+
+  // Drag handler untuk resizer di tepi kiri drawer
+  const handleMouseDown = (e) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging) return
+      const newW = window.innerWidth - e.clientX
+      if (newW >= 340 && newW <= window.innerWidth - 20) {
+        setDrawerWidth(newW)
+        setSizeMode('custom')
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+    }
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleMouseUp)
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging])
 
   if (!visible) return null
 
@@ -98,6 +133,12 @@ export default function AiAssistantDrawer({ isOpen, open, onClose }) {
         timestamp: new Date()
       }
     ])
+  }
+
+  const toggleExpand = () => {
+    if (sizeMode === 'normal') setSizeMode('wide')
+    else if (sizeMode === 'wide') setSizeMode('full')
+    else setSizeMode('normal')
   }
 
   /**
@@ -201,6 +242,18 @@ export default function AiAssistantDrawer({ isOpen, open, onClose }) {
 
   const hasApiKey = !!storeState?.settings?.deepseek_api_key?.trim()
 
+  // Perhitungan lebar drawer dinamis
+  let drawerStyle = {}
+  if (sizeMode === 'full') {
+    drawerStyle = { width: '100vw' }
+  } else if (sizeMode === 'wide') {
+    drawerStyle = { width: 'min(920px, 95vw)' }
+  } else if (sizeMode === 'normal') {
+    drawerStyle = { width: 'min(540px, 95vw)' }
+  } else {
+    drawerStyle = { width: `${drawerWidth}px` }
+  }
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
       {/* Backdrop */}
@@ -210,12 +263,28 @@ export default function AiAssistantDrawer({ isOpen, open, onClose }) {
       />
 
       {/* Drawer Dialog */}
-      <div className="relative w-full max-w-lg bg-white h-full shadow-2xl flex flex-col z-50 border-l border-slate-200 animate-in slide-in-from-right duration-300">
+      <div 
+        style={drawerStyle}
+        className="relative bg-white h-full shadow-2xl flex flex-col z-50 border-l border-slate-200 transition-all duration-200 animate-in slide-in-from-right select-text"
+      >
         
+        {/* Drag Resizer Edge (Geser Tepi Kiri untuk Mengatur Ukuran Lebar Panel) */}
+        <div
+          onMouseDown={handleMouseDown}
+          className="absolute top-0 bottom-0 -left-2 w-4 cursor-ew-resize flex items-center justify-center group z-50 hover:bg-indigo-500/20 transition-colors"
+          title="Geser ke Kiri/Kanan untuk Mengatur Lebar Panel Chat"
+        >
+          <div className="w-1.5 h-14 bg-slate-300 group-hover:bg-indigo-600 rounded-full shadow-md transition-colors flex flex-col items-center justify-center gap-1">
+            <span className="w-0.5 h-0.5 bg-white rounded-full" />
+            <span className="w-0.5 h-0.5 bg-white rounded-full" />
+            <span className="w-0.5 h-0.5 bg-white rounded-full" />
+          </div>
+        </div>
+
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-indigo-900 text-white p-4 flex items-center justify-between shadow-md shrink-0">
+        <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-indigo-900 text-white p-3.5 sm:p-4 flex items-center justify-between shadow-md shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-inner relative">
+            <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-inner relative shrink-0">
               <Bot size={22} className={hasApiKey ? "text-emerald-400" : "text-amber-400"} />
               <span className={`w-2.5 h-2.5 rounded-full absolute -top-0.5 -right-0.5 border-2 border-indigo-900 ${
                 hasApiKey ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
@@ -235,7 +304,41 @@ export default function AiAssistantDrawer({ isOpen, open, onClose }) {
               </p>
             </div>
           </div>
+
           <div className="flex items-center gap-1">
+            {/* Mode Ukuran Preset Selector */}
+            <div className="hidden sm:flex items-center bg-white/10 rounded-lg p-0.5 border border-white/10 mr-1 text-[10px]">
+              <button
+                onClick={() => setSizeMode('normal')}
+                className={`px-2 py-0.5 rounded-md font-bold transition-all ${sizeMode === 'normal' ? 'bg-white text-indigo-900 shadow-2xs' : 'text-indigo-200 hover:text-white'}`}
+                title="Ukuran Normal (540px)"
+              >
+                Normal
+              </button>
+              <button
+                onClick={() => setSizeMode('wide')}
+                className={`px-2 py-0.5 rounded-md font-bold transition-all ${sizeMode === 'wide' ? 'bg-white text-indigo-900 shadow-2xs' : 'text-indigo-200 hover:text-white'}`}
+                title="Ukuran Lebar (900px)"
+              >
+                Lebar
+              </button>
+              <button
+                onClick={() => setSizeMode('full')}
+                className={`px-2 py-0.5 rounded-md font-bold transition-all ${sizeMode === 'full' ? 'bg-white text-indigo-900 shadow-2xs' : 'text-indigo-200 hover:text-white'}`}
+                title="Ukuran Layar Penuh (100%)"
+              >
+                Penuh
+              </button>
+            </div>
+
+            {/* Tombol Maximize / Minimize Quick Toggle */}
+            <button 
+              onClick={toggleExpand}
+              className="p-2 rounded-lg text-indigo-200 hover:bg-white/10 hover:text-white transition-colors"
+              title={sizeMode === 'full' ? 'Perkecil Ukuran Panel' : 'Perbesar Ukuran Panel'}
+            >
+              {sizeMode === 'full' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
             <button 
               onClick={handleReset}
               className="p-2 rounded-lg text-indigo-200 hover:bg-white/10 hover:text-white transition-colors"
@@ -295,7 +398,7 @@ export default function AiAssistantDrawer({ isOpen, open, onClose }) {
                 </div>
               )}
 
-              <div className={`max-w-[85%] rounded-2xl p-3.5 shadow-xs ${
+              <div className={`max-w-[90%] sm:max-w-[85%] rounded-2xl p-3.5 shadow-xs ${
                 msg.sender === 'user'
                   ? 'bg-indigo-600 text-white rounded-tr-xs font-medium text-xs'
                   : 'bg-white border border-slate-200 text-slate-800 rounded-tl-xs'
