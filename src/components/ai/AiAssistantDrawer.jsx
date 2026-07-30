@@ -1,6 +1,6 @@
 // src/components/ai/AiAssistantDrawer.jsx
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Bot, Send, Sparkles, X, RotateCcw, ArrowRight } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { processAiQuery } from '@/lib/aiAssistant'
