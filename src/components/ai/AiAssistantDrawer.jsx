@@ -37,7 +37,7 @@ export default function AiAssistantDrawer({ open, onClose }) {
 
   if (!open) return null
 
-  const handleSend = (textToSend) => {
+  const handleSend = async (textToSend) => {
     const text = textToSend || inputText
     if (!text.trim()) return
 
@@ -52,8 +52,8 @@ export default function AiAssistantDrawer({ open, onClose }) {
     if (!textToSend) setInputText('')
     setIsTyping(true)
 
-    setTimeout(() => {
-      const response = processAiQuery(text, storeState)
+    try {
+      const response = await processAiQuery(text, storeState)
       const aiMsg = {
         id: (Date.now() + 1).toString(),
         sender: 'ai',
@@ -62,16 +62,25 @@ export default function AiAssistantDrawer({ open, onClose }) {
         timestamp: new Date()
       }
       setMessages(prev => [...prev, aiMsg])
+    } catch (err) {
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        sender: 'ai',
+        text: `Maaf, terjadi kesalahan: ${err.message}`,
+        timestamp: new Date()
+      }])
+    } finally {
       setIsTyping(false)
-    }, 400)
+    }
   }
 
-  const handleReset = () => {
+  const handleReset = async () => {
+    const initRes = await processAiQuery('', storeState)
     setMessages([
       {
         id: Date.now().toString(),
         sender: 'ai',
-        text: processAiQuery('', storeState).text,
+        text: initRes.text,
         timestamp: new Date()
       }
     ])

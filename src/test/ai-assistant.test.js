@@ -51,35 +51,35 @@ describe('Asisten AI Bendahara (Engine & Context)', () => {
     expect(ctx.saldoKasBku).toBe(45000000)
   })
 
-  it('harus merespons pertanyaan sisa pagu DPA dalam Bahasa Indonesia', () => {
-    const res = processAiQuery('Berapa sisa pagu DPA?', dummyState)
+  it('harus merespons pertanyaan sisa pagu DPA dalam Bahasa Indonesia', async () => {
+    const res = await processAiQuery('Berapa sisa pagu DPA?', dummyState)
     expect(res.text).toContain('Ringkasan Pagu DPA')
     expect(res.text).toContain('15.000.000')
     expect(res.action.path).toBe('/anggaran')
   })
 
-  it('harus merespons pertanyaan status RAK bulanan', () => {
-    const res = processAiQuery('Cek status RAK bulanan', dummyState)
+  it('harus merespons pertanyaan status RAK bulanan', async () => {
+    const res = await processAiQuery('Cek status RAK bulanan', dummyState)
     expect(res.text).toContain('Status RAK Belanja Akumulatif')
     expect(res.action.path).toBe('/anggaran')
   })
 
-  it('harus merespons pertanyaan BKU dan saldo kas', () => {
-    const res = processAiQuery('Berapa saldo BKU saat ini?', dummyState)
+  it('harus merespons pertanyaan BKU dan saldo kas', async () => {
+    const res = await processAiQuery('Berapa saldo BKU saat ini?', dummyState)
     expect(res.text).toContain('Ringkasan Buku Kas Umum (BKU)')
     expect(res.text).toContain('45.000.000')
     expect(res.action.path).toBe('/laporan')
   })
 
-  it('harus memproses simulasi belanja dengan benar', () => {
-    const res = processAiQuery('Apakah cukup kalau saya keluarkan 10 juta bulan ini?', dummyState)
+  it('harus memproses simulasi belanja dengan benar', async () => {
+    const res = await processAiQuery('Apakah cukup kalau saya keluarkan 10 juta bulan ini?', dummyState)
     expect(res.text).toContain('Hasil Simulasi Rencana Belanja')
     expect(res.text).toContain('MEMENUHI')
     expect(res.action.path).toBe('/pengeluaran')
   })
 
-  it('harus menghasilkan draf ringkasan eksekutif untuk Pimpinan', () => {
-    const res = processAiQuery('Buatkan ringkasan eksekutif untuk pimpinan', dummyState)
+  it('harus menghasilkan draf ringkasan eksekutif untuk Pimpinan', async () => {
+    const res = await processAiQuery('Buatkan ringkasan eksekutif untuk pimpinan', dummyState)
     expect(res.text).toContain('Ringkasan Eksekutif Realisasi Anggaran')
     expect(res.text).toContain('Dinas Keuangan')
     expect(res.action.path).toBe('/laporan')

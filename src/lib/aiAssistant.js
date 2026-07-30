@@ -12,6 +12,36 @@ const RAK_KEYS = [
 ]
 
 /**
+ * Memanggil DeepSeek Chat Completions API (OpenAI Compatible)
+ */
+export async function callDeepSeekApi(apiKey, model, systemPrompt, userMessage) {
+  const response = await fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey.trim()}`
+    },
+    body: JSON.stringify({
+      model: model || 'deepseek-chat',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage }
+      ],
+      temperature: 0.3,
+      stream: false
+    })
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`)
+  }
+
+  const data = await response.json()
+  return data.choices?.[0]?.message?.content || 'Maaf, tidak ada respons dari DeepSeek API.'
+}
+
+/**
  * Membangun ringkasan konteks keuangan dari Zustand Store
  */
 export function buildFinancialContext(state) {
@@ -83,9 +113,9 @@ export function buildFinancialContext(state) {
 }
 
 /**
- * Engine Pemroses Pertanyaan Bahasa Indonesia
+ * Engine Pemroses Pertanyaan Bahasa Indonesia (Hybrid: DeepSeek API + Local Rule Engine Fallback)
  */
-export function processAiQuery(queryText, storeState) {
+export async function processAiQuery(queryText, storeState) {
   if (!queryText || typeof queryText !== 'string') {
     return {
       text: 'Silakan ketik pertanyaan atau pilih salah satu menu pintas di bawah ini.',
@@ -98,7 +128,55 @@ export function processAiQuery(queryText, storeState) {
   const currentMonthIdx = new Date().getMonth()
   const currentMonthName = BULAN_NAMES[currentMonthIdx]
 
-  // 1. RINGKASAN EKSEKUTIF UNTUK PIMPINAN (Prioritas utama jika ada kata eksekutif / pimpinan / triwulan)
+  const apiKey = storeState?.settings?.deepseek_api_key?.trim()
+  const apiModel = storeState?.settings?.deepseek_model?.trim() || 'deepseek-chat'
+
+  // JIKA TERDAPAT DEEPSEEK API KEY: Gunakan DeepSeek LLM dengan Fakta Keuangan Real-Time!
+  if (apiKey) {
+    const systemPrompt = `Anda adalah Asisten AI Bendahara (Financial AI Co-Pilot) resmi untuk unit kerja ${ctx.unitKerja} (${ctx.unitKerjaKode}).
+Tugas Anda adalah memberikan jawaban dan analisis keuangan yang ramah, sopan, luwes, komunikatif, dan profesional dalam Bahasa Indonesia.
+
+FAKTA DATA KEUANGAN SAAT INI (100% AKURAT, GUNAKAN ANGKANYA SAMA PERSIS):
+- Unit Kerja: ${ctx.unitKerja} (${ctx.unitKerjaKode})
+- Total Pagu DPA Tahunan: ${formatRupiah(ctx.totalPagu)}
+- Realisasi Pengeluaran: ${formatRupiah(ctx.realisasiPengeluaran)} (${ctx.persenRealisasi}%)
+- Sisa Quota Pagu DPA: ${formatRupiah(ctx.sisaPagu)}
+- Total Penerimaan Kas: ${formatRupiah(ctx.totalPenerimaan)}
+- Saldo Kas BKU Posisi Saat Ini: ${formatRupiah(ctx.saldoKasBku)}
+- Ringkasan Sub Kegiatan (${ctx.subKegiatanSummary.length} Sub Kegiatan):
+${ctx.subKegiatanSummary.map((sk, i) => `  ${i+1}. ${sk.kode} - ${sk.nama}: Pagu ${formatRupiah(sk.pagu)}, Realisasi ${formatRupiah(sk.realisasi)} (${sk.persen}%), Sisa Pagu ${formatRupiah(sk.sisa)}`).join('\n')}
+
+PETUNJUK RESPONS:
+1. Jawab pertanyaan pengguna dengan gaya bahasa yang luwes, alami, dan membantu layaknya rekan kerja keuangan berpengalaman.
+2. Selalu gunakan angka pasti dari data di atas saat ditanya nominal atau status pagu/BKU.
+3. Jika pengguna meminta untuk membuka laporan/bku/anggaran/pengeluaran, Anda boleh menyertakan [ACTION:NAVIGATE:/path_halaman] di akhir jawaban (contoh: [ACTION:NAVIGATE:/laporan], [ACTION:NAVIGATE:/anggaran], [ACTION:NAVIGATE:/pengeluaran]).`
+
+    try {
+      const rawText = await callDeepSeekApi(apiKey, apiModel, systemPrompt, queryText)
+      
+      let action = null
+      let text = rawText
+      const actionMatch = rawText.match(/\[ACTION:NAVIGATE:(.*?)\]/)
+      if (actionMatch) {
+        const path = actionMatch[1]
+        text = rawText.replace(actionMatch[0], '').trim()
+        const labelMap = {
+          '/anggaran': 'Buka Halaman Anggaran',
+          '/laporan': 'Buka Halaman Laporan BKU',
+          '/pengeluaran': 'Buka Halaman Pengeluaran',
+          '/dashboard': 'Buka Dashboard'
+        }
+        action = { type: 'NAVIGATE', path, label: labelMap[path] || 'Buka Halaman' }
+      }
+
+      return { text, action }
+    } catch (err) {
+      console.warn('DeepSeek API error, fallback to local engine:', err.message)
+    }
+  }
+
+  // FALLBACK: Local Deterministic Engine (Mode Offline / Tanpa API Key)
+  // 1. RINGKASAN EKSEKUTIF UNTUK PIMPINAN
   if (query.includes('eksekutif') || query.includes('pimpinan') || query.includes('triwulan')) {
     let responseText = `### 📑 Ringkasan Eksekutif Realisasi Anggaran\n\n`
     responseText += `**Unit Kerja**: ${ctx.unitKerja} (${ctx.unitKerjaKode})\n`
@@ -141,7 +219,6 @@ export function processAiQuery(queryText, storeState) {
       let targetRakTotal = 0
       let realisasiSdBulan = 0
 
-      // Cari RAK akumulatif s.d bulan berjalan untuk Sub Kegiatan ini
       ;(storeState.subKegiatan || []).forEach(skItem => {
         if (skItem.id === sk.id) {
           (skItem.kode_rekening || []).forEach(rek => {
@@ -152,7 +229,6 @@ export function processAiQuery(queryText, storeState) {
         }
       })
 
-      // Realisasi s.d bulan berjalan
       realisasiSdBulan = (storeState.pengeluaran || [])
         .filter(p => {
           if (p.sub_kegiatan_id !== sk.id || p.jenis === 'Pajak' || p.jenis === 'Pajak LS' || !p.tanggal) return false
@@ -229,7 +305,7 @@ export function processAiQuery(queryText, storeState) {
           `- **Saldo BKU**: *"Berapa saldo kas BKU saat ini?"*\n` +
           `- **Simulasi Belanja**: *"Apakah sisa pagu cukup untuk belanja 20 juta?"*\n` +
           `- **Laporan Eksekutif**: *"Buatkan ringkasan eksekutif penyerapan anggaran"*\n\n` +
-          `Pilih salah satu pertanyaan di atas atau ketik langsung di kolom obrolan!`,
+          `*(Tips: Masukkan DeepSeek API Key pada Pengaturan untuk obrolan AI yang lebih luwes & cerdas)*`,
     action: null
   }
 }

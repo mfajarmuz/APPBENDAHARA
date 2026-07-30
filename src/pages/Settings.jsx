@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useStore } from '@/store/useStore'
-import { Save, Building2, UserCheck, RefreshCcw, AlertCircle, Laptop, Download, Power, Cloud, CheckCircle2, XCircle } from 'lucide-react'
+import { Save, Building2, UserCheck, RefreshCcw, AlertCircle, Laptop, Download, Power, Cloud, CheckCircle2, XCircle, Bot } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -9,7 +9,7 @@ import * as api from '@/lib/api'
 
 /**
  * [HALAMAN: PENGATURAN]
- * Kelola identitas dinas, pejabat penandatangan, dan integrasi eksternal (Google Drive).
+ * Kelola identitas dinas, pejabat penandatangan, dan integrasi eksternal (Google Drive, DeepSeek AI).
  */
 export default function Settings() {
   const isElectron = typeof window !== 'undefined' && !!window.api
@@ -22,6 +22,9 @@ export default function Settings() {
   const [isSaving, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+
+  // DeepSeek API test state
+  const [deepseekTestStatus, setDeepseekTestStatus] = useState({ loading: false, result: null })
 
   // Auto-update states
   const [updateStatus, setUpdateStatus] = useState(isElectron ? 'Standby' : 'Mode web aktif')
@@ -113,6 +116,40 @@ export default function Settings() {
       setDriveStatus({ loading: false, result: res })
     } catch (error) {
       setDriveStatus({ loading: false, result: { success: false, error: error.message } })
+    }
+  }
+
+  const handleTestDeepSeek = async () => {
+    if (!form.deepseek_api_key?.trim()) {
+      setDeepseekTestStatus({ loading: false, result: { success: false, error: 'Masukkan DeepSeek API Key terlebih dahulu.' } })
+      return
+    }
+    setDeepseekTestStatus({ loading: true, result: null })
+    try {
+      const response = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${form.deepseek_api_key.trim()}`
+        },
+        body: JSON.stringify({
+          model: form.deepseek_model || 'deepseek-chat',
+          messages: [
+            { role: 'system', content: 'You are a test assistant.' },
+            { role: 'user', content: 'Halo' }
+          ],
+          max_tokens: 10
+        })
+      })
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}))
+        throw new Error(errJson.error?.message || `HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      setDeepseekTestStatus({ loading: false, result: { success: true, message: 'DeepSeek API Key Valid & Siap Digunakan!' } })
+    } catch (err) {
+      setDeepseekTestStatus({ loading: false, result: { success: false, error: err.message } })
     }
   }
 
@@ -471,6 +508,89 @@ export default function Settings() {
                 </Button>
               </>
             )}
+          </div>
+        </div>
+      </Card>
+
+      {/* Integrasi Asisten AI & DeepSeek API */}
+      <Card className="p-6 mt-8 border-t-4 border-t-indigo-600 shadow-md shadow-indigo-600/5">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2 text-indigo-600">
+            <Bot size={20} />
+            <h3 className="font-bold text-sm uppercase tracking-wider">Integrasi Asisten AI & DeepSeek API</h3>
+          </div>
+          {form.deepseek_api_key?.trim() ? (
+            <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase text-[9px] tracking-wider font-black px-3">
+              DeepSeek Terkonfigurasi
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="bg-amber-50 text-amber-700 border border-amber-200 uppercase text-[9px] tracking-wider font-black px-3">
+              Mode Lokal (Aturan Statis)
+            </Badge>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Menghubungkan <strong className="text-slate-700">Asisten AI Bendahara</strong> dengan <strong className="text-indigo-600">DeepSeek LLM API</strong> untuk percakapan keuangan yang sangat luwes, ramah, dan cerdas dalam Bahasa Indonesia. Dapatkan API Key Anda di <a href="https://platform.deepseek.com" target="_blank" rel="noreferrer" className="text-indigo-600 font-bold underline">platform.deepseek.com</a>.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <Input
+                label="DeepSeek API Key"
+                type="password"
+                placeholder="sk-..."
+                value={form.deepseek_api_key || ''}
+                onChange={e => setForm({ ...form, deepseek_api_key: e.target.value })}
+              />
+            </div>
+            <div>
+              <Input
+                label="Model DeepSeek"
+                placeholder="deepseek-chat"
+                value={form.deepseek_model || 'deepseek-chat'}
+                onChange={e => setForm({ ...form, deepseek_model: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {deepseekTestStatus.result && (
+            <div className={`p-4 rounded-2xl text-xs flex items-start gap-3 border transition-all animate-in fade-in slide-in-from-top-2 ${
+              deepseekTestStatus.result.success 
+                ? 'bg-emerald-50/60 border-emerald-100 text-emerald-800 shadow-inner' 
+                : 'bg-rose-50/60 border-rose-100 text-rose-800 shadow-inner'
+            }`}>
+              {deepseekTestStatus.result.success ? (
+                <>
+                  <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-black uppercase tracking-wider text-[10px] text-emerald-700 mb-0.5">Koneksi Sukses!</p>
+                    <p className="font-medium opacity-90">{deepseekTestStatus.result.message}</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <XCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-black uppercase tracking-wider text-[10px] text-rose-700 mb-0.5">Koneksi Gagal</p>
+                    <p className="font-mono leading-relaxed mt-1 bg-white/60 p-2 rounded-lg border border-rose-100/50 break-all text-[10px] text-rose-900">{deepseekTestStatus.result.error}</p>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-end items-center gap-3 pt-3 border-t border-slate-100">
+            <Button
+              type="button"
+              onClick={handleTestDeepSeek}
+              disabled={deepseekTestStatus.loading}
+              variant="secondary"
+              className="text-xs font-bold h-10 px-4 border-slate-200 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 shadow-none"
+            >
+              {deepseekTestStatus.loading ? 'Menguji API Key...' : '⚡ Uji Koneksi DeepSeek API'}
+            </Button>
           </div>
         </div>
       </Card>

@@ -401,6 +401,8 @@ export const useStore = create((set, get) => ({
     alamat_kantor: 'Jalan Raya Cikatomas Sukaraja Telepon (0265) 565149',
     fax_email: 'Faksimil : (0265) 566917 E-mail : p3dwkabtsm@gmail.com',
     kode_pos_line: 'Kabupaten Tasikmalaya – 46183',
+    deepseek_api_key: '',
+    deepseek_model: 'deepseek-chat',
     ...(JSON.parse(localStorage.getItem('app_settings')) || {})
   },
   
@@ -429,6 +431,8 @@ export const useStore = create((set, get) => ({
       pptk_nip: '19680211 199403 1 005',
       pptk_jabatan: 'Pejabat Pelaksana Teknis Kegiatan',
       lokasi: 'Sukaraja',
+      deepseek_api_key: '',
+      deepseek_model: 'deepseek-chat',
     }
     localStorage.setItem('app_settings', JSON.stringify(defaults))
     set({ settings: defaults })
