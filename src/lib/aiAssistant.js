@@ -43,17 +43,17 @@ export async function callDeepSeekApi(apiKey, model, systemPrompt, userMessage) 
 }
 
 /**
- * Membangun ringkasan konteks keuangan dari Zustand Store
+ * Membangun ringkasan konteks keuangan dari Zustand Store (Presisi 100% Sama dengan Dashboard)
  */
 export function buildFinancialContext(state) {
   const { subKegiatan = [], pengeluaran = [], penerimaan = [], settings = {} } = state
 
-  // Total Pagu DPA
+  // Total Pagu DPA Tahunan
   const totalPagu = subKegiatan.reduce((acc, sk) => {
     return acc + (sk.kode_rekening || []).reduce((s, r) => s + (r.pagu_anggaran || 0), 0)
   }, 0)
 
-  // Realisasi Pengeluaran Non-Pajak
+  // Realisasi Pengeluaran Non-Pajak (LS + UP/GU/TU/KKPD)
   const realisasiPengeluaran = pengeluaran
     .filter(p => p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS')
     .reduce((sum, p) => sum + (p.jumlah || 0), 0)
@@ -61,9 +61,18 @@ export function buildFinancialContext(state) {
   const sisaPagu = totalPagu - realisasiPengeluaran
   const persenRealisasi = totalPagu > 0 ? persen(realisasiPengeluaran, totalPagu) : 0
 
-  // Total Penerimaan & Saldo BKU
-  const totalPenerimaan = penerimaan.reduce((sum, p) => sum + (p.jumlah || 0), 0)
-  const saldoKasBku = totalPenerimaan - realisasiPengeluaran
+  // Penerimaan Breakdown (Identik dengan Dashboard.jsx)
+  const penerimaanUPGU = penerimaan.filter(p => p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS' && p.jenis !== 'LS').reduce((s, p) => s + (p.jumlah || 0), 0)
+  const penerimaanLS = penerimaan.filter(p => p.jenis === 'LS').reduce((s, p) => s + (p.jumlah || 0), 0)
+  const totalPenerimaan = penerimaan.filter(p => p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS').reduce((s, p) => s + (p.jumlah || 0), 0)
+
+  // Pengeluaran Breakdown (Identik dengan Dashboard.jsx)
+  const pengeluaranGU = pengeluaran.filter(p => ['GU', 'UP', 'TU', 'KKPD'].includes(p.jenis)).reduce((s, p) => s + (p.jumlah || 0), 0)
+  const pengeluaranLS = pengeluaran.filter(p => p.jenis === 'LS').reduce((s, p) => s + (p.jumlah || 0), 0)
+
+  // Saldo Kas Tunai/Bank Bendahara (Identik dengan Card Dashboard "Saldo Kas": Penerimaan UP/GU - Pengeluaran GU)
+  const saldoKasBku = penerimaanUPGU - pengeluaranGU
+  const sisaSaldoKas = saldoKasBku
 
   // Per Sub-Kegiatan Summary
   const subKegiatanSummary = subKegiatan.map(sk => {
@@ -113,6 +122,7 @@ export function buildFinancialContext(state) {
         uraian: desc,
         keterangan: p.keterangan || '',
         jumlah: p.jumlah || 0,
+        jenis: p.jenis || '',
         no_bukti: p.no_bukti || p.nomor_ls || '',
         sub_kegiatan: sk?.nama || '',
         rekening: rek?.uraian || ''
@@ -126,8 +136,13 @@ export function buildFinancialContext(state) {
     realisasiPengeluaran,
     sisaPagu,
     persenRealisasi,
+    penerimaanUPGU,
+    penerimaanLS,
+    pengeluaranGU,
+    pengeluaranLS,
     totalPenerimaan,
     saldoKasBku,
+    sisaSaldoKas,
     subKegiatanSummary,
     transactionsList,
     pengeluaran,
@@ -166,7 +181,7 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
   // FALLBACK: Smart Multi-Target Engine (Mode Offline / Tanpa DeepSeek API Key)
 
   // PRIORITAS 1: PANCARIAN SPESIFIK ITEM/REKENING/KATA KUNCI (e.g. BBM, ATK, Listrik, Kendaraan, dll)
-  const ignoreWords = new Set(['check', 'cek', 'belanja', 'total', 'berapa', 'sampai', 'dengan', 'sekarang', 'pada', 'yang', 'ada', 'di', 'ke', 'dari', 'ini', 'apa', 'tolong', 'cari', 'sebutkan', 'rekap', 'ya', 'kah', 'dong', 'kamu', 'bisa', 'saja', 'sistem', 'pagu', 'sisa', 'anggaran'])
+  const ignoreWords = new Set(['check', 'cek', 'belanja', 'total', 'berapa', 'sampai', 'dengan', 'sekarang', 'pada', 'yang', 'ada', 'di', 'ke', 'dari', 'ini', 'apa', 'tolong', 'cari', 'sebutkan', 'rekap', 'ya', 'kah', 'dong', 'kamu', 'bisa', 'saja', 'sistem', 'pagu', 'sisa', 'anggaran', 'dashboard', 'menunjukan', 'menunjukkan'])
   const searchKeywords = query
     .split(/\s+/)
     .map(w => w.replace(/[^\w]/g, '').trim())
@@ -226,7 +241,7 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
     responseText += `**Unit Kerja**: ${ctx.unitKerja} (${ctx.unitKerjaKode})\n`
     responseText += `**Tahun Anggaran**: 2026\n\n`
     responseText += `1. **Capaian Penyerapan**: Anggaran DPA telah terealisasi sebesar **${formatRupiah(ctx.realisasiPengeluaran)}** dari total pagu **${formatRupiah(ctx.totalPagu)}** (**${ctx.persenRealisasi}%**).\n`
-    responseText += `2. **Ketersediaan Dana**: Sisa pagu DPA tahunan tersedia sebesar **${formatRupiah(ctx.sisaPagu)}** dengan posisi Saldo BKU sebesar **${formatRupiah(ctx.saldoKasBku)}**.\n`
+    responseText += `2. **Ketersediaan Dana**: Sisa pagu DPA tahunan tersedia sebesar **${formatRupiah(ctx.sisaPagu)}** dengan posisi Saldo Kas Bendahara sebesar **${formatRupiah(ctx.saldoKasBku)}**.\n`
     responseText += `3. **Rekomendasi**: Penyerapan berjalan stabil. Pastikan alokasi RAK bulanan diperbarui secara berkala agar tidak terjadi penumpukan transaksi di akhir tahun.\n`
 
     return {
@@ -298,16 +313,19 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
   }
 
   // 5. RINGKASAN BKU / SALDO KAS
-  if (query.includes('bku') || query.includes('saldo') || query.includes('penerimaan') || query.includes('kas bku') || query === 'kas') {
-    let responseText = `### 📝 Ringkasan Buku Kas Umum (BKU)\n\n`
-    responseText += `- **Total Penerimaan Kas**: ${formatRupiah(ctx.totalPenerimaan)}\n`
-    responseText += `- **Total Pengeluaran Kas**: ${formatRupiah(ctx.realisasiPengeluaran)}\n`
-    responseText += `- **Saldo Kas BKU Posisi Saat Ini**: **${formatRupiah(ctx.saldoKasBku)}**\n\n`
-    responseText += `*Seluruh pengeluaran dan penerimaan terorganisir secara kronologis di halaman Laporan BKU.*`
+  if (query.includes('bku') || query.includes('saldo') || query.includes('penerimaan') || query.includes('kas bku') || query === 'kas' || query.includes('dashboard')) {
+    let responseText = `### 📝 Ringkasan Saldo Kas & BKU (${ctx.unitKerja})\n\n`
+    responseText += `- **Saldo Kas Bendahara (Di Dashboard)**: **${formatRupiah(ctx.saldoKasBku)}** *(Penerimaan UP/GU: ${formatRupiah(ctx.penerimaanUPGU)} - Pengeluaran GU: ${formatRupiah(ctx.pengeluaranGU)})*\n`
+    responseText += `- **Total Penerimaan Kas (Keseluruhan)**: ${formatRupiah(ctx.totalPenerimaan)}\n`
+    responseText += `- **Total Realisasi Pengeluaran Belanja**: ${formatRupiah(ctx.realisasiPengeluaran)}\n`
+    responseText += `  - Realisasi Belanja GU/UP: ${formatRupiah(ctx.pengeluaranGU)}\n`
+    responseText += `  - Realisasi Belanja LS (Kasda Direct): ${formatRupiah(ctx.pengeluaranLS)}\n`
+    responseText += `- **Sisa Quota Pagu DPA Tahunan**: **${formatRupiah(ctx.sisaPagu)}**\n\n`
+    responseText += `*Angka ini 100% presisi dan sinkron dengan kartu KPI di Dashboard & Laporan BKU.*`
 
     return {
       text: responseText,
-      action: { type: 'NAVIGATE', path: '/laporan', label: 'Lihat Laporan BKU' }
+      action: { type: 'NAVIGATE', path: '/dashboard', label: 'Lihat Dashboard' }
     }
   }
 
@@ -345,10 +363,10 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
   let fallbackText = `### 🤖 Respons Asisten AI Bendahara\n\n`
   fallbackText += `Saya telah menganalisis data sistem untuk pertanyaan Anda: *"_${queryText}_"*\n\n`
   fallbackText += `**Ringkasan Status Keuangan Saat Ini (${ctx.unitKerja})**:\n`
+  fallbackText += `- **Saldo Kas Bendahara (Dashboard)**: **${formatRupiah(ctx.saldoKasBku)}**\n`
   fallbackText += `- **Total Pagu DPA Tahunan**: ${formatRupiah(ctx.totalPagu)}\n`
   fallbackText += `- **Total Realisasi Belanja**: ${formatRupiah(ctx.realisasiPengeluaran)} (${ctx.persenRealisasi}%)\n`
-  fallbackText += `- **Sisa Quota Pagu DPA**: **${formatRupiah(ctx.sisaPagu)}**\n`
-  fallbackText += `- **Saldo Kas BKU Posisi Saat Ini**: **${formatRupiah(ctx.saldoKasBku)}**\n\n`
+  fallbackText += `- **Sisa Quota Pagu DPA**: **${formatRupiah(ctx.sisaPagu)}**\n\n`
   fallbackText += `Anda dapat menanyakan sisa pagu, RAK bulanan, atau mencari rincian transaksi tertentu.\n`
   fallbackText += `*(Tips: Masukkan DeepSeek API Key pada menu Pengaturan untuk percakapan AI yang luwes dan cerdas)*`
 

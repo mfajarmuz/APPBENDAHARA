@@ -52,7 +52,7 @@ export const LANGCHAIN_TOOLS = [
     type: 'function',
     function: {
       name: 'get_bku_summary',
-      description: 'Mendapatkan ringkasan Buku Kas Umum (BKU): Total Penerimaan Kas, Total Pengeluaran Kas, dan Saldo Kas Posisi Saat Ini.',
+      description: 'Mendapatkan ringkasan Buku Kas Umum (BKU) & Dashboard: Saldo Kas Bendahara (Penerimaan UP/GU - Pengeluaran GU), Realisasi LS, dan Total Penerimaan/Pengeluaran.',
       parameters: { type: 'object', properties: {} }
     }
   },
@@ -208,9 +208,13 @@ export function executeTool(name, args, storeState) {
 
     case 'get_bku_summary': {
       return JSON.stringify({
+        saldoKasBendaharaDashboard: formatRupiah(ctx.saldoKasBku),
+        penerimaanKasUpGu: formatRupiah(ctx.penerimaanUPGU),
+        pengeluaranKasGu: formatRupiah(ctx.pengeluaranGU),
+        realisasiBelanjaLs: formatRupiah(ctx.pengeluaranLS),
         totalPenerimaan: formatRupiah(ctx.totalPenerimaan),
-        totalPengeluaran: formatRupiah(ctx.realisasiPengeluaran),
-        saldoKasBkuPosisiSaatIni: formatRupiah(ctx.saldoKasBku)
+        totalRealisasiPengeluaran: formatRupiah(ctx.realisasiPengeluaran),
+        sisaQuotaPaguDpa: formatRupiah(ctx.sisaPagu)
       })
     }
 
@@ -267,7 +271,7 @@ export function executeTool(name, args, storeState) {
         realisasiTotal: formatRupiah(ctx.realisasiPengeluaran),
         persenPenyerapan: `${ctx.persenRealisasi}%`,
         sisaPagu: formatRupiah(ctx.sisaPagu),
-        saldoKasBku: formatRupiah(ctx.saldoKasBku),
+        saldoKasBendaharaDashboard: formatRupiah(ctx.saldoKasBku),
         rekomendasi: 'Penyerapan anggaran berjalan stabil dan akurat.'
       })
     }
@@ -313,10 +317,19 @@ export async function runLangChainAgent(userQuery, chatHistory = [], storeState)
     content: `Anda adalah Asisten AI Bendahara (Financial AI Co-Pilot & LangChain Smart Agent) untuk unit kerja ${ctx.unitKerja} (${ctx.unitKerjaKode}).
 Tugas Anda adalah membantu Bendahara dan Pimpinan menganalisis data keuangan secara ramah, sopan, komunikatif, dan akurat 100% dalam Bahasa Indonesia.
 
+FAKTA DATA KEUANGAN SAAT INI (SINKRON 100% DENGAN DASHBOARD & BKU):
+- Unit Kerja: ${ctx.unitKerja} (${ctx.unitKerjaKode})
+- Saldo Kas Bendahara (Sama Persis dengan Kartu Dashboard): ${formatRupiah(ctx.saldoKasBku)} (Formula: Penerimaan UP/GU ${formatRupiah(ctx.penerimaanUPGU)} - Pengeluaran GU ${formatRupiah(ctx.pengeluaranGU)})
+- Total Pagu DPA Tahunan: ${formatRupiah(ctx.totalPagu)}
+- Realisasi Belanja Total: ${formatRupiah(ctx.realisasiPengeluaran)} (${ctx.persenRealisasi}%)
+  • Realisasi Belanja GU/UP: ${formatRupiah(ctx.pengeluaranGU)}
+  • Realisasi Belanja LS (Direct KASDA): ${formatRupiah(ctx.pengeluaranLS)}
+- Sisa Quota Pagu DPA Tahunan: ${formatRupiah(ctx.sisaPagu)}
+
 PETUNJUK EXECUTION LANGCHAIN AGENT:
 1. Anda dilengkapi dengan TOOLS terstruktur (get_sisa_pagu, check_rak_bulanan, get_bku_summary, search_pengeluaran_detail, simulate_belanja, generate_executive_summary, navigate_app_page).
-2. Jika pengguna menanyakan sisa pagu, alokasi RAK, saldo BKU, pencarian transaksi spesifik (seperti BBM, ATK, dll), atau simulasi belanja, PANGGIL TOOL YANG RELEVAN terlebih dahulu untuk mendapatkan data fakta terbaru.
-3. Setelah menerima data dari Tool, susun jawaban yang ramah, luwes, dan jelas dengan gaya percakapan yang membantu.
+2. Jika pengguna menanyakan sisa pagu, alokasi RAK, saldo BKU/Dashboard, pencarian transaksi spesifik (seperti BBM, ATK, dll), atau simulasi belanja, PANGGIL TOOL YANG RELEVAN terlebih dahulu untuk mendapatkan data fakta terbaru.
+3. Selalu gunakan angka Saldo Kas Bendahara yang SAMA PERSIS dengan Dashboard (${formatRupiah(ctx.saldoKasBku)}). Jika pengguna menanyakan selisih dengan transaksi LS, jelaskan dengan ramah bahwa transaksi LS dibayarkan langsung oleh Kasda sehingga tidak mengurangi saldo kas tunai/bank Bendahara.
 4. JIKA pengguna meminta untuk membuka/melihat laporan, BKU, DPA, atau pengeluaran, panggil tool 'navigate_app_page'.
 5. Selalu ingat konteks percakapan sebelumnya untuk menjawab pertanyaan sambungan secara intuitif.`
   }

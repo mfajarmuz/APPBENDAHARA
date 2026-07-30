@@ -92,9 +92,9 @@ describe('Asisten AI Bendahara (Engine & Context)', () => {
 
   it('harus merespons pertanyaan BKU dan saldo kas', async () => {
     const res = await processAiQuery('Berapa saldo BKU saat ini?', dummyState)
-    expect(res.text).toContain('Ringkasan Buku Kas Umum (BKU)')
+    expect(res.text).toContain('Ringkasan Saldo Kas & BKU')
     expect(res.text).toContain('49.250.000')
-    expect(res.action.path).toBe('/laporan')
+    expect(res.action.path).toBe('/dashboard')
   })
 
   it('harus memproses simulasi belanja dengan benar', async () => {
