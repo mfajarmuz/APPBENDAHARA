@@ -13,6 +13,40 @@ const RAK_KEYS = [
 ]
 
 /**
+ * Utility Pembersih & Parser DSML (DeepSeek Markup Language)
+ */
+export function cleanDsmlMarkup(text = '') {
+  if (!text || typeof text !== 'string') return ''
+  return text
+    .replace(/<\|\s*DSML\s*\|[\s\S]*?(?:<\/\|\s*DSML\s*\|\s*\|\s*\w+>|\/>|$)/gi, '')
+    .replace(/<\|\s*\w+\s*\|[\s\S]*?>/g, '')
+    .trim()
+}
+
+export function parseDsmlToolCalls(content = '') {
+  if (!content || typeof content !== 'string' || !content.includes('DSML')) return []
+  const calls = []
+
+  const invokeRegex = /<\|\s*DSML\s*\|\s*\|\s*invoke\s+name="([^"]+)">([\s\S]*?)(?:<\/\|\s*DSML\s*\|\s*\|\s*invoke>|$)/g
+  let match
+  while ((match = invokeRegex.exec(content)) !== null) {
+    const toolName = match[1]
+    const body = match[2]
+
+    const paramRegex = /<\|\s*DSML\s*\|\s*\|\s*parameter\s+name="([^"]+)"[^>]*>([\s\S]*?)(?:<\/\|\s*DSML\s*\|\s*\|\s*parameter>|$)/g
+    const args = {}
+    let pMatch
+    while ((pMatch = paramRegex.exec(body)) !== null) {
+      args[pMatch[1]] = pMatch[2].trim()
+    }
+
+    calls.push({ name: toolName, args })
+  }
+
+  return calls
+}
+
+/**
  * Definisi Structured Tools ala LangChain untuk Agent Execution
  */
 export const LANGCHAIN_TOOLS = [
@@ -383,7 +417,8 @@ export function executeTool(name, args, storeState) {
           uraian: t.uraian,
           nominal: formatRupiah(t.jumlah),
           noBukti: t.no_bukti,
-          rekening: t.rekening
+          rekening: t.rekening,
+          subKegiatan: t.sub_kegiatan
         }))
       })
     }
@@ -488,8 +523,9 @@ BLUEPRINT SISTEM APLIKASI BENDAHARAAPP & DATABASE SCHEMA (MASTER KNOWLEDGE):
 PERINGATAN STRICT ACCESS DATA REAL-TIME (JANGAN DIABAIKAN):
 1. Anda TERHUBUNG 100% SECARA REAL-TIME ke database aplikasi BendaharaApp milik pengguna.
 2. DILARANG KERAS MENGATAKAN: "Saya tidak memiliki akses langsung ke database", "Data ini adalah contoh fiktif/asumsi", "Saya tidak dapat melihat data Anda", atau perkataan sejenisnya!
-3. Seluruh angka nominal, transaksi, BKU, DPA, RAK, dan daftar temuan audit di bawah ini adalah DATA RIIL 100% DARI DATABASE APLIKASI BENDAHARAAPP.
-4. Jika pengguna bertanya dari mana Anda melihat/mendapatkan data, tegaskan dengan percaya diri: "Saya membaca dan mengolah data transaksi riil secara real-time langsung dari database aplikasi BendaharaApp Anda."
+3. DILARANG KERAS MENAMPILKAN TAG MARKUP RAW SEPERTI <| DSML |>. Gunakan format Tabel Markdown biasa (| Header | Header |).
+4. Seluruh angka nominal, transaksi, BKU, DPA, RAK, dan daftar temuan audit di bawah ini adalah DATA RIIL 100% DARI DATABASE APLIKASI BENDAHARAAPP.
+5. Jika pengguna bertanya dari mana Anda melihat/mendapatkan data, tegaskan dengan percaya diri: "Saya membaca dan mengolah data transaksi riil secara real-time langsung dari database aplikasi BendaharaApp Anda."
 
 FAKTA DATA KEUANGAN SAAT INI (SINKRON 100% DENGAN DASHBOARD & BKU):
 - Unit Kerja: ${ctx.unitKerja} (${ctx.unitKerjaKode})
@@ -503,15 +539,16 @@ PETUNJUK EXECUTION LANGCHAIN AGENT:
 1. Anda dilengkapi dengan TOOLS terstruktur: (audit_kode_rekening, get_item_level_details, get_sisa_pagu, check_rak_bulanan, get_bku_summary, search_pengeluaran_detail, simulate_belanja, generate_executive_summary, navigate_app_page).
 2. Jika pengguna meminta untuk "audit kesalahan kode rekening", "analisis kesalahan rekening", atau "cek pengalokasian rekening", PANGGIL TOOL 'audit_kode_rekening'.
 3. Jika pengguna meminta "detail transaksi per item", "rincian barang", atau "tampilkan item transaksi", PANGGIL TOOL 'get_item_level_details'.
-4. Selalu gunakan format Tabel Markdown (| Header 1 | Header 2 |) ketika menyajikan data audit, rincian transaksi per item, sisa pagu, atau BKU.
-5. JIKA pengguna meminta untuk membuka/melihat laporan, BKU, DPA, atau pengeluaran, panggil tool 'navigate_app_page'.
-6. Selalu ingat konteks percakapan sebelumnya untuk menjawab pertanyaan sambungan secara intuitif.`
+4. Jika pengguna mencari transaksi spesifik (e.g., BBM, ATK, Makanan, Dinas, dll), PANGGIL TOOL 'search_pengeluaran_detail'.
+5. Selalu gunakan format Tabel Markdown (| Header 1 | Header 2 |) ketika menyajikan data audit, rincian transaksi per item, sisa pagu, atau BKU.
+6. JIKA pengguna meminta untuk membuka/melihat laporan, BKU, DPA, atau pengeluaran, panggil tool 'navigate_app_page'.
+7. Selalu ingat konteks percakapan sebelumnya untuk menjawab pertanyaan sambungan secara intuitif.`
   }
 
   // Format riwayat chat LangChain (Multi-Turn Conversation Memory)
   const formattedHistory = chatHistory.slice(-8).map(msg => ({
     role: msg.sender === 'user' ? 'user' : 'assistant',
-    content: msg.text || ''
+    content: cleanDsmlMarkup(msg.text || '')
   }))
 
   const messagesPayload = [
@@ -548,16 +585,34 @@ PETUNJUK EXECUTION LANGCHAIN AGENT:
     throw new Error('Tidak ada respons dari server AI.')
   }
 
-  // Jika LLM memilih untuk memanggil Tool (Agent Tool Call)
-  if (choiceMessage1.tool_calls && choiceMessage1.tool_calls.length > 0) {
+  let toolCallsToRun = choiceMessage1.tool_calls || []
+
+  // JIKA DEEPSEEK MENYELIPKAN DSML MARKUP DI CONTENT ALIH-ALIH TOOL_CALLS NATIVE
+  if (toolCallsToRun.length === 0 && choiceMessage1.content && choiceMessage1.content.includes('DSML')) {
+    const dsmlCalls = parseDsmlToolCalls(choiceMessage1.content)
+    if (dsmlCalls.length > 0) {
+      toolCallsToRun = dsmlCalls.map((c, idx) => ({
+        id: `dsml_${idx}_${Date.now()}`,
+        function: {
+          name: c.name,
+          arguments: JSON.stringify(c.args)
+        }
+      }))
+    }
+  }
+
+  // Jika LLM memilih untuk memanggil Tool (baik Native Tool Call maupun DSML Parsed)
+  if (toolCallsToRun.length > 0) {
     let capturedAction = null
     const toolMessages = []
 
-    for (const toolCall of choiceMessage1.tool_calls) {
+    for (const toolCall of toolCallsToRun) {
       const toolName = toolCall.function.name
       let toolArgs = {}
       try {
-        toolArgs = JSON.parse(toolCall.function.arguments || '{}')
+        toolArgs = typeof toolCall.function.arguments === 'string'
+          ? JSON.parse(toolCall.function.arguments || '{}')
+          : toolCall.function.arguments || {}
       } catch (e) { console.error('Failed to parse tool args', e) }
 
       // Eksekusi Tool
@@ -577,9 +632,15 @@ PETUNJUK EXECUTION LANGCHAIN AGENT:
     }
 
     // Step 2: Kirimkan hasil Tool back to LLM untuk menghasilkan jawaban percakapan akhir
+    const cleanChoiceMessage1 = {
+      role: choiceMessage1.role,
+      content: cleanDsmlMarkup(choiceMessage1.content || ''),
+      tool_calls: choiceMessage1.tool_calls
+    }
+
     const messagesPayload2 = [
       ...messagesPayload,
-      choiceMessage1,
+      cleanChoiceMessage1,
       ...toolMessages
     ]
 
@@ -602,11 +663,13 @@ PETUNJUK EXECUTION LANGCHAIN AGENT:
     }
 
     const data2 = await response2.json()
-    const finalContent = data2.choices?.[0]?.message?.content || 'Maaf, tidak ada respons akhir dari Agent.'
+    const rawFinalContent = data2.choices?.[0]?.message?.content || 'Maaf, tidak ada respons akhir dari Agent.'
+    const cleanedFinalText = cleanDsmlMarkup(rawFinalContent)
 
-    return { text: finalContent, action: capturedAction }
+    return { text: cleanedFinalText, action: capturedAction }
   }
 
   // Jika LLM menjawab langsung tanpa tool call
-  return { text: choiceMessage1.content || '', action: null }
+  const cleanedDirectText = cleanDsmlMarkup(choiceMessage1.content || '')
+  return { text: cleanedDirectText, action: null }
 }
