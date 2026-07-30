@@ -1,6 +1,7 @@
 // src/lib/aiAssistant.js
 import { formatRupiah, persen } from './format'
 import { runLangChainAgent, auditKodeRekening, getItemLevelDetails } from './langchainAgent'
+import { runLangGraphAgent } from './langgraphAgent'
 
 const BULAN_NAMES = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -151,7 +152,7 @@ export function buildFinancialContext(state) {
 }
 
 /**
- * Engine Pemroses Pertanyaan Bahasa Indonesia (Hybrid: LangChain Agent LLM + Smart Multi-Target Engine)
+ * Engine Pemroses Pertanyaan Bahasa Indonesia (Hybrid: LangGraph State Engine + LangChain LLM + Smart Search)
  */
 export async function processAiQuery(queryText, storeState, chatHistory = []) {
   if (!queryText || typeof queryText !== 'string' || !queryText.trim()) {
@@ -165,6 +166,12 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
   const ctx = buildFinancialContext(storeState)
   const currentMonthIdx = new Date().getMonth()
   const currentMonthName = BULAN_NAMES[currentMonthIdx]
+
+  // LANGGRAPH AGENT: Jalankan Multi-Node State Graph jika pertanyaan berhubungan dengan audit / evaluasi / masalah
+  const langgraphRes = await runLangGraphAgent(queryText, storeState, chatHistory)
+  if (langgraphRes) {
+    return langgraphRes
+  }
 
   const apiKey = storeState?.settings?.deepseek_api_key?.trim()
 

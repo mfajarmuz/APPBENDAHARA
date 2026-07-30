@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildFinancialContext, processAiQuery } from '../lib/aiAssistant'
 import { executeTool, LANGCHAIN_TOOLS } from '../lib/langchainAgent'
+import { runLangGraphAgent } from '../lib/langgraphAgent'
 
 describe('Asisten AI Bendahara (Engine & Context)', () => {
   const dummyState = {
@@ -116,5 +117,12 @@ describe('Asisten AI Bendahara (Engine & Context)', () => {
     expect(res.text).toContain('Ringkasan Eksekutif Realisasi Anggaran')
     expect(res.text).toContain('Dinas Keuangan')
     expect(res.action.path).toBe('/laporan')
+  })
+
+  it('harus mengeksekusi LangGraph Agent Multi-Node State Graph Audit', async () => {
+    const res = await runLangGraphAgent('Lakukan audit masalah transaksi', dummyState)
+    expect(res.text).toContain('LangGraph Multi-Node Engine')
+    expect(res.text).toContain('Skor Kesehatan Administrasi Keuangan')
+    expect(res.action.path).toBe('/pengeluaran')
   })
 })

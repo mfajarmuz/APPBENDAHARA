@@ -4,6 +4,7 @@
 The project is in the refinement phase. Core features (Dashboard, Anggaran, Penerimaan, Pengeluaran) are implemented. Recent focus has been on fixing bugs in expenditure rincian and report accuracy.
 
 ## Recent Achievements
+- [x] **UI Redesign**: Memperbarui dan merapikan halaman **Pengaturan (`/settings`)** menjadi struktur **4 Tab Modern** (1. `Identitas SKPD`, 2. `Pejabat Penandatangan`, 3. `Asisten AI & DeepSeek`, 4. `Cloud & System Update`) lengkap dengan **Glassmorphic Banner Header** dan **Floating Save Bar** di bagian bawah.
 - [x] **New Feature & UI Upgrade**: Menambahkan fitur **Resize Panel AI Chat (Perbesar & Perkecil)** pada `AiAssistantDrawer.jsx`. Pengguna kini bisa:
   - Mengatur ukuran via **Preset Selector** (`Normal 540px`, `Lebar 900px`, `Layar Penuh 100vw`).
   - Mengklik tombol **Quick Maximize / Minimize** (`Maximize2` / `Minimize2`).
