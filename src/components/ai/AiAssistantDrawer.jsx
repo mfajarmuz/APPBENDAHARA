@@ -373,118 +373,124 @@ export default function AiAssistantDrawer({ isOpen, open, onClose }) {
         )}
 
         {/* Quick Chips Bar */}
-        <div className="bg-slate-50 border-b border-slate-100 p-2.5 overflow-x-auto whitespace-nowrap shrink-0 scrollbar-none flex gap-2">
-          {QUICK_CHIPS.map((chip, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleSend(chip)}
-              className="text-[10px] font-bold bg-white text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 px-3 py-1.5 rounded-full transition-all shadow-2xs shrink-0"
-            >
-              {chip}
-            </button>
-          ))}
+        <div className="bg-slate-50 border-b border-slate-100 p-2.5 overflow-x-auto whitespace-nowrap shrink-0 scrollbar-none">
+          <div className="max-w-4xl mx-auto flex gap-2">
+            {QUICK_CHIPS.map((chip, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSend(chip)}
+                className="text-[10px] font-bold bg-white text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 px-3 py-1.5 rounded-full transition-all shadow-2xs shrink-0"
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Chat Messages Body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
-          {messages.map(msg => (
-            <div 
-              key={msg.id}
-              className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {msg.sender === 'ai' && (
-                <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-                  <Bot size={18} />
-                </div>
-              )}
-
-              <div className={`max-w-[90%] sm:max-w-[85%] rounded-2xl p-3.5 shadow-xs ${
-                msg.sender === 'user'
-                  ? 'bg-indigo-600 text-white rounded-tr-xs font-medium text-xs'
-                  : 'bg-white border border-slate-200 text-slate-800 rounded-tl-xs'
-              }`}>
-                {msg.sender === 'user' ? (
-                  <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                ) : (
-                  <div className="space-y-1">
-                    {renderFormattedText(msg.text)}
-
-                    {msg.action && (
-                      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
-                        <span className="text-[10px] text-slate-500 font-medium">Aksi Direkomendasikan:</span>
-                        <button
-                          onClick={() => {
-                            if (msg.action.path) navigate(msg.action.path)
-                            onClose()
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold text-xs transition-colors border border-indigo-200 shadow-2xs"
-                        >
-                          <span>{msg.action.label || 'Buka Halaman'}</span>
-                          <ArrowRight size={14} />
-                        </button>
-                      </div>
-                    )}
+        <div className="flex-1 overflow-y-auto p-4 bg-slate-50/50">
+          <div className="max-w-4xl mx-auto space-y-4">
+            {messages.map(msg => (
+              <div 
+                key={msg.id}
+                className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                {msg.sender === 'ai' && (
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                    <Bot size={18} />
                   </div>
                 )}
-                
-                <span className={`text-[9px] block mt-1.5 text-right font-medium ${
-                  msg.sender === 'user' ? 'text-indigo-200' : 'text-slate-400'
+
+                <div className={`max-w-[92%] sm:max-w-[88%] rounded-2xl p-3.5 shadow-xs ${
+                  msg.sender === 'user'
+                    ? 'bg-indigo-600 text-white rounded-tr-xs font-medium text-xs'
+                    : 'bg-white border border-slate-200 text-slate-800 rounded-tl-xs'
                 }`}>
-                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
+                  {msg.sender === 'user' ? (
+                    <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {renderFormattedText(msg.text)}
 
-              {msg.sender === 'user' && (
-                <div className="w-8 h-8 rounded-lg bg-slate-800 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5 text-xs font-bold">
-                  U
+                      {msg.action && (
+                        <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                          <span className="text-[10px] text-slate-500 font-medium">Aksi Direkomendasikan:</span>
+                          <button
+                            onClick={() => {
+                              if (msg.action.path) navigate(msg.action.path)
+                              onClose()
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold text-xs transition-colors border border-indigo-200 shadow-2xs"
+                          >
+                            <span>{msg.action.label || 'Buka Halaman'}</span>
+                            <ArrowRight size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  <span className={`text-[9px] block mt-1.5 text-right font-medium ${
+                    msg.sender === 'user' ? 'text-indigo-200' : 'text-slate-400'
+                  }`}>
+                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
-              )}
-            </div>
-          ))}
 
-          {isTyping && (
-            <div className="flex gap-3 justify-start items-center">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                <Bot size={18} />
+                {msg.sender === 'user' && (
+                  <div className="w-8 h-8 rounded-lg bg-slate-800 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5 text-xs font-bold">
+                    U
+                  </div>
+                )}
               </div>
-              <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-xs px-4 py-3 shadow-xs flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            </div>
-          )}
+            ))}
 
-          <div ref={messagesEndRef} />
+            {isTyping && (
+              <div className="flex gap-3 justify-start items-center">
+                <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                  <Bot size={18} />
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-xs px-4 py-3 shadow-xs flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
         {/* Input Bar */}
         <div className="p-3 bg-white border-t border-slate-200 shrink-0">
-          <form 
-            onSubmit={(e) => {
-              e.preventDefault()
-              handleSend()
-            }}
-            className="flex items-center gap-2"
-          >
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder="Ketik pertanyaan keuangan Anda..."
-              className="flex-1 text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400"
-              disabled={isTyping}
-            />
-            <button
-              type="submit"
-              disabled={!inputText.trim() || isTyping}
-              className="p-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white rounded-xl transition-colors shadow-sm shrink-0 flex items-center justify-center"
+          <div className="max-w-4xl mx-auto">
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleSend()
+              }}
+              className="flex items-center gap-2"
             >
-              <Send size={16} />
-            </button>
-          </form>
-          <div className="mt-1.5 text-center">
-            <span className="text-[9px] text-slate-400 font-medium">Verifikasi 100% data keuangan Zustand Store</span>
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder="Ketik pertanyaan keuangan Anda..."
+                className="flex-1 text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400"
+                disabled={isTyping}
+              />
+              <button
+                type="submit"
+                disabled={!inputText.trim() || isTyping}
+                className="p-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white rounded-xl transition-colors shadow-sm shrink-0 flex items-center justify-center"
+              >
+                <Send size={16} />
+              </button>
+            </form>
+            <div className="mt-1.5 text-center">
+              <span className="text-[9px] text-slate-400 font-medium">Verifikasi 100% data keuangan Zustand Store</span>
+            </div>
           </div>
         </div>
 
