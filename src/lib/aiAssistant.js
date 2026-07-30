@@ -165,7 +165,62 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
 
   // FALLBACK: Smart Multi-Target Engine (Mode Offline / Tanpa DeepSeek API Key)
 
-  // 1. RINGKASAN EKSEKUTIF UNTUK PIMPINAN
+  // PRIORITAS 1: PANCARIAN SPESIFIK ITEM/REKENING/KATA KUNCI (e.g. BBM, ATK, Listrik, Kendaraan, dll)
+  const ignoreWords = new Set(['check', 'cek', 'belanja', 'total', 'berapa', 'sampai', 'dengan', 'sekarang', 'pada', 'yang', 'ada', 'di', 'ke', 'dari', 'ini', 'apa', 'tolong', 'cari', 'sebutkan', 'rekap', 'ya', 'kah', 'dong', 'kamu', 'bisa', 'saja', 'sistem', 'pagu', 'sisa', 'anggaran'])
+  const searchKeywords = query
+    .split(/\s+/)
+    .map(w => w.replace(/[^\w]/g, '').trim())
+    .filter(w => w.length > 1 && !ignoreWords.has(w))
+
+  const matchedSubKegiatan = searchKeywords.length > 0 ? ctx.subKegiatanSummary.filter(sk => {
+    const fullText = `${sk.kode} ${sk.nama} ${sk.rekening.map(r => `${r.kode} ${r.uraian}`).join(' ')}`.toLowerCase()
+    return searchKeywords.some(kw => fullText.includes(kw))
+  }) : []
+
+  const matchedTransactions = searchKeywords.length > 0 ? ctx.transactionsList.filter(t => {
+    const fullContent = `${t.uraian} ${t.keterangan} ${t.sub_kegiatan} ${t.rekening}`.toLowerCase()
+    return searchKeywords.some(kw => fullContent.includes(kw))
+  }) : []
+
+  if (matchedSubKegiatan.length > 0 || matchedTransactions.length > 0) {
+    const keywordLabel = searchKeywords.join(' ').toUpperCase()
+    let responseText = `### 🔎 Hasil Analisis & Sisa Pagu: "${keywordLabel}"\n\n`
+
+    if (matchedSubKegiatan.length > 0) {
+      responseText += `#### 📋 Sub Kegiatan & Rekening Terkait DPA:\n`
+      matchedSubKegiatan.forEach((sk, idx) => {
+        responseText += `${idx + 1}. **${sk.kode} - ${sk.nama}**\n`
+        responseText += `   - Pagu DPA: ${formatRupiah(sk.pagu)} | Realisasi: ${formatRupiah(sk.realisasi)} (${sk.persen}%)\n`
+        responseText += `   - **Sisa Pagu DPA Tersedia**: **${formatRupiah(sk.sisa)}**\n`
+
+        const matchingReks = sk.rekening.filter(r => searchKeywords.some(kw => r.uraian.toLowerCase().includes(kw) || r.kode.toLowerCase().includes(kw)))
+        if (matchingReks.length > 0) {
+          responseText += `   - *Rekening Terkait*:\n`
+          matchingReks.forEach(r => {
+            responseText += `     • ${r.kode} ${r.uraian}: Pagu ${formatRupiah(r.pagu)} | Sisa **${formatRupiah(r.sisa)}**\n`
+          })
+        }
+        responseText += `\n`
+      })
+    }
+
+    if (matchedTransactions.length > 0) {
+      const totalMatchJumlah = matchedTransactions.reduce((sum, t) => sum + t.jumlah, 0)
+      responseText += `#### 💸 Realisasi Transaksi Pengeluaran (${matchedTransactions.length} Transaksi):\n`
+      responseText += `- **Total Realisasi Pengeluaran**: **${formatRupiah(totalMatchJumlah)}**\n\n`
+      matchedTransactions.forEach((t, idx) => {
+        responseText += `${idx + 1}. **${t.tanggal}** - ${t.uraian}\n`
+        responseText += `   - Nominal: **${formatRupiah(t.jumlah)}** ${t.no_bukti ? `| No. Bukti: ${t.no_bukti}` : ''}\n`
+      })
+    }
+
+    return {
+      text: responseText,
+      action: { type: 'NAVIGATE', path: '/anggaran', label: 'Buka Halaman Anggaran' }
+    }
+  }
+
+  // 2. RINGKASAN EKSEKUTIF UNTUK PIMPINAN
   if (query.includes('eksekutif') || query.includes('pimpinan') || query.includes('triwulan')) {
     let responseText = `### 📑 Ringkasan Eksekutif Realisasi Anggaran\n\n`
     responseText += `**Unit Kerja**: ${ctx.unitKerja} (${ctx.unitKerjaKode})\n`
@@ -180,7 +235,7 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
     }
   }
 
-  // 2. CEK SISA PAGU DPA & REKAP ANGGARAN
+  // 3. CEK SISA PAGU DPA & REKAP ANGGARAN UMUM
   if (query.includes('pagu') || query.includes('sisa anggaran') || query.includes('dpa')) {
     let responseText = `### 📊 Ringkasan Pagu DPA (${ctx.unitKerja})\n\n`
     responseText += `- **Total Pagu DPA**: ${formatRupiah(ctx.totalPagu)}\n`
@@ -200,7 +255,7 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
     }
   }
 
-  // 3. STATUS RAK BULANAN / AKUMULATIF
+  // 4. STATUS RAK BULANAN / AKUMULATIF
   if (query.includes('rak') || query.includes('rencana anggaran kas')) {
     let responseText = `### 📅 Status RAK Belanja Akumulatif (s.d. ${currentMonthName})\n\n`;
 
@@ -242,7 +297,7 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
     }
   }
 
-  // 4. RINGKASAN BKU / SALDO KAS
+  // 5. RINGKASAN BKU / SALDO KAS
   if (query.includes('bku') || query.includes('saldo') || query.includes('penerimaan') || query.includes('kas bku') || query === 'kas') {
     let responseText = `### 📝 Ringkasan Buku Kas Umum (BKU)\n\n`
     responseText += `- **Total Penerimaan Kas**: ${formatRupiah(ctx.totalPenerimaan)}\n`
@@ -256,7 +311,7 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
     }
   }
 
-  // 5. SIMULASI RENCANA BELANJA
+  // 6. SIMULASI RENCANA BELANJA
   if (query.includes('simulasi') || query.includes('kalau') || query.includes('keluarkan') || query.includes('cukup')) {
     const matchNominal = query.match(/(\d+[\d\.]*)/)
     let nominal = 0
@@ -286,55 +341,7 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
     }
   }
 
-  // 6. PENCARIAN KATA KUNCI MULTI-TARGET (BBM, ATK, Makanan, Perjalanan, dll)
-  const ignoreWords = new Set(['check', 'cek', 'belanja', 'total', 'berapa', 'sampai', 'dengan', 'sekarang', 'pada', 'yang', 'ada', 'di', 'ke', 'dari', 'ini', 'apa', 'tolong', 'cari', 'sebutkan', 'rekap', 'ya', 'kah', 'dong', 'kamu', 'bisa', 'saja', 'sistem'])
-  const searchKeywords = query
-    .split(/\s+/)
-    .map(w => w.replace(/[^\w]/g, '').trim())
-    .filter(w => w.length > 1 && !ignoreWords.has(w))
-
-  const matchedTransactions = searchKeywords.length > 0 ? ctx.transactionsList.filter(t => {
-    const fullContent = `${t.uraian} ${t.keterangan} ${t.sub_kegiatan} ${t.rekening}`.toLowerCase()
-    return searchKeywords.some(kw => fullContent.includes(kw))
-  }) : []
-
-  const matchedRekening = searchKeywords.length > 0 ? ctx.subKegiatanSummary.flatMap(sk => 
-    sk.rekening.filter(r => searchKeywords.some(kw => r.uraian.toLowerCase().includes(kw) || r.kode.toLowerCase().includes(kw)))
-      .map(r => ({ ...r, subKegiatanNama: sk.nama }))
-  ) : []
-
-  if (matchedTransactions.length > 0 || matchedRekening.length > 0) {
-    const keywordLabel = searchKeywords.join(' ').toUpperCase()
-    let responseText = `### 🔎 Hasil Analisis & Pencarian: "${keywordLabel}"\n\n`
-
-    if (matchedRekening.length > 0) {
-      responseText += `#### 📋 Data Pagu Rekening DPA:\n`
-      matchedRekening.forEach((r, idx) => {
-        responseText += `${idx + 1}. **${r.kode} - ${r.uraian}**\n`
-        responseText += `   - Sub Kegiatan: *${r.subKegiatanNama}*\n`
-        responseText += `   - Pagu DPA: ${formatRupiah(r.pagu)} | Realisasi: ${formatRupiah(r.realisasi)}\n`
-        responseText += `   - **Sisa Pagu DPA Tersedia**: **${formatRupiah(r.sisa)}**\n\n`
-      })
-    }
-
-    if (matchedTransactions.length > 0) {
-      const totalMatchJumlah = matchedTransactions.reduce((sum, t) => sum + t.jumlah, 0)
-      responseText += `#### 💸 Realisasi Transaksi Pengeluaran (${matchedTransactions.length} Transaksi):\n`
-      responseText += `- **Total Pengeluaran**: **${formatRupiah(totalMatchJumlah)}**\n\n`
-      matchedTransactions.forEach((t, idx) => {
-        responseText += `${idx + 1}. **${t.tanggal}** - ${t.uraian}\n`
-        responseText += `   - Nominal: **${formatRupiah(t.jumlah)}** ${t.no_bukti ? `| No. Bukti: ${t.no_bukti}` : ''}\n`
-        if (t.rekening) responseText += `   - Rekening: *${t.rekening}*\n`
-      })
-    }
-
-    return {
-      text: responseText,
-      action: { type: 'NAVIGATE', path: '/pengeluaran', label: 'Buka Halaman Pengeluaran' }
-    }
-  }
-
-  // 7. RESPONS INTELEGEN UNTUK PERTANYAAN UMUM (TIDAK PERNAH MENAMPILKAN WELCOME TEMPLATE KAKU)
+  // 7. RESPONS INTELEGEN UNTUK PERTANYAAN UMUM
   let fallbackText = `### 🤖 Respons Asisten AI Bendahara\n\n`
   fallbackText += `Saya telah menganalisis data sistem untuk pertanyaan Anda: *"_${queryText}_"*\n\n`
   fallbackText += `**Ringkasan Status Keuangan Saat Ini (${ctx.unitKerja})**:\n`

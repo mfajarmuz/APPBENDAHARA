@@ -81,7 +81,7 @@ describe('Asisten AI Bendahara (Engine & Context)', () => {
     const res = await processAiQuery('check belanja bbm total berapa sampai dengan sekarang?', dummyState)
     expect(res.text).toContain('BBM')
     expect(res.text).toContain('750.000')
-    expect(res.action.path).toBe('/pengeluaran')
+    expect(res.action.path).toBe('/anggaran')
   })
 
   it('harus merespons pertanyaan status RAK bulanan', async () => {

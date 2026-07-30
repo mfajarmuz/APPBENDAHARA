@@ -130,6 +130,8 @@ export default function AiAssistantDrawer({ open, onClose }) {
     })
   }
 
+  const hasApiKey = !!storeState?.settings?.deepseek_api_key?.trim()
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
       {/* Backdrop */}
@@ -145,16 +147,22 @@ export default function AiAssistantDrawer({ open, onClose }) {
         <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-indigo-900 text-white p-4 flex items-center justify-between shadow-md shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-inner relative">
-              <Bot size={22} className="text-emerald-400" />
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 absolute -top-0.5 -right-0.5 border-2 border-indigo-900 animate-pulse" />
+              <Bot size={22} className={hasApiKey ? "text-emerald-400" : "text-amber-400"} />
+              <span className={`w-2.5 h-2.5 rounded-full absolute -top-0.5 -right-0.5 border-2 border-indigo-900 ${
+                hasApiKey ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+              }`} />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="font-black text-sm tracking-wide">Asisten AI Bendahara</h2>
-                <span className="text-[9px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-1.5 py-0.5 rounded uppercase">Verified 100%</span>
+                {hasApiKey ? (
+                  <span className="text-[9px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-1.5 py-0.5 rounded uppercase">DeepSeek AI</span>
+                ) : (
+                  <span className="text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-400/30 px-1.5 py-0.5 rounded uppercase">Mode Offline</span>
+                )}
               </div>
               <p className="text-[10px] text-indigo-200 flex items-center gap-1 font-medium mt-0.5">
-                <Sparkles size={10} className="text-amber-300" /> Co-Pilot Finansial Berbasis Data Real-Time
+                <Sparkles size={10} className="text-amber-300" /> {hasApiKey ? 'LangChain Agent + DeepSeek LLM Active' : 'Pencarian Data Determinis Lokal'}
               </p>
             </div>
           </div>
@@ -175,6 +183,22 @@ export default function AiAssistantDrawer({ open, onClose }) {
             </button>
           </div>
         </div>
+
+        {/* Offline Notice Banner jika API Key Belum Diisi */}
+        {!hasApiKey && (
+          <div className="bg-amber-50 border-b border-amber-200/80 px-3.5 py-2 flex items-center justify-between text-xs text-amber-800 shrink-0">
+            <span className="text-[10px] font-bold">⚠️ Mode Offline (Belum terhubung DeepSeek API)</span>
+            <button
+              onClick={() => {
+                navigate('/settings')
+                onClose()
+              }}
+              className="text-[10px] font-black text-indigo-700 underline hover:text-indigo-900 bg-white px-2 py-0.5 rounded border border-amber-300 shadow-2xs"
+            >
+              ⚙️ Hubungkan DeepSeek API
+            </button>
+          </div>
+        )}
 
         {/* Quick Chips Bar */}
         <div className="bg-slate-50 border-b border-slate-100 p-2.5 overflow-x-auto whitespace-nowrap shrink-0 scrollbar-none flex gap-2">
