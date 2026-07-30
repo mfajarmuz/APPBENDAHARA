@@ -134,10 +134,12 @@ export function buildFinancialContext(state) {
   }
 }
 
+import { runLangChainAgent } from './langchainAgent'
+
 /**
- * Engine Pemroses Pertanyaan Bahasa Indonesia (Hybrid: DeepSeek API + Local Smart Engine)
+ * Engine Pemroses Pertanyaan Bahasa Indonesia (Hybrid: LangChain Agent LLM + Local Smart Engine)
  */
-export async function processAiQuery(queryText, storeState) {
+export async function processAiQuery(queryText, storeState, chatHistory = []) {
   if (!queryText || typeof queryText !== 'string') {
     return {
       text: 'Silakan ketik pertanyaan atau pilih salah satu menu pintas di bawah ini.',
@@ -151,54 +153,14 @@ export async function processAiQuery(queryText, storeState) {
   const currentMonthName = BULAN_NAMES[currentMonthIdx]
 
   const apiKey = storeState?.settings?.deepseek_api_key?.trim()
-  const apiModel = storeState?.settings?.deepseek_model?.trim() || 'deepseek-chat'
 
-  // JIKA TERDAPAT DEEPSEEK API KEY: Gunakan DeepSeek LLM dengan Fakta Keuangan Real-Time!
+  // JIKA TERDAPAT API KEY: Eksekusi LangChain Agent dengan Structured Tools & Memory!
   if (apiKey) {
-    const systemPrompt = `Anda adalah Asisten AI Bendahara (Financial AI Co-Pilot) resmi untuk unit kerja ${ctx.unitKerja} (${ctx.unitKerjaKode}).
-Tugas Anda adalah memberikan jawaban dan analisis keuangan yang ramah, sopan, luwes, komunikatif, dan profesional dalam Bahasa Indonesia.
-
-FAKTA DATA KEUANGAN SAAT INI (100% AKURAT, GUNAKAN ANGKANYA SAMA PERSIS):
-- Unit Kerja: ${ctx.unitKerja} (${ctx.unitKerjaKode})
-- Total Pagu DPA Tahunan: ${formatRupiah(ctx.totalPagu)}
-- Realisasi Pengeluaran: ${formatRupiah(ctx.realisasiPengeluaran)} (${ctx.persenRealisasi}%)
-- Sisa Quota Pagu DPA: ${formatRupiah(ctx.sisaPagu)}
-- Total Penerimaan Kas: ${formatRupiah(ctx.totalPenerimaan)}
-- Saldo Kas BKU Posisi Saat Ini: ${formatRupiah(ctx.saldoKasBku)}
-
-DAFTAR SUB KEGIATAN:
-${ctx.subKegiatanSummary.map((sk, i) => `  ${i+1}. ${sk.kode} - ${sk.nama}: Pagu ${formatRupiah(sk.pagu)}, Realisasi ${formatRupiah(sk.realisasi)} (${sk.persen}%), Sisa Pagu ${formatRupiah(sk.sisa)}`).join('\n')}
-
-DAFTAR TRANSAKSI PENGELUARAN SAAT INI (${ctx.transactionsList.length} Transaksi):
-${ctx.transactionsList.map((t, i) => `  ${i+1}. [Tgl: ${t.tanggal}] ${t.uraian} (Ket: ${t.keterangan}, Rekening: ${t.rekening}) -> ${formatRupiah(t.jumlah)} [No Bukti: ${t.no_bukti}]`).join('\n')}
-
-PETUNJUK RESPONS:
-1. Jawab pertanyaan pengguna dengan gaya bahasa yang luwes, alami, dan membantu layaknya rekan kerja keuangan berpengalaman.
-2. Jika pengguna menanyakan belanja tertentu (seperti BBM, ATK, perjalanan dinas, makanan, honor, dll), cari dan hitung dari DAFTAR TRANSAKSI PENGELUARAN di atas lalu sebutkan totalnya serta rincian transaksinya.
-3. Selalu gunakan angka pasti dari data di atas.
-4. Jika pengguna meminta untuk membuka laporan/bku/anggaran/pengeluaran, Anda boleh menyertakan [ACTION:NAVIGATE:/path_halaman] di akhir jawaban (contoh: [ACTION:NAVIGATE:/laporan], [ACTION:NAVIGATE:/anggaran], [ACTION:NAVIGATE:/pengeluaran]).`
-
     try {
-      const rawText = await callDeepSeekApi(apiKey, apiModel, systemPrompt, queryText)
-      
-      let action = null
-      let text = rawText
-      const actionMatch = rawText.match(/\[ACTION:NAVIGATE:(.*?)\]/)
-      if (actionMatch) {
-        const path = actionMatch[1]
-        text = rawText.replace(actionMatch[0], '').trim()
-        const labelMap = {
-          '/anggaran': 'Buka Halaman Anggaran',
-          '/laporan': 'Buka Halaman Laporan BKU',
-          '/pengeluaran': 'Buka Halaman Pengeluaran',
-          '/dashboard': 'Buka Dashboard'
-        }
-        action = { type: 'NAVIGATE', path, label: labelMap[path] || 'Buka Halaman' }
-      }
-
-      return { text, action }
+      const res = await runLangChainAgent(queryText, chatHistory, storeState)
+      return res
     } catch (err) {
-      console.warn('DeepSeek API error, fallback to local engine:', err.message)
+      console.warn('LangChain Agent Error, fallback to local engine:', err.message)
     }
   }
 

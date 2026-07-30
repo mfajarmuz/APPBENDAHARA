@@ -63,7 +63,7 @@ export default function AiAssistantDrawer({ open, onClose }) {
     setIsTyping(true)
 
     try {
-      const response = await processAiQuery(text, storeState)
+      const response = await processAiQuery(text, storeState, messages)
       const aiMsg = {
         id: (Date.now() + 1).toString(),
         sender: 'ai',

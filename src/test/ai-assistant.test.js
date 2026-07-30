@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildFinancialContext, processAiQuery } from '../lib/aiAssistant'
+import { executeTool, LANGCHAIN_TOOLS } from '../lib/langchainAgent'
 
 describe('Asisten AI Bendahara (Engine & Context)', () => {
   const dummyState = {
@@ -50,6 +51,23 @@ describe('Asisten AI Bendahara (Engine & Context)', () => {
     expect(ctx.sisaPagu).toBe(19250000)
     expect(ctx.totalPenerimaan).toBe(50000000)
     expect(ctx.saldoKasBku).toBe(49250000)
+  })
+
+  it('harus mengeksekusi LangChain Tools secara deterministik', () => {
+    expect(LANGCHAIN_TOOLS.length).toBe(7)
+
+    const paguRes = JSON.parse(executeTool('get_sisa_pagu', {}, dummyState))
+    expect(paguRes.totalPagu).toContain('20.000.000')
+
+    const searchRes = JSON.parse(executeTool('search_pengeluaran_detail', { keyword: 'bbm' }, dummyState))
+    expect(searchRes.jumlahTransaksi).toBe(1)
+    expect(searchRes.totalNominal).toContain('750.000')
+
+    const simRes = JSON.parse(executeTool('simulate_belanja', { nominal: 5000000 }, dummyState))
+    expect(simRes.hasilSimulasi[0].status).toContain('MEMENUHI')
+
+    const navRes = JSON.parse(executeTool('navigate_app_page', { path: '/laporan' }, dummyState))
+    expect(navRes.action.path).toBe('/laporan')
   })
 
   it('harus merespons pertanyaan sisa pagu DPA dalam Bahasa Indonesia', async () => {
