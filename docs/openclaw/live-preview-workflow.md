@@ -17,19 +17,19 @@ npm run dev:vite
 Vite berjalan di:
 
 ```text
-http://127.0.0.1:5173/
+http://127.0.0.1:5174/
 ```
 
 Di laptop, buat SSH tunnel ke server-ai:
 
 ```bash
-ssh -L 5173:127.0.0.1:5173 fajar@100.76.252.9
+ssh -L 5174:127.0.0.1:5174 fajar@100.76.252.9
 ```
 
 Biarkan terminal SSH tunnel tetap terbuka, lalu buka browser laptop:
 
 ```text
-http://localhost:5173
+http://localhost:5174
 ```
 
 Saat Nyxera mengedit file React/CSS di server, browser laptop akan hot reload.
@@ -87,7 +87,7 @@ Ini membuka Electron desktop window tanpa membuat installer/build.
 
 1. Nyxera membuat branch/worktree task.
 2. Nyxera menjalankan `npm run dev:vite` di server.
-3. Tuan membuka `http://localhost:5173` via SSH tunnel.
+3. Tuan membuka `http://localhost:5174` via SSH tunnel.
 4. Nyxera revisi live sampai UI/flow disetujui.
 5. Nyxera menjalankan:
 

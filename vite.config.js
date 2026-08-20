@@ -7,7 +7,7 @@ export default defineConfig({
   base: './',
   server: {
     host: '127.0.0.1',
-    port: 5173,
+    port: parseInt(process.env.VITE_PORT || '5174', 10),
     strictPort: true,
     open: false,
     allowedHosts: ['celesteclaw.tailb2cb3c.ts.net'],

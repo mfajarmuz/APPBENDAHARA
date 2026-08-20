@@ -15,7 +15,7 @@ npm run dev
 Script ini menjalankan dua proses:
 
 ```bash
-npm run dev:vite      # Vite dev server di http://localhost:5173
+npm run dev:vite      # Vite dev server di http://localhost:5174
 npm run dev:electron  # Electron membuka UI dari Vite dev server
 ```
 
@@ -38,7 +38,7 @@ npm run dev:vite
 Lalu buka:
 
 ```text
-http://localhost:5173
+http://localhost:5174
 ```
 
 Mode ini cepat untuk melihat UI React, tapi fitur yang bergantung pada Electron IPC bisa berbeda/terbatas.
@@ -196,7 +196,7 @@ Pisahkan script development, packaging, dan release:
 {
   "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
   "dev:vite": "vite",
-  "dev:electron": "wait-on http://localhost:5173 && electron .",
+  "dev:electron": "wait-on http://localhost:5174 && electron .",
   "build:web": "vite build",
   "build:desktop": "vite build && electron-builder",
   "release:patch": "npm version patch && npm run build:desktop"

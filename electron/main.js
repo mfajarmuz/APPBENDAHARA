@@ -52,7 +52,8 @@ function createWindow() {
   })
 
   if (isDev) {
-    win.loadURL('http://localhost:5173')
+    const devPort = process.env.VITE_PORT || '5174'
+    win.loadURL(`http://localhost:${devPort}`)
     win.webContents.openDevTools()
   } else {
     win.loadFile(path.join(__dirname, '../dist/index.html'))
