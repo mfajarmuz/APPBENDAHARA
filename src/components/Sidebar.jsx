@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { useStore } from '@/store/useStore'
 import {
   LayoutDashboard,
   ArrowDownCircle,
@@ -22,6 +23,7 @@ const navItems = [
 ]
 
 export default function Sidebar({ onClose, isCollapsed = false }) {
+  const tahunAnggaran = useStore(s => s.tahunAnggaran)
   return (
     <aside className={`bg-slate-900 h-full flex flex-col shadow-xl transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'}`}>
       <div className={`p-6 border-b border-slate-800/50 flex flex-col ${isCollapsed ? 'items-center justify-center p-4' : ''}`}>
@@ -63,11 +65,16 @@ export default function Sidebar({ onClose, isCollapsed = false }) {
 
       <div className={`p-6 bg-slate-950/50 border-t border-slate-800/30 flex flex-col ${isCollapsed ? 'items-center justify-center p-4' : ''}`}>
         {!isCollapsed && (
-          <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold mb-2">
+          <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold mb-1.5">
             Tahun Anggaran
           </p>
         )}
-        <p className={`text-white font-bold ${isCollapsed ? 'text-xs' : 'text-lg'}`}>{new Date().getFullYear()}</p>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+          <p className={`text-white font-black tracking-tight ${isCollapsed ? 'text-xs' : 'text-lg'}`}>
+            {tahunAnggaran || new Date().getFullYear()}
+          </p>
+        </div>
       </div>
     </aside>
   )

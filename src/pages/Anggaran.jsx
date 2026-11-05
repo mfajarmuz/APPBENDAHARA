@@ -25,9 +25,21 @@ const EMPTY_REK = {
   rak_okt: '', rak_nov: '', rak_des: ''
 }
 const EMPTY_PARENT = { kode: '', nama: '' }
+const EMPTY_KOMP = {
+  kode: '',
+  nama: '',
+  spesifikasi: '',
+  volume: '1',
+  satuan: 'Paket',
+  harga_satuan: '',
+  total: '',
+  keterangan: ''
+}
 
 export default function Anggaran() {
   const subKegiatan = useStore(s => s.subKegiatan)
+  const programsList = useStore(s => s.programs || [])
+  const kegiatansList = useStore(s => s.kegiatans || [])
   const pengeluaran = useStore(s => s.pengeluaran)
   const settings = useStore(s => s.settings)
   const isLoading = useStore(s => s.isLoading)
@@ -37,8 +49,10 @@ export default function Anggaran() {
   
   const updateProgram = useStore(s => s.updateProgram)
   const addProgram = useStore(s => s.addProgram)
+  const deleteProgram = useStore(s => s.deleteProgram)
   const updateKegiatan = useStore(s => s.updateKegiatan)
   const addKegiatan = useStore(s => s.addKegiatan)
+  const deleteKegiatan = useStore(s => s.deleteKegiatan)
   const updateSubKegiatan = useStore(s => s.updateSubKegiatan)
   const addSubKegiatan = useStore(s => s.addSubKegiatan)
   const deleteSubKegiatan = useStore(s => s.deleteSubKegiatan)
@@ -46,9 +60,16 @@ export default function Anggaran() {
   const addKodeRekening = useStore(s => s.addKodeRekening)
   const updateKodeRekening = useStore(s => s.updateKodeRekening)
   const deleteKodeRekening = useStore(s => s.deleteKodeRekening)
+  const addKomponenBelanja = useStore(s => s.addKomponenBelanja)
+  const updateKomponenBelanja = useStore(s => s.updateKomponenBelanja)
+  const deleteKomponenBelanja = useStore(s => s.deleteKomponenBelanja)
   const parseRakPdf = useStore(s => s.parseRakPdf)
   const saveBulkRekening = useStore(s => s.saveBulkRekening)
   const user = useStore(s => s.user)
+
+  // Fiscal Year Store
+  const tahunAnggaran = useStore(s => s.tahunAnggaran)
+  const copyDpaStructure = useStore(s => s.copyDpaStructure)
 
   // State Penguncian Anggaran DPA / Lock Guard State
   const [isDpaLocked, setIsDpaLocked] = useState(() => {
@@ -86,8 +107,11 @@ export default function Anggaran() {
   const [parsedPdfData, setParsedPdfData] = useState(null)
   const [pdfPreviewModal, setPdfPreviewModal] = useState(false)
 
+  const [deleteProgId, setDeleteProgId] = useState(null)
+  const [deleteKegId, setDeleteKegId] = useState(null)
   const [deleteSkId, setDeleteSkId] = useState(null)
   const [deleteRekId, setDeleteRekId] = useState(null)
+  const [deleteKompId, setDeleteKompId] = useState(null)
 
   // Modals state
   const [progModal, setProgModal] = useState(false)
@@ -107,14 +131,34 @@ export default function Anggaran() {
   const [editingRekId, setEditingRekId] = useState(null)
   const [rekParentId, setRekParentId] = useState(null)
 
+  // Komponen Belanja state
+  const [expandedKomp, setExpandedKomp] = useState({})
+  const [kompModal, setKompModal] = useState(false)
+  const [kompForm, setKompForm] = useState(EMPTY_KOMP)
+  const [editingKompId, setEditingKompId] = useState(null)
+  const [kompParentRekId, setKompParentRekId] = useState(null)
+
   useEffect(() => {
     fetchSubKegiatan()
     fetchPengeluaran()
   }, [])
 
+  const filteredSubKegiatan = useMemo(() => {
+    return (subKegiatan || []).filter(sk => (sk.tahun_anggaran || 2026) === tahunAnggaran)
+  }, [subKegiatan, tahunAnggaran])
+
   const hierarchicalData = useMemo(() => {
     const progs = {}
-    subKegiatan.forEach(sk => {
+    programsList.forEach(p => {
+      progs[p.id] = { ...p, kegiatans: {}, totalPagu: 0 }
+    })
+    kegiatansList.forEach(k => {
+      const p = k.program || programsList.find(pr => pr.id === k.program_id)
+      if (!p) return
+      if (!progs[p.id]) progs[p.id] = { ...p, kegiatans: {}, totalPagu: 0 }
+      if (!progs[p.id].kegiatans[k.id]) progs[p.id].kegiatans[k.id] = { ...k, subKegiatans: [], totalPagu: 0 }
+    })
+    filteredSubKegiatan.forEach(sk => {
       const prog = sk.kegiatan?.program
       const keg = sk.kegiatan
       if (!prog || !keg) return
@@ -125,24 +169,27 @@ export default function Anggaran() {
       progs[prog.id].kegiatans[keg.id].totalPagu += skPagu
       progs[prog.id].totalPagu += skPagu
     })
-    return Object.values(progs).sort((a, b) => a.kode.localeCompare(b.kode)).map(p => ({
+    return Object.values(progs).sort((a, b) => (a.kode || '').localeCompare(b.kode || '')).map(p => ({
       ...p,
-      kegiatans: Object.values(p.kegiatans).sort((a, b) => a.kode.localeCompare(b.kode)).map(k => ({
+      kegiatans: Object.values(p.kegiatans).sort((a, b) => (a.kode || '').localeCompare(b.kode || '')).map(k => ({
         ...k,
-        subKegiatans: k.subKegiatans.sort((a, b) => a.kode.localeCompare(b.kode))
+        subKegiatans: k.subKegiatans.sort((a, b) => (a.kode || '').localeCompare(b.kode || ''))
       }))
     }))
-  }, [subKegiatan])
+  }, [filteredSubKegiatan, programsList, kegiatansList])
 
   const realisasiPerRek = useMemo(() => {
     const map = {}
     pengeluaran.forEach(p => {
       if (p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS') {
-        map[p.kode_rekening_id] = (map[p.kode_rekening_id] ?? 0) + p.jumlah
+        const txYear = p.tanggal ? new Date(p.tanggal).getFullYear() : null
+        if (!txYear || txYear === tahunAnggaran) {
+          map[p.kode_rekening_id] = (map[p.kode_rekening_id] ?? 0) + p.jumlah
+        }
       }
     })
     return map
-  }, [pengeluaran])
+  }, [pengeluaran, tahunAnggaran])
 
   const sumRAK = useMemo(() => {
     return (parseInt(rekForm.rak_jan || 0, 10)) + (parseInt(rekForm.rak_feb || 0, 10)) + (parseInt(rekForm.rak_mar || 0, 10)) +
@@ -280,19 +327,19 @@ export default function Anggaran() {
   function openNewSk(kegId) {
     if (checkDpaLockGuard()) return
     setEditingSk(null)
-    setSkForm({ ...EMPTY_SK, kegiatan_id: kegId })
+    setSkForm({ ...EMPTY_SK, tahun_anggaran: String(tahunAnggaran), kegiatan_id: kegId })
     setSkModal(true)
   }
   function openEditSk(sk) {
     if (checkDpaLockGuard()) return
     setEditingSk(sk)
-    setSkForm({ kode: sk.kode, nama: sk.nama, sumber_dana: sk.sumber_dana, tahun_anggaran: String(sk.tahun_anggaran), kegiatan_id: sk.kegiatan_id })
+    setSkForm({ kode: sk.kode, nama: sk.nama, sumber_dana: sk.sumber_dana, tahun_anggaran: String(sk.tahun_anggaran || tahunAnggaran), kegiatan_id: sk.kegiatan_id })
     setSkModal(true)
   }
   async function handleSkSubmit(e) {
     e.preventDefault(); setSaving(true)
     try {
-      const payload = { ...skForm, tahun_anggaran: parseInt(skForm.tahun_anggaran, 10) }
+      const payload = { ...skForm, tahun_anggaran: parseInt(skForm.tahun_anggaran || tahunAnggaran, 10) }
       const res = editingSk 
         ? await updateSubKegiatan({ id: editingSk.id, ...payload })
         : await addSubKegiatan(payload)
@@ -444,6 +491,150 @@ export default function Anggaran() {
     }))
   }
 
+  // Komponen Belanja Handlers
+  const toggleExpandKomp = (rekId) => {
+    setExpandedKomp(prev => ({ ...prev, [rekId]: !prev[rekId] }))
+  }
+
+  function openNewKomp(rekId) {
+    if (checkDpaLockGuard()) return
+    setEditingKompId(null)
+    setKompParentRekId(rekId)
+    setKompForm(EMPTY_KOMP)
+    setKompModal(true)
+  }
+
+  function openEditKomp(komp, rekId) {
+    if (checkDpaLockGuard()) return
+    setEditingKompId(komp.id)
+    setKompParentRekId(rekId)
+    setKompForm({
+      kode: komp.kode || '',
+      nama: komp.nama || '',
+      spesifikasi: komp.spesifikasi || '',
+      volume: String(komp.volume ?? 1),
+      satuan: komp.satuan || 'Paket',
+      harga_satuan: String(komp.harga_satuan || 0),
+      total: String(komp.total || 0),
+      keterangan: komp.keterangan || ''
+    })
+    setKompModal(true)
+  }
+
+  function handleKompChange(field, val) {
+    setKompForm(prev => {
+      const next = { ...prev, [field]: val }
+
+      if (field === 'harga_satuan') {
+        const cleanedHrg = val.replace(/[^\d]/g, '')
+        next.harga_satuan = cleanedHrg
+        const v = parseFloat(next.volume) || 0
+        const h = parseInt(cleanedHrg, 10) || 0
+        next.total = String(Math.round(v * h))
+      } else if (field === 'total') {
+        const cleanedTot = val.replace(/[^\d]/g, '')
+        next.total = cleanedTot
+        const tot = parseInt(cleanedTot, 10) || 0
+        const v = parseFloat(next.volume) || 1
+        if (v > 0) {
+          next.harga_satuan = String(Math.round(tot / v))
+        }
+      } else if (field === 'volume') {
+        const v = parseFloat(val) || 0
+        const h = parseInt(next.harga_satuan, 10) || 0
+        next.total = String(Math.round(v * h))
+      }
+      return next
+    })
+  }
+
+  async function handleKompSubmit(e) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const vol = parseFloat(kompForm.volume) || 1
+      const hrg = parseInt(kompForm.harga_satuan, 10) || 0
+      const tot = parseInt(kompForm.total, 10) || Math.round(vol * hrg)
+
+      const payload = {
+        kode_rekening_id: kompParentRekId,
+        kode: (kompForm.kode || '').trim(),
+        nama: kompForm.nama.trim(),
+        spesifikasi: (kompForm.spesifikasi || '').trim(),
+        volume: vol,
+        satuan: (kompForm.satuan || '').trim() || 'Paket',
+        harga_satuan: hrg,
+        total: tot,
+        keterangan: (kompForm.keterangan || '').trim()
+      }
+
+      const res = editingKompId
+        ? await updateKomponenBelanja({ id: editingKompId, ...payload })
+        : await addKomponenBelanja(payload)
+
+      if (res && !res.success) {
+        throw new Error(res.error || 'Gagal menyimpan komponen belanja')
+      }
+      setKompModal(false)
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleSyncPaguWithKomponen(rek, skId) {
+    if (checkDpaLockGuard()) return
+    const kompList = rek.komponen_belanja || []
+    if (kompList.length === 0) {
+      alert('Belum ada komponen belanja pada rekening ini.')
+      return
+    }
+    const totalKomp = kompList.reduce((sum, k) => sum + (k.total || 0), 0)
+    if (totalKomp === rek.pagu_anggaran) {
+      alert('Pagu rekening sudah sama persis dengan total seluruh komponen belanja.')
+      return
+    }
+
+    if (!confirm(`Sesuaikan pagu rekening (${formatRupiah(rek.pagu_anggaran)}) dengan total komponen belanja (${formatRupiah(totalKomp)})?\n\nAlokasi RAK 12 bulan juga akan dibagi rata sesuai total pagu baru.`)) {
+      return
+    }
+
+    setSaving(true)
+    try {
+      const base = Math.floor(totalKomp / 12)
+      const rem = totalKomp % 12
+      const payload = {
+        id: rek.id,
+        kode: rek.kode,
+        uraian: rek.uraian,
+        sub_kegiatan_id: skId,
+        pagu_anggaran: totalKomp,
+        rak_jan: base,
+        rak_feb: base,
+        rak_mar: base,
+        rak_apr: base,
+        rak_mei: base,
+        rak_jun: base,
+        rak_jul: base,
+        rak_agu: base,
+        rak_sep: base,
+        rak_okt: base,
+        rak_nov: base,
+        rak_des: base + rem
+      }
+      const res = await updateKodeRekening(payload)
+      if (res && !res.success) {
+        throw new Error(res.error || 'Gagal memperbarui pagu rekening')
+      }
+      alert(`Berhasil menyesuaikan pagu rekening menjadi ${formatRupiah(totalKomp)}!`)
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function handleImportPdfClick() {
     if (checkDpaLockGuard()) return
     try {
@@ -469,7 +660,10 @@ export default function Anggaran() {
     if (!parsedPdfData) return
     setSaving(true)
     try {
-      const res = await saveBulkRekening(parsedPdfData)
+      const res = await saveBulkRekening({
+        ...parsedPdfData,
+        header: { ...(parsedPdfData.header || {}), tahunAnggaran }
+      })
       if (res && res.success) {
         setPdfPreviewModal(false)
         setParsedPdfData(null)
@@ -496,7 +690,10 @@ export default function Anggaran() {
               <Tag size={24} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Sub Unit Organisasi</p>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Sub Unit Organisasi</p>
+                <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[9px] font-black py-0.5">TA {tahunAnggaran}</Badge>
+              </div>
               <h1 className="text-lg font-black text-slate-800 leading-tight">
                 <span className="text-indigo-600 mr-2">{settings.unit_kerja_kode}</span>
                 {settings.unit_kerja}
@@ -609,7 +806,46 @@ export default function Anggaran() {
       )}
 
       {hierarchicalData.length === 0 ? (
-        <Card><EmptyState message="Belum ada data anggaran" /></Card>
+        <Card className="p-8 text-center space-y-4 border border-slate-200 shadow-sm">
+          <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+            <FileText size={24} />
+          </div>
+          <div>
+            <h3 className="text-base font-extrabold text-slate-800">
+              Belum Ada Struktur DPA untuk Tahun Anggaran {tahunAnggaran}
+            </h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 leading-relaxed">
+              Tahun Anggaran ini belum memiliki data Program, Kegiatan, dan Sub Kegiatan. Anda dapat memulai menyusun Program baru atau menyalin struktur DPA dari tahun sebelumnya.
+            </p>
+          </div>
+          {user?.role !== 'viewer' && (
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <Button
+                variant="secondary"
+                disabled={isDpaLocked}
+                onClick={async () => {
+                  if (checkDpaLockGuard()) return
+                  const sourceYear = window.prompt('Masukkan Tahun Anggaran sumber yang ingin disalin (contoh: 2026):', String(tahunAnggaran - 1 > 2000 ? tahunAnggaran - 1 : 2026))
+                  if (!sourceYear) return
+                  const res = await copyDpaStructure(sourceYear, tahunAnggaran)
+                  if (res && res.success) alert(res.message)
+                  else alert(res?.error || 'Gagal menyalin struktur DPA')
+                }}
+                className="text-xs font-bold"
+              >
+                Salin Struktur DPA dari TA Lain
+              </Button>
+              <Button
+                variant="primary"
+                disabled={isDpaLocked}
+                onClick={openNewProg}
+                className="text-xs font-bold"
+              >
+                <Plus size={15} /> Tambah Program Baru
+              </Button>
+            </div>
+          )}
+        </Card>
       ) : (
         hierarchicalData.map(prog => (
           <div key={prog.id} className="space-y-4">
@@ -636,6 +872,13 @@ export default function Anggaran() {
                       title="Tambah Kegiatan"
                     >
                       <Plus size={14} />
+                    </button>
+                    <button 
+                      onClick={() => { if (!checkDpaLockGuard()) setDeleteProgId(prog.id) }} 
+                      className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all shadow-sm"
+                      title="Hapus Program (Jika Kosong)"
+                    >
+                      <Trash2 size={14} />
                     </button>
                   </>
                 )}
@@ -676,6 +919,13 @@ export default function Anggaran() {
                                 title="Tambah Sub Kegiatan"
                               >
                                 <Plus size={12} />
+                              </button>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); if (!checkDpaLockGuard()) setDeleteKegId(keg.id) }} 
+                                className="p-1 bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 rounded-md transition-all shadow-sm"
+                                title="Hapus Kegiatan (Jika Kosong)"
+                              >
+                                <Trash2 size={12} />
                               </button>
                             </>
                           )}
@@ -753,6 +1003,8 @@ export default function Anggaran() {
                                           {sk.kode_rekening.sort((a,b) => a.kode.localeCompare(b.kode)).map(rek => {
                                             const real = realisasiPerRek[rek.id] ?? 0
                                             const isExpanded = !!expandedRak[rek.id]
+                                            const kompList = rek.komponen_belanja || []
+                                            const isKompOpen = !!expandedKomp[rek.id]
                                             return (
                                               <>
                                                 <tr key={rek.id} className="hover:bg-white transition-colors group/rek">
@@ -770,6 +1022,17 @@ export default function Anggaran() {
                                                         title="Edit Distribusi RAK Bulanan"
                                                       >
                                                         {isExpanded ? 'TUTUP RAK' : 'RAK BELANJA'}
+                                                      </button>
+                                                      <button 
+                                                        onClick={() => toggleExpandKomp(rek.id)} 
+                                                        className={`px-2 py-0.5 rounded transition-all text-[8px] font-black uppercase tracking-widest border ${
+                                                          isKompOpen 
+                                                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-100' 
+                                                            : 'bg-white border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50/50'
+                                                        }`}
+                                                        title="Rincian Komponen Belanja"
+                                                      >
+                                                        {isKompOpen ? 'TUTUP RINCIAN' : `KOMPONEN (${kompList.length})`}
                                                       </button>
                                                     </div>
                                                   </td>
@@ -896,6 +1159,147 @@ export default function Anggaran() {
                                                             </div>
                                                           ))}
                                                         </div>
+                                                      </div>
+                                                    </td>
+                                                  </tr>
+                                                )}
+                                                {isKompOpen && (
+                                                  <tr className="bg-emerald-50/20">
+                                                    <td colSpan={5} className="px-4 py-3 border-t border-slate-100 bg-emerald-50/10">
+                                                      <div className="bg-white p-4 rounded-2xl border border-emerald-100 shadow-sm space-y-4">
+                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                                                          <div className="flex items-center gap-2">
+                                                            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                                                            <span className="font-black text-emerald-700 uppercase tracking-widest text-[10px]">
+                                                              Rincian Komponen Belanja — {rek.uraian}
+                                                            </span>
+                                                            <span className="text-[10px] font-mono font-bold text-slate-400">({kompList.length} item)</span>
+                                                          </div>
+                                                          {user?.role !== 'viewer' && (
+                                                            <div className="flex items-center gap-2">
+                                                              <Button
+                                                                type="button"
+                                                                variant="secondary"
+                                                                size="xs"
+                                                                onClick={() => handleSyncPaguWithKomponen(rek, sk.id)}
+                                                                className="text-[9px] font-bold text-emerald-700 hover:bg-emerald-50 border-emerald-200"
+                                                                title="Terapkan total komponen sebagai pagu rekening"
+                                                              >
+                                                                ⚡ Terapkan Total ke Pagu
+                                                              </Button>
+                                                              <Button
+                                                                type="button"
+                                                                variant="primary"
+                                                                size="xs"
+                                                                onClick={() => openNewKomp(rek.id)}
+                                                                className="text-[9px] font-black bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                              >
+                                                                <Plus size={12} className="mr-1" /> Tambah Komponen
+                                                              </Button>
+                                                            </div>
+                                                          )}
+                                                        </div>
+
+                                                        <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-[10px]">
+                                                          <div className="flex items-center gap-4">
+                                                            <div>
+                                                              <span className="text-slate-400 font-bold uppercase block text-[8px]">Pagu Rekening</span>
+                                                              <span className="font-black text-slate-800">{formatRupiah(rek.pagu_anggaran)}</span>
+                                                            </div>
+                                                            <div className="border-l border-slate-200 pl-4">
+                                                              <span className="text-slate-400 font-bold uppercase block text-[8px]">Total Komponen</span>
+                                                              <span className="font-black text-emerald-600">
+                                                                {formatRupiah(kompList.reduce((acc, k) => acc + (k.total || 0), 0))}
+                                                              </span>
+                                                            </div>
+                                                          </div>
+                                                          <div>
+                                                            {(() => {
+                                                              const totalKomp = kompList.reduce((acc, k) => acc + (k.total || 0), 0)
+                                                              const diff = (rek.pagu_anggaran || 0) - totalKomp
+                                                              if (diff === 0) {
+                                                                return <Badge variant="success" className="text-[9px] font-black px-2 py-0.5">✓ Pagu & Komponen Sesuai</Badge>
+                                                              } else if (diff > 0) {
+                                                                return <Badge variant="warning" className="text-[9px] font-black px-2 py-0.5">Belum dialokasikan: {formatRupiah(diff)}</Badge>
+                                                              } else {
+                                                                return <Badge variant="danger" className="text-[9px] font-black px-2 py-0.5">Komponen Melebihi Pagu: +{formatRupiah(-diff)}</Badge>
+                                                              }
+                                                            })()}
+                                                          </div>
+                                                        </div>
+
+                                                        {kompList.length === 0 ? (
+                                                          <div className="text-center py-6 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                                                            <p className="text-xs text-slate-400 font-semibold mb-2">Belum ada rincian komponen belanja untuk rekening ini.</p>
+                                                            {user?.role !== 'viewer' && (
+                                                              <Button
+                                                                type="button"
+                                                                variant="secondary"
+                                                                size="xs"
+                                                                onClick={() => openNewKomp(rek.id)}
+                                                                className="text-[10px] font-bold"
+                                                              >
+                                                                <Plus size={12} className="mr-1" /> Tambah Komponen Pertama
+                                                              </Button>
+                                                            )}
+                                                          </div>
+                                                        ) : (
+                                                          <div className="overflow-x-auto">
+                                                            <table className="w-full text-[11px] border-separate border-spacing-0">
+                                                              <thead>
+                                                                <tr className="text-slate-400 border-b border-slate-100">
+                                                                  <th className="text-left py-2 px-2.5 font-bold uppercase text-[9px] w-20">Kode</th>
+                                                                  <th className="text-left py-2 px-2.5 font-bold uppercase text-[9px]">Nama / Uraian Komponen</th>
+                                                                  <th className="text-left py-2 px-2.5 font-bold uppercase text-[9px]">Spesifikasi</th>
+                                                                  <th className="text-center py-2 px-2.5 font-bold uppercase text-[9px] w-16">Vol</th>
+                                                                  <th className="text-left py-2 px-2.5 font-bold uppercase text-[9px] w-16">Satuan</th>
+                                                                  <th className="text-right py-2 px-2.5 font-bold uppercase text-[9px] w-28">Harga Satuan</th>
+                                                                  <th className="text-right py-2 px-2.5 font-bold uppercase text-[9px] w-32">Total</th>
+                                                                  <th className="w-16" />
+                                                                </tr>
+                                                              </thead>
+                                                              <tbody>
+                                                                {kompList.map((k) => (
+                                                                  <tr key={k.id} className="hover:bg-slate-50/80 transition-colors border-t border-slate-100">
+                                                                    <td className="py-2 px-2.5 font-mono text-[10px] text-slate-500">{k.kode || '-'}</td>
+                                                                    <td className="py-2 px-2.5 font-bold text-slate-800">
+                                                                      <div>{k.nama}</div>
+                                                                      {k.keterangan && <div className="text-[9px] font-normal text-slate-400">{k.keterangan}</div>}
+                                                                    </td>
+                                                                    <td className="py-2 px-2.5 text-slate-500 text-[10px]">{k.spesifikasi || '-'}</td>
+                                                                    <td className="py-2 px-2.5 text-center font-bold text-slate-700">{k.volume}</td>
+                                                                    <td className="py-2 px-2.5 text-slate-600">{k.satuan}</td>
+                                                                    <td className="py-2 px-2.5 text-right font-mono text-slate-600">{formatRupiah(k.harga_satuan)}</td>
+                                                                    <td className="py-2 px-2.5 text-right font-mono font-black text-slate-900">{formatRupiah(k.total)}</td>
+                                                                    <td className="py-2 px-2.5 text-right">
+                                                                      {user?.role !== 'viewer' && (
+                                                                        <div className="flex items-center justify-end gap-1">
+                                                                          <button
+                                                                            onClick={() => openEditKomp(k, rek.id)}
+                                                                            className="p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-colors"
+                                                                            title="Edit Komponen"
+                                                                          >
+                                                                            <Pencil size={12} />
+                                                                          </button>
+                                                                          <button
+                                                                            onClick={() => {
+                                                                              if (checkDpaLockGuard()) return
+                                                                              setDeleteKompId(k.id)
+                                                                            }}
+                                                                            className="p-1 rounded-md hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                                                                            title="Hapus Komponen"
+                                                                          >
+                                                                            <Trash2 size={12} />
+                                                                          </button>
+                                                                        </div>
+                                                                      )}
+                                                                    </td>
+                                                                  </tr>
+                                                                ))}
+                                                              </tbody>
+                                                            </table>
+                                                          </div>
+                                                        )}
                                                       </div>
                                                     </td>
                                                   </tr>
@@ -1049,6 +1453,159 @@ export default function Anggaran() {
           }
         }}
         message="Hapus Rekening Belanja ini?"
+      />
+
+      {/* Modal Komponen Belanja */}
+      <Modal
+        open={kompModal}
+        onClose={() => setKompModal(false)}
+        title={editingKompId ? 'Edit Komponen Belanja' : 'Tambah Komponen Belanja'}
+      >
+        <form onSubmit={handleKompSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              label="Kode Komponen"
+              value={kompForm.kode}
+              onChange={e => handleKompChange('kode', e.target.value)}
+              placeholder="cth: 01, 001"
+            />
+            <div className="md:col-span-2">
+              <Input
+                label="Nama / Uraian Komponen"
+                value={kompForm.nama}
+                onChange={e => handleKompChange('nama', e.target.value)}
+                placeholder="cth: Belanja Kertas HVS A4 80gr"
+                required
+              />
+            </div>
+          </div>
+
+          <Input
+            label="Spesifikasi / Rincian Merk"
+            value={kompForm.spesifikasi}
+            onChange={e => handleKompChange('spesifikasi', e.target.value)}
+            placeholder="cth: Sinar Dunia 80 gr / Rim"
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Input
+              label="Volume"
+              type="number"
+              step="any"
+              min="0"
+              value={kompForm.volume}
+              onChange={e => handleKompChange('volume', e.target.value)}
+              required
+            />
+            <div>
+              <Input
+                label="Satuan"
+                value={kompForm.satuan}
+                onChange={e => handleKompChange('satuan', e.target.value)}
+                placeholder="Rim, Paket, dll"
+                required
+              />
+              <div className="flex flex-wrap gap-1 mt-1">
+                {['Paket', 'Rim', 'Kotak', 'Bulan', 'Orang/Bulan', 'Kegiatan'].map(u => (
+                  <button
+                    key={u}
+                    type="button"
+                    onClick={() => handleKompChange('satuan', u)}
+                    className="text-[8px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded transition-colors"
+                  >
+                    {u}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <Input
+              label="Harga Satuan (Rp)"
+              inputMode="numeric"
+              value={kompForm.harga_satuan ? Number(kompForm.harga_satuan).toLocaleString('id-ID') : ''}
+              onChange={e => handleKompChange('harga_satuan', e.target.value)}
+              placeholder="0"
+              hint={kompForm.harga_satuan ? formatRupiah(parseInt(kompForm.harga_satuan, 10)) : 'Bisa ketik angka atau titik'}
+              required
+            />
+          </div>
+
+          <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200/80 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-emerald-800 uppercase tracking-wide">
+                Total Nilai Komponen (Rp) <span className="text-danger ml-1">*</span>
+              </label>
+              <span className="text-[10px] font-mono text-emerald-700 font-semibold">
+                Kalkulasi: {kompForm.volume || 1} {kompForm.satuan || 'item'} x {formatRupiah(parseInt(kompForm.harga_satuan, 10) || 0)}
+              </span>
+            </div>
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={kompForm.total ? Number(kompForm.total).toLocaleString('id-ID') : ''}
+                onChange={e => handleKompChange('total', e.target.value)}
+                placeholder="0"
+                className="w-full px-3.5 py-2.5 text-base font-black text-emerald-800 font-mono rounded-xl border border-emerald-300 bg-white placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all shadow-sm"
+              />
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-emerald-700 font-medium">
+              <span>💡 Anda bisa mengisi <strong>Harga Satuan</strong> atau langsung mengetik <strong>Total</strong> di sini.</span>
+              <span className="font-bold font-mono">{formatRupiah(parseInt(kompForm.total, 10) || 0)}</span>
+            </div>
+          </div>
+
+          <Textarea
+            label="Keterangan Tambahan (Opsional)"
+            value={kompForm.keterangan}
+            onChange={e => handleKompChange('keterangan', e.target.value)}
+            rows={2}
+            placeholder="Catatan kebutuhan, dasar hukum SSH, dll..."
+          />
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button variant="secondary" onClick={() => setKompModal(false)} type="button">Batal</Button>
+            <Button type="submit" disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              {saving ? 'Menyimpan...' : 'Simpan Komponen'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!deleteKompId}
+        onClose={() => setDeleteKompId(null)}
+        onConfirm={async () => {
+          if (deleteKompId) {
+            const res = await deleteKomponenBelanja(deleteKompId)
+            if (res && !res.success) alert(`Gagal menghapus: ${res.error}`)
+            setDeleteKompId(null)
+          }
+        }}
+        message="Hapus Komponen Belanja ini?"
+      />
+      <ConfirmDialog
+        open={!!deleteProgId}
+        onClose={() => setDeleteProgId(null)}
+        onConfirm={async () => {
+          if (deleteProgId && !checkDpaLockGuard()) {
+            const res = await deleteProgram(deleteProgId)
+            if (res && !res.success) alert(`Gagal menghapus Program: ${res.error}`)
+            setDeleteProgId(null)
+          }
+        }}
+        message="Apakah Anda yakin ingin menghapus Program ini? (Hanya Program yang belum memiliki Kegiatan yang dapat dihapus)"
+      />
+      <ConfirmDialog
+        open={!!deleteKegId}
+        onClose={() => setDeleteKegId(null)}
+        onConfirm={async () => {
+          if (deleteKegId && !checkDpaLockGuard()) {
+            const res = await deleteKegiatan(deleteKegId)
+            if (res && !res.success) alert(`Gagal menghapus Kegiatan: ${res.error}`)
+            setDeleteKegId(null)
+          }
+        }}
+        message="Apakah Anda yakin ingin menghapus Kegiatan ini? (Hanya Kegiatan yang belum memiliki Sub Kegiatan yang dapat dihapus)"
       />
 
       <Modal open={pdfPreviewModal} onClose={() => setPdfPreviewModal(false)} title="Pratinjau Impor RAK Belanja dari PDF">

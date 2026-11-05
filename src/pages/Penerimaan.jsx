@@ -36,6 +36,7 @@ const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus
 export default function Penerimaan() {
   const penerimaan = useStore(s => s.penerimaan)
   const subKegiatan = useStore(s => s.subKegiatan)
+  const tahunAnggaran = useStore(s => s.tahunAnggaran)
   const isLoading = useStore(s => s.isLoading)
   const fetchPenerimaan = useStore(s => s.fetchPenerimaan)
   const fetchSubKegiatan = useStore(s => s.fetchSubKegiatan)
@@ -66,6 +67,10 @@ export default function Penerimaan() {
     fetchPeriodeKunci()
   }, [])
 
+  const currentYearSubKegiatan = useMemo(() => {
+    return subKegiatan.filter(sk => (sk.tahun_anggaran || 2026) === tahunAnggaran)
+  }, [subKegiatan, tahunAnggaran])
+
   const isDateLocked = useCallback((dateStr) => {
     if (!dateStr) return false
     const d = new Date(dateStr)
@@ -84,8 +89,11 @@ export default function Penerimaan() {
 
   const filtered = useMemo(() => {
     return penerimaan.filter(p => {
+      const d = p.tanggal ? new Date(p.tanggal) : null
+      if (!d || isNaN(d.getTime())) return false
+      if (d.getFullYear() !== tahunAnggaran) return false
+
       if (filterBulan !== '') {
-        const d = new Date(p.tanggal)
         if (d.getMonth() !== parseInt(filterBulan, 10)) return false
       }
       if (filterJenis && p.jenis !== filterJenis) return false
@@ -93,11 +101,16 @@ export default function Penerimaan() {
       if (searchKet && !(p.keterangan || '').toLowerCase().includes(searchKet.toLowerCase())) return false
       return true
     }).sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
-  }, [penerimaan, filterBulan, filterJenis, searchNo, searchKet])
+  }, [penerimaan, filterBulan, filterJenis, searchNo, searchKet, tahunAnggaran])
 
   function openNew() {
     setEditing(null)
-    setForm({ ...EMPTY_FORM, tanggal: new Date().toISOString().split('T')[0] })
+    const today = new Date()
+    let defaultTanggal = today.toISOString().split('T')[0]
+    if (today.getFullYear() !== tahunAnggaran) {
+      defaultTanggal = `${tahunAnggaran}-01-01`
+    }
+    setForm({ ...EMPTY_FORM, tanggal: defaultTanggal })
     setErrors({})
     setModalOpen(true)
   }
@@ -125,6 +138,12 @@ export default function Penerimaan() {
     const e = {}
     if (!form.jenis) e.jenis = 'Jenis wajib dipilih'
     if (!form.tanggal) e.tanggal = 'Tanggal wajib diisi'
+    else {
+      const txYear = new Date(form.tanggal).getFullYear()
+      if (txYear !== tahunAnggaran) {
+        e.tanggal = `Tanggal transaksi (${form.tanggal}) tidak sesuai dengan Tahun Anggaran aktif (${tahunAnggaran}).`
+      }
+    }
     if (form.jenis === 'LS') {
       if (!form.sub_kegiatan_id) e.sub_kegiatan_id = 'Sub Kegiatan wajib dipilih untuk LS'
       if (!form.kode_rekening_id) e.kode_rekening_id = 'Kode Rekening wajib dipilih untuk LS'
@@ -169,13 +188,15 @@ export default function Penerimaan() {
         res = await updatePenerimaan({ id: editing.id, ...payload })
       } else {
         const payloads = []
+        const hasTaxOrAutoPay = form.jenis === 'LS' && (form.langsung_bayar || (form.ppn && parseInt(form.ppn, 10) > 0) || (form.pph && parseInt(form.pph, 10) > 0))
+        const packageRef = (form.nomor_ls && form.nomor_ls.trim()) ? form.nomor_ls.trim() : (hasTaxOrAutoPay ? `LS-${Date.now()}` : null)
         
         // 1. LS Utama (Penerimaan)
         const ketPenerimaan = form.jenis === 'LS' ? `Diterima Belanja ${rawKet}`.trim() : rawKet
         payloads.push({
           jenis: form.jenis,
           tanggal: form.tanggal,
-          nomor_ls: form.nomor_ls || null,
+          nomor_ls: packageRef,
           sub_kegiatan_id: form.jenis === 'LS' ? form.sub_kegiatan_id : null,
           kode_rekening_id: form.jenis === 'LS' ? form.kode_rekening_id : null,
           jumlah: parseInt(form.jumlah, 10),
@@ -187,7 +208,7 @@ export default function Penerimaan() {
           payloads.push({
             jenis: 'Pajak LS',
             tanggal: form.tanggal,
-            nomor_ls: form.nomor_ls || null,
+            nomor_ls: packageRef,
             sub_kegiatan_id: form.sub_kegiatan_id,
             kode_rekening_id: form.kode_rekening_id,
             jumlah: parseInt(form.ppn, 10),
@@ -200,7 +221,7 @@ export default function Penerimaan() {
           payloads.push({
             jenis: 'Pajak LS',
             tanggal: form.tanggal,
-            nomor_ls: form.nomor_ls || null,
+            nomor_ls: packageRef,
             sub_kegiatan_id: form.sub_kegiatan_id,
             kode_rekening_id: form.kode_rekening_id,
             jumlah: parseInt(form.pph, 10),
@@ -220,7 +241,7 @@ export default function Penerimaan() {
             pengeluaran: {
               tanggal: form.tanggal,
               jenis: 'LS',
-              no_bukti: form.nomor_ls || `LS-${Date.now()}`,
+              no_bukti: packageRef || `LS-${Date.now()}`,
               sub_kegiatan_id: form.sub_kegiatan_id,
               kode_rekening_id: form.kode_rekening_id,
               jumlah: amount,
@@ -242,13 +263,13 @@ export default function Penerimaan() {
               pengeluaran: {
                 tanggal: form.tanggal,
                 jenis: 'Pajak LS',
-                no_bukti: form.nomor_ls || `LS-${Date.now()}`,
+                no_bukti: packageRef || `LS-${Date.now()}`,
                 sub_kegiatan_id: form.sub_kegiatan_id,
                 kode_rekening_id: form.kode_rekening_id,
                 jumlah: parseInt(form.ppn, 10),
                 keterangan: 'Disetor PPN',
               },
-              rincian: []
+              rincian: [{ uraian: 'Disetor PPN', volume: null, jumlah: parseInt(form.ppn, 10) }]
             })
             if (resPpn && !resPpn.success) {
               throw new Error(resPpn.error || 'Gagal menyimpan setoran PPN otomatis')
@@ -261,13 +282,13 @@ export default function Penerimaan() {
               pengeluaran: {
                 tanggal: form.tanggal,
                 jenis: 'Pajak LS',
-                no_bukti: form.nomor_ls || `LS-${Date.now()}`,
+                no_bukti: packageRef || `LS-${Date.now()}`,
                 sub_kegiatan_id: form.sub_kegiatan_id,
                 kode_rekening_id: form.kode_rekening_id,
                 jumlah: parseInt(form.pph, 10),
                 keterangan: `Disetor ${form.pph_jenis || 'PPh'}`,
               },
-              rincian: []
+              rincian: [{ uraian: `Disetor ${form.pph_jenis || 'PPh'}`, volume: null, jumlah: parseInt(form.pph, 10) }]
             })
             if (resPph && !resPph.success) {
               throw new Error(resPph.error || 'Gagal menyimpan setoran PPh otomatis')
@@ -327,7 +348,8 @@ export default function Penerimaan() {
     setForm(f => ({ ...f, pph: digits }))
   }
 
-  const totalPenerimaan = penerimaan.reduce((sum, p) => sum + (p.jumlah ?? 0), 0)
+  const totalPenerimaan = filtered.filter(p => p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS').reduce((sum, p) => sum + (p.jumlah ?? 0), 0)
+  const totalPenerimaanPajak = filtered.filter(p => p.jenis === 'Pajak' || p.jenis === 'Pajak LS').reduce((sum, p) => sum + (p.jumlah ?? 0), 0)
 const selectedSk = subKegiatan.find(sk => sk.id === form.sub_kegiatan_id)
 const kodeRekeningOptions = selectedSk?.kode_rekening?.map(r => ({
   value: r.id, label: `${r.kode} - ${r.uraian}`
@@ -340,7 +362,7 @@ return (
         <div>
           <p className="text-text-secondary text-sm">
             Total: <span className="font-semibold text-success">{formatRupiah(totalPenerimaan)}</span>
-            <span className="ml-2 text-xs">({penerimaan.length} Transaksi)</span>
+            <span className="ml-2 text-xs">({filtered.length} Transaksi){totalPenerimaanPajak > 0 ? ` • Pajak: ${formatRupiah(totalPenerimaanPajak)}` : ''}</span>
           </p>
         </div>
         {user?.role !== 'viewer' && (
@@ -522,7 +544,7 @@ return (
                 label="Sub Kegiatan"
                 value={form.sub_kegiatan_id}
                 onChange={e => setForm(f => ({ ...f, sub_kegiatan_id: e.target.value, kode_rekening_id: '' }))}
-                options={subKegiatan.map(sk => ({ value: sk.id, label: `${sk.kode} - ${sk.nama}` }))}
+                options={currentYearSubKegiatan.map(sk => ({ value: sk.id, label: `${sk.kode} - ${sk.nama}` }))}
                 required
                 error={errors.sub_kegiatan_id}
               />

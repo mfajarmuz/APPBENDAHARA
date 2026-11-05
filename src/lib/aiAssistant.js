@@ -47,7 +47,21 @@ export async function callDeepSeekApi(apiKey, model, systemPrompt, userMessage) 
  * Membangun ringkasan konteks keuangan dari Zustand Store (Presisi 100% Sama dengan Dashboard)
  */
 export function buildFinancialContext(state) {
-  const { subKegiatan = [], pengeluaran = [], penerimaan = [], settings = {} } = state
+  const { subKegiatan: rawSubKegiatan = [], pengeluaran: rawPengeluaran = [], penerimaan: rawPenerimaan = [], settings = {}, tahunAnggaran: rawTahunAnggaran } = state || {}
+  const targetTahun = Number(rawTahunAnggaran) || 2026
+
+  // Filter per tahun anggaran aktif (Presisi 100% sama dengan Dashboard & Pengeluaran)
+  const subKegiatan = rawSubKegiatan.filter(sk => (Number(sk.tahun_anggaran) || 2026) === targetTahun)
+  const pengeluaran = rawPengeluaran.filter(p => {
+    if (!p.tanggal) return false
+    const parts = p.tanggal.split('-')
+    return parseInt(parts[0], 10) === targetTahun
+  })
+  const penerimaan = rawPenerimaan.filter(p => {
+    if (!p.tanggal) return false
+    const parts = p.tanggal.split('-')
+    return parseInt(parts[0], 10) === targetTahun
+  })
 
   // Total Pagu DPA Tahunan
   const totalPagu = subKegiatan.reduce((acc, sk) => {
@@ -131,6 +145,7 @@ export function buildFinancialContext(state) {
     })
 
   return {
+    tahunAnggaran: targetTahun,
     unitKerja: settings.unit_kerja || 'Unit Kerja',
     unitKerjaKode: settings.unit_kerja_kode || '',
     totalPagu,
@@ -147,7 +162,8 @@ export function buildFinancialContext(state) {
     subKegiatanSummary,
     transactionsList,
     pengeluaran,
-    penerimaan
+    penerimaan,
+    subKegiatan
   }
 }
 
@@ -189,10 +205,11 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
 
   // AUDIT KESALAHAN KODE REKENING (MODE OFFLINE)
   if (query.includes('audit') || query.includes('salah kode') || query.includes('kesalahan kode') || query.includes('salah rekening') || query.includes('analisis rekening')) {
-    const auditResults = auditKodeRekening(storeState.pengeluaran || [], storeState.subKegiatan || [])
+    const auditResults = auditKodeRekening(ctx.pengeluaran, ctx.subKegiatan)
     
     let responseText = `### 🛡️ Hasil Audit Kesalahan Kode Rekening Transaksi\n\n`
-    responseText += `- **Total Transaksi Diaudit**: ${storeState.pengeluaran?.length || 0} Transaksi\n`
+    responseText += `- **Tahun Anggaran**: ${ctx.tahunAnggaran}\n`
+    responseText += `- **Total Transaksi Diaudit**: ${ctx.pengeluaran.length} Transaksi\n`
     responseText += `- **Potensi Kesalahan Ditemukan**: **${auditResults.length} Transaksi**\n\n`
 
     if (auditResults.length > 0) {
@@ -213,10 +230,10 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
 
   // RINCIAN TRANSAKSI DETAIL PER ITEM (MODE OFFLINE)
   if (query.includes('detail item') || query.includes('rincian item') || query.includes('detail barang') || query.includes('rincian barang') || query.includes('item transaksi') || query.includes('detail transaksi')) {
-    const itemDetails = getItemLevelDetails(storeState.pengeluaran || [], storeState.subKegiatan || [])
+    const itemDetails = getItemLevelDetails(ctx.pengeluaran, ctx.subKegiatan)
     
     let responseText = `### 📋 Rincian Transaksi Detail Per Item Barang/Jasa\n\n`
-    responseText += `Total Rincian Item: **${itemDetails.length} Item**\n\n`
+    responseText += `Total Rincian Item: **${itemDetails.length} Item** (TA ${ctx.tahunAnggaran})\n\n`
 
     responseText += `| Tanggal | Uraian Item / Barang | Vol | Hrg Satuan | Total | Kode Rekening | Sub Kegiatan | No. Bukti |\n`
     responseText += `| :--- | :--- | :---: | :--- | :--- | :--- | :--- | :--- |\n`
@@ -281,7 +298,7 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
   if (query.includes('eksekutif') || query.includes('pimpinan') || query.includes('triwulan')) {
     let responseText = `### 📑 Ringkasan Eksekutif Realisasi Anggaran\n\n`
     responseText += `**Unit Kerja**: ${ctx.unitKerja} (${ctx.unitKerjaKode})\n`
-    responseText += `**Tahun Anggaran**: 2026\n\n`
+    responseText += `**Tahun Anggaran**: ${ctx.tahunAnggaran}\n\n`
     responseText += `1. **Capaian Penyerapan**: Anggaran DPA telah terealisasi sebesar **${formatRupiah(ctx.realisasiPengeluaran)}** dari total pagu **${formatRupiah(ctx.totalPagu)}** (**${ctx.persenRealisasi}%**).\n`
     responseText += `2. **Ketersediaan Dana**: Sisa pagu DPA tahunan tersedia sebesar **${formatRupiah(ctx.sisaPagu)}** dengan posisi Saldo Kas Bendahara sebesar **${formatRupiah(ctx.saldoKasBku)}**.\n`
     responseText += `3. **Rekomendasi**: Penyerapan berjalan stabil. Pastikan alokasi RAK bulanan diperbarui secara berkala agar tidak terjadi penumpukan transaksi di akhir tahun.\n`
@@ -295,6 +312,7 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
   // 3. CEK SISA PAGU DPA & REKAP ANGGARAN UMUM (DENGAN FORMAT TABEL)
   if (query.includes('pagu') || query.includes('sisa anggaran') || query.includes('dpa')) {
     let responseText = `### 📊 Ringkasan Pagu DPA (${ctx.unitKerja})\n\n`
+    responseText += `- **Tahun Anggaran**: ${ctx.tahunAnggaran}\n`
     responseText += `- **Total Pagu DPA**: ${formatRupiah(ctx.totalPagu)}\n`
     responseText += `- **Total Realisasi Belanja**: ${formatRupiah(ctx.realisasiPengeluaran)} (${ctx.persenRealisasi}%)\n`
     responseText += `- **Sisa Quota Pagu (Tahunan)**: **${formatRupiah(ctx.sisaPagu)}**\n\n`
@@ -321,7 +339,7 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
       let targetRakTotal = 0
       let realisasiSdBulan = 0
 
-      ;(storeState.subKegiatan || []).forEach(skItem => {
+      ;(ctx.subKegiatan || []).forEach(skItem => {
         if (skItem.id === sk.id) {
           (skItem.kode_rekening || []).forEach(rek => {
             for (let m = 0; m <= currentMonthIdx; m++) {
@@ -331,7 +349,7 @@ export async function processAiQuery(queryText, storeState, chatHistory = []) {
         }
       })
 
-      realisasiSdBulan = (storeState.pengeluaran || [])
+      realisasiSdBulan = (ctx.pengeluaran || [])
         .filter(p => {
           if (p.sub_kegiatan_id !== sk.id || p.jenis === 'Pajak' || p.jenis === 'Pajak LS' || !p.tanggal) return false
           const parts = p.tanggal.split('-')

@@ -126,10 +126,19 @@ export default function Laporan() {
   const kunciPeriode = useStore(s => s.kunciPeriode)
   const bukaKunciPeriode = useStore(s => s.bukaKunciPeriode)
   const user = useStore(s => s.user)
+  const tahunAnggaran = useStore(s => s.tahunAnggaran)
+  const daftarTahunAnggaran = useStore(s => s.daftarTahunAnggaran)
+  const setTahunAnggaran = useStore(s => s.setTahunAnggaran)
 
   const [tab, setTab] = useState('bku')
   const [filterBulan, setFilterBulan] = useState(new Date().getMonth())
-  const [filterTahun, setFilterTahun] = useState(new Date().getFullYear())
+  const [filterTahun, setFilterTahun] = useState(() => useStore.getState().tahunAnggaran || new Date().getFullYear())
+
+  useEffect(() => {
+    if (tahunAnggaran) {
+      setFilterTahun(tahunAnggaran)
+    }
+  }, [tahunAnggaran])
   const [tipeLaporan, setTipeLaporan] = useState('akhir') // 'akhir' atau 'pertengahan'
   const [customDates, setCustomDates] = useState(() => {
     const now = new Date()
@@ -276,7 +285,7 @@ export default function Laporan() {
   const totalsBulanLalu = useMemo(() => {
     const pastRows = bkuRows.filter(r => {
       const d = new Date(r.tanggal)
-      return d.getFullYear() < filterTahun || (d.getFullYear() === filterTahun && d.getMonth() < filterBulan)
+      return d.getFullYear() === filterTahun && d.getMonth() < filterBulan
     })
     return pastRows.reduce((acc, r) => {
       acc.debet += r.debet || 0
@@ -316,7 +325,7 @@ export default function Laporan() {
   const registerKasData = useMemo(() => {
     const relevantRows = bkuRows.filter(r => {
       const d = new Date(r.tanggal)
-      return d.getFullYear() < filterTahun || (d.getFullYear() === filterTahun && d.getMonth() <= filterBulan)
+      return d.getFullYear() === filterTahun && d.getMonth() <= filterBulan
     })
     const sortedRows = [...relevantRows].sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal))
     const firstRow = sortedRows[0]
@@ -362,7 +371,7 @@ export default function Laporan() {
   const bankTotalsBulanLalu = useMemo(() => {
     const pastRows = nonPajakBkuRows.filter(r => {
       const d = new Date(r.tanggal)
-      return d.getFullYear() < filterTahun || (d.getFullYear() === filterTahun && d.getMonth() < filterBulan)
+      return d.getFullYear() === filterTahun && d.getMonth() < filterBulan
     })
     return pastRows.reduce((acc, r) => {
       acc.debet += r.debet || 0
@@ -437,8 +446,12 @@ export default function Laporan() {
     return map
   }, [pengeluaran, filterTahun])
 
+  const currentSubKegiatan = useMemo(() => {
+    return (subKegiatan || []).filter(sk => (sk.tahun_anggaran || 2026) === filterTahun)
+  }, [subKegiatan, filterTahun])
+
   const realisasiLpj = useMemo(() => {
-    return subKegiatan.map(sk => {
+    return currentSubKegiatan.map(sk => {
       let skPagu = 0
       let skLsLalu = 0
       let skLsIni = 0
@@ -565,7 +578,7 @@ export default function Laporan() {
   }, [realisasiLpj])
 
   const realisasiTriwulan = useMemo(() => {
-    return subKegiatan.map(sk => {
+    return currentSubKegiatan.map(sk => {
       let skPagu = 0
       let skT1 = 0
       let skT2 = 0
@@ -910,14 +923,14 @@ export default function Laporan() {
   }
 
   const pembantuGroups = useMemo(() => {
-    return subKegiatan.flatMap(sk => 
+    return currentSubKegiatan.flatMap(sk => 
       (sk.kode_rekening ?? []).map(rek => ({
         rekening: rek,
         subKegiatan: sk,
         rows: pengeluaran.filter(p => p.kode_rekening_id === rek.id && new Date(p.tanggal).getFullYear() === filterTahun)
       })).filter(g => g.rows.length > 0)
     )
-  }, [subKegiatan, pengeluaran, filterTahun])
+  }, [currentSubKegiatan, pengeluaran, filterTahun])
 
   async function handleExportPdf() {
     const customDate = customDates[tipeLaporan]
@@ -1027,10 +1040,14 @@ export default function Laporan() {
                   </select>
                   <select
                     value={filterTahun}
-                    onChange={e => setFilterTahun(parseInt(e.target.value, 10))}
+                    onChange={e => {
+                      const y = parseInt(e.target.value, 10)
+                      setFilterTahun(y)
+                      setTahunAnggaran(y)
+                    }}
                     className="w-20 text-sm border-none focus:ring-0 bg-transparent font-bold text-slate-700 cursor-pointer p-0"
                   >
-                    {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                    {(daftarTahunAnggaran || [2024, 2025, 2026, 2027]).map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
               </label>
@@ -2421,7 +2438,8 @@ function PeriodeKunciPanel() {
   const isLoading = useStore(s => s.isLoading)
   const year = new Date().getFullYear()
   const settings = useStore(s => s.settings)
-  const filterTahun = settings.tahun_anggaran || year
+  const tahunAnggaran = useStore(s => s.tahunAnggaran)
+  const filterTahun = tahunAnggaran || settings.tahun_anggaran || year
 
   const [saving, setSaving] = useState(false)
 

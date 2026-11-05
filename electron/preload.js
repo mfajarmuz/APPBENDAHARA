@@ -7,6 +7,10 @@ contextBridge.exposeInMainWorld('api', {
   updateProgram: (id, payload) => ipcRenderer.invoke('update-program', id, payload),
   addKegiatan: (payload) => ipcRenderer.invoke('add-kegiatan', payload),
   updateKegiatan: (id, payload) => ipcRenderer.invoke('update-kegiatan', id, payload),
+  getPrograms: () => ipcRenderer.invoke('get-programs'),
+  deleteProgram: (id) => ipcRenderer.invoke('delete-program', id),
+  getKegiatans: () => ipcRenderer.invoke('get-kegiatans'),
+  deleteKegiatan: (id) => ipcRenderer.invoke('delete-kegiatan', id),
 
   // Sub Kegiatan
   getSubKegiatan: () => ipcRenderer.invoke('get-sub-kegiatan'),
@@ -21,6 +25,12 @@ contextBridge.exposeInMainWorld('api', {
   deleteKodeRekening: (id) => ipcRenderer.invoke('delete-kode-rekening', id),
   parseRakPdf: (filePath) => ipcRenderer.invoke('parse-rak-pdf', filePath),
   saveBulkRekening: (payload) => ipcRenderer.invoke('save-bulk-rekening', payload),
+
+  // Komponen Belanja (Rincian per Rekening Belanja)
+  getKomponenBelanja: (kodeRekeningId) => ipcRenderer.invoke('get-komponen-belanja', kodeRekeningId),
+  addKomponenBelanja: (payload) => ipcRenderer.invoke('add-komponen-belanja', payload),
+  updateKomponenBelanja: (payload) => ipcRenderer.invoke('update-komponen-belanja', payload),
+  deleteKomponenBelanja: (id) => ipcRenderer.invoke('delete-komponen-belanja', id),
 
   // Penerimaan
   getPenerimaan: () => ipcRenderer.invoke('get-penerimaan'),
@@ -53,7 +63,12 @@ contextBridge.exposeInMainWorld('api', {
   onUpdateMessage: (callback) => ipcRenderer.on('update-message', (event, ...args) => callback(...args)),
 
   // Utils
-  downloadTemplate: (filename) => ipcRenderer.invoke('download-template', filename),
+  // Utils & Settings
+  downloadTemplate: (filename, defaultFilename) => ipcRenderer.invoke('download-template', filename, defaultFilename),
+  getSettings: () => ipcRenderer.invoke('get-settings'),
+  saveSettings: (payload) => ipcRenderer.invoke('save-settings', payload),
+  backupDatabase: (options) => ipcRenderer.invoke('backup-database', options),
+  restoreDatabase: (payload) => ipcRenderer.invoke('restore-database', payload),
 
   // Google Drive
   testGoogleDrive: () => ipcRenderer.invoke('test-google-drive'),

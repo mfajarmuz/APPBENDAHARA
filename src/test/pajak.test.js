@@ -75,4 +75,22 @@ describe('Logika Kalkulator Pajak Indonesia', () => {
     const res = hitungPajak(1000000, 'sewa')
     expect(res.pph).toBe(100000)
   })
+
+  it('harus mengklasifikasikan transaksi Pajak & Pajak LS (Diterima/Disetor) dengan presisi di BKU', async () => {
+    const { getBkuRows } = await import('../lib/bku')
+    const penerimaan = [
+      { id: 'in-1', tanggal: '2026-03-10', jenis: 'Pajak', jumlah: 110000, keterangan: 'Pungut PPN' },
+      { id: 'in-2', tanggal: '2026-03-11', jenis: 'Pajak LS', jumlah: 550000, keterangan: 'Diterima PPN' }
+    ]
+    const pengeluaran = [
+      { id: 'out-1', tanggal: '2026-03-10', jenis: 'Pajak', jumlah: 110000, keterangan: 'Setoran PPN', pengeluaran_rincian: [{ uraian: 'Setoran PPN', jumlah: 110000 }] },
+      { id: 'out-2', tanggal: '2026-03-11', jenis: 'Pajak LS', jumlah: 550000, keterangan: 'Disetor PPN', pengeluaran_rincian: [] }
+    ]
+
+    const rows = getBkuRows(penerimaan, pengeluaran)
+    expect(rows.length).toBe(4)
+    expect(rows.every(r => r.kode_rekening === 'Pajak')).toBe(true)
+    const outRows = rows.filter(r => r.type === 'out')
+    expect(outRows.every(r => r.jenis === 'Setoran Pajak')).toBe(true)
+  })
 })

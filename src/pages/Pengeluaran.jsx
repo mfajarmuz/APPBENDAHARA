@@ -51,6 +51,7 @@ export default function Pengeluaran() {
   const subKegiatan = useStore(s => s.subKegiatan)
   const pengeluaran = useStore(s => s.pengeluaran)
   const penerimaan = useStore(s => s.penerimaan)
+  const tahunAnggaran = useStore(s => s.tahunAnggaran)
   const isLoading = useStore(s => s.isLoading)
   const fetchSubKegiatan = useStore(s => s.fetchSubKegiatan)
   const fetchPengeluaran = useStore(s => s.fetchPengeluaran)
@@ -130,37 +131,41 @@ export default function Pengeluaran() {
   }
 
   // Filter Options Memos
+  const currentYearSubKegiatan = useMemo(() => {
+    return subKegiatan.filter(sk => (sk.tahun_anggaran || 2026) === tahunAnggaran)
+  }, [subKegiatan, tahunAnggaran])
+
   const programs = useMemo(() => {
     const map = new Map()
-    subKegiatan.forEach(sk => {
+    currentYearSubKegiatan.forEach(sk => {
       const p = sk.kegiatan?.program
       if (p) map.set(p.id, p)
     })
     return Array.from(map.values())
-  }, [subKegiatan])
+  }, [currentYearSubKegiatan])
 
   const kegiatans = useMemo(() => {
     const map = new Map()
-    subKegiatan.forEach(sk => {
+    currentYearSubKegiatan.forEach(sk => {
       const k = sk.kegiatan
       if (k && (!filterProgram || k.program?.id === filterProgram)) {
         map.set(k.id, k)
       }
     })
     return Array.from(map.values())
-  }, [subKegiatan, filterProgram])
+  }, [currentYearSubKegiatan, filterProgram])
 
   const subKegiatanOptions = useMemo(() => {
-    return subKegiatan.filter(sk => {
+    return currentYearSubKegiatan.filter(sk => {
       if (filterProgram && sk.kegiatan?.program?.id !== filterProgram) return false
       if (filterKegiatan && sk.kegiatan_id !== filterKegiatan) return false
       return true
     })
-  }, [subKegiatan, filterProgram, filterKegiatan])
+  }, [currentYearSubKegiatan, filterProgram, filterKegiatan])
 
   const kodeRekeningOptions = useMemo(() => {
     if (filterSubKegiatan) {
-      const sk = subKegiatan.find(s => s.id === filterSubKegiatan)
+      const sk = currentYearSubKegiatan.find(s => s.id === filterSubKegiatan)
       return sk?.kode_rekening || []
     }
     const list = []
@@ -174,12 +179,15 @@ export default function Pengeluaran() {
       })
     })
     return list
-  }, [subKegiatan, filterSubKegiatan, subKegiatanOptions])
+  }, [currentYearSubKegiatan, filterSubKegiatan, subKegiatanOptions])
 
   const filtered = useMemo(() => {
     return pengeluaran.filter(p => {
+      const d = p.tanggal ? new Date(p.tanggal) : null
+      if (!d || isNaN(d.getTime())) return false
+      if (d.getFullYear() !== tahunAnggaran) return false
+
       if (filterBulan !== '') {
-        const d = new Date(p.tanggal)
         if (d.getMonth() !== parseInt(filterBulan, 10)) return false
       }
       if (filterJenis && p.jenis !== filterJenis) return false
@@ -322,7 +330,12 @@ export default function Pengeluaran() {
 
   function openNew() {
     setEditingItem(null)
-    setForm({ ...EMPTY_FORM, tanggal: new Date().toISOString().split('T')[0] })
+    const today = new Date()
+    let defaultTanggal = today.toISOString().split('T')[0]
+    if (today.getFullYear() !== tahunAnggaran) {
+      defaultTanggal = `${tahunAnggaran}-01-01`
+    }
+    setForm({ ...EMPTY_FORM, tanggal: defaultTanggal })
     setRincian([{ ...EMPTY_RINCIAN }])
     setErrors({})
     setSelectedPdf(null)
@@ -477,6 +490,14 @@ export default function Pengeluaran() {
   async function handleSubmit(e) {
     e.preventDefault()
     
+    if (form.tanggal) {
+      const txYear = new Date(form.tanggal).getFullYear()
+      if (txYear !== tahunAnggaran) {
+        setErrors({ global: `Tanggal transaksi (${form.tanggal}) tidak sesuai dengan Tahun Anggaran aktif (${tahunAnggaran}).` })
+        return
+      }
+    }
+
     if (isDateLocked(form.tanggal)) {
       setErrors({ global: `Transaksi tidak dapat disimpan karena periode bulan tersebut telah terkunci 🔒` })
       return
@@ -722,11 +743,13 @@ export default function Pengeluaran() {
             if (form.ppn && parseInt(form.ppn, 10) > 0) {
               const amountVal = parseInt(form.ppn, 10)
               const desc = rincian[0]?.uraian || 'Belanja'
+              const jenisPajak = form.jenis === 'LS' ? 'Pajak LS' : 'Pajak'
+              const ketSetorPpn = `Setoran PPN dari Belanja: ${desc}`.trim()
               
               // Pungutan (Penerimaan)
               if (form.pajak_pungut !== false) {
                 taxPenerimaanPayloads.push({
-                  jenis: 'Pajak',
+                  jenis: jenisPajak,
                   tanggal: form.tanggal,
                   nomor_ls: bgNoBukti,
                   sub_kegiatan_id: form.sub_kegiatan_id,
@@ -740,14 +763,14 @@ export default function Pengeluaran() {
               taxPengeluaranPayloads.push({
                 pengeluaran: {
                   tanggal: form.tanggal,
-                  jenis: 'Pajak',
+                  jenis: jenisPajak,
                   no_bukti: bgNoBukti,
                   sub_kegiatan_id: form.sub_kegiatan_id,
                   kode_rekening_id: form.kode_rekening_id,
                   jumlah: amountVal,
-                  keterangan: `Setoran PPN dari Belanja: ${desc}`.trim(),
+                  keterangan: ketSetorPpn,
                 },
-                rincian: []
+                rincian: [{ uraian: ketSetorPpn, volume: null, jumlah: amountVal }]
               })
             }
 
@@ -784,7 +807,7 @@ export default function Pengeluaran() {
                       jumlah: amountVal,
                       keterangan: `Setoran ${jenisPph} dari Belanja: ${desc}`.trim(),
                     },
-                    rincian: []
+                    rincian: [{ uraian: `Setoran ${jenisPph} dari Belanja: ${desc}`.trim(), volume: null, jumlah: amountVal }]
                   })
                 }
               })

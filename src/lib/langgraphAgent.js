@@ -128,8 +128,9 @@ export function nodeIngestFinancialData(state) {
  */
 export function nodeMultiAngleAudit(state) {
   const { storeState, context } = state
-  const pengeluaran = storeState.pengeluaran || []
-  const subKegiatan = storeState.subKegiatan || []
+  const ctx = context || buildFinancialContext(storeState)
+  const pengeluaran = ctx.pengeluaran || []
+  const subKegiatan = ctx.subKegiatan || []
   const findings = []
 
   // 1. Audit Pengalokasian Kode Rekening (Account Misallocation)
@@ -252,13 +253,13 @@ export function nodeMultiAngleAudit(state) {
   })
 
   // 5. Audit Pelampauan RAK & Pagu DPA
-  context?.subKegiatanSummary?.forEach(sk => {
+  ctx?.subKegiatanSummary?.forEach(sk => {
     if (sk.sisa < 0) {
       findings.push({
         tingkat: 'CRITICAL',
         kategori: 'Pagu Overbudget',
         transaksi: `Sub Kegiatan: ${sk.nama}`,
-        tanggal: 'Tahun 2026',
+        tanggal: `Tahun ${ctx.tahunAnggaran || 2026}`,
         nominal: formatRupiah(Math.abs(sk.sisa)),
         rekeningAktif: sk.kode,
         rekomendasi: 'Pagu DPA telah terlampaui (defisit)! Lakukan pergeseran anggaran atau penghematan.'
@@ -268,6 +269,7 @@ export function nodeMultiAngleAudit(state) {
 
   return {
     ...state,
+    context: ctx,
     auditFindings: findings,
     step: 'AUDITED'
   }
@@ -396,11 +398,14 @@ export async function runLangGraphAgent(userQuery, storeState, chatHistory = [],
 
   // Jika pengguna menanyakan asal data ("datanya dari mana", "lihat datanya dari mana", "apakah data asli")
   if (q.includes('dari mana') || q.includes('melihat datanya') || q.includes('dapat data') || q.includes('akses data') || q.includes('data asli')) {
-    let sourceText = `### 🔍 Sumber Data Real-Time Asisten AI Bendahara\n\n`
-    sourceText += `Saya membaca dan mengolah **DATA RIIL 100% SECARA REAL-TIME** langsung dari database aplikasi BendaharaApp Anda (Zustand Store & BKU).\n\n`
+    const targetTahun = state.context?.tahunAnggaran || state.storeState?.tahunAnggaran || 2026
+    const totalTrxTahun = state.context?.pengeluaran?.length || 0
+
+    let sourceText = `### 🔍 Sumber Data Real-Time Asisten AI Bendahara (TA ${targetTahun})\n\n`
+    sourceText += `Saya membaca dan mengolah **DATA RIIL 100% SECARA REAL-TIME** langsung dari database aplikasi BendaharaApp Anda (Zustand Store & BKU) untuk **Tahun Anggaran ${targetTahun}**.\n\n`
     sourceText += `| Komponen Data | Status Akses System | Sumber Database |\n`
     sourceText += `| :--- | :---: | :--- |\n`
-    sourceText += `| **Pengeluaran & SPJ** | ✅ TERHUBUNG 100% | Database Transaksi Pengeluaran (${state.storeState?.pengeluaran?.length || 0} Transaksi) |\n`
+    sourceText += `| **Pengeluaran & SPJ** | ✅ TERHUBUNG 100% | Database Transaksi Pengeluaran (${totalTrxTahun} Transaksi TA ${targetTahun}) |\n`
     sourceText += `| **Penerimaan UP/GU/LS** | ✅ TERHUBUNG 100% | Database Pencairan Kas Penerimaan |\n`
     sourceText += `| **Pagu DPA & Sub Kegiatan** | ✅ TERHUBUNG 100% | Database Alokasi DPA Tahunan |\n`
     sourceText += `| **RAK Belanja Bulanan** | ✅ TERHUBUNG 100% | Database Rencana Anggaran Kas |\n\n`

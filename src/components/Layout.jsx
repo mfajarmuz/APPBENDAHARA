@@ -4,10 +4,16 @@ import Topbar from './Topbar'
 import { Outlet } from 'react-router-dom'
 import { Bot, Sparkles } from 'lucide-react'
 import AiAssistantDrawer from './ai/AiAssistantDrawer'
+import { useStore } from '@/store/useStore'
 
 export default function Layout() {
   const [isSidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024)
   const [isAiOpen, setIsAiOpen] = useState(false)
+  const fetchSettings = useStore(s => s.fetchSettings)
+
+  useEffect(() => {
+    if (fetchSettings) fetchSettings()
+  }, [fetchSettings])
 
   useEffect(() => {
     const handleResize = () => {

@@ -358,17 +358,19 @@ export function executeTool(name, args, storeState) {
 
   switch (name) {
     case 'audit_kode_rekening': {
-      const auditResults = auditKodeRekening(storeState.pengeluaran || [], storeState.subKegiatan || [])
+      const auditResults = auditKodeRekening(ctx.pengeluaran, ctx.subKegiatan)
       return JSON.stringify({
-        totalTransaksiDiaudit: storeState.pengeluaran?.length || 0,
+        tahunAnggaran: ctx.tahunAnggaran,
+        totalTransaksiDiaudit: ctx.pengeluaran.length,
         jumlahPotensiKesalahanKodeRekening: auditResults.length,
         potensiKesalahan: auditResults
       })
     }
 
     case 'get_item_level_details': {
-      const itemDetails = getItemLevelDetails(storeState.pengeluaran || [], storeState.subKegiatan || [])
+      const itemDetails = getItemLevelDetails(ctx.pengeluaran, ctx.subKegiatan)
       return JSON.stringify({
+        tahunAnggaran: ctx.tahunAnggaran,
         totalItemDetail: itemDetails.length,
         items: itemDetails
       })
@@ -384,6 +386,7 @@ export function executeTool(name, args, storeState) {
       }
 
       return JSON.stringify({
+        tahunAnggaran: ctx.tahunAnggaran,
         unitKerja: ctx.unitKerja,
         totalPagu: formatRupiah(ctx.totalPagu),
         realisasiTotal: formatRupiah(ctx.realisasiPengeluaran),
@@ -417,7 +420,7 @@ export function executeTool(name, args, storeState) {
         let targetRakTotal = 0
         let realisasiSdBulan = 0
 
-        ;(storeState.subKegiatan || []).forEach(skItem => {
+        ;(ctx.subKegiatan || []).forEach(skItem => {
           if (skItem.id === sk.id) {
             (skItem.kode_rekening || []).forEach(rek => {
               for (let m = 0; m <= monthIdx; m++) {
@@ -427,7 +430,7 @@ export function executeTool(name, args, storeState) {
           }
         })
 
-        realisasiSdBulan = (storeState.pengeluaran || [])
+        realisasiSdBulan = (ctx.pengeluaran || [])
           .filter(p => {
             if (p.sub_kegiatan_id !== sk.id || p.jenis === 'Pajak' || p.jenis === 'Pajak LS' || !p.tanggal) return false
             const parts = p.tanggal.split('-')
@@ -446,7 +449,7 @@ export function executeTool(name, args, storeState) {
         }
       })
 
-      return JSON.stringify({ bulan: targetMonthName, data: rakResult })
+      return JSON.stringify({ tahunAnggaran: ctx.tahunAnggaran, bulan: targetMonthName, data: rakResult })
     }
 
     case 'get_bku_summary': {
@@ -510,7 +513,7 @@ export function executeTool(name, args, storeState) {
     case 'generate_executive_summary': {
       return JSON.stringify({
         unitKerja: `${ctx.unitKerja} (${ctx.unitKerjaKode})`,
-        tahunAnggaran: 2026,
+        tahunAnggaran: ctx.tahunAnggaran,
         totalPagu: formatRupiah(ctx.totalPagu),
         realisasiTotal: formatRupiah(ctx.realisasiPengeluaran),
         persenPenyerapan: `${ctx.persenRealisasi}%`,
@@ -558,14 +561,14 @@ export async function runLangChainAgent(userQuery, chatHistory = [], storeState)
   const customRules = (settings.custom_ai_instructions || '').trim()
   const customRulesPrompt = customRules ? `\n\nATURAN KHUSUS PERSISTEN DARI BENDAHARA:\n${customRules}` : ''
 
-  const auditSummaryReal = auditKodeRekening(storeState.pengeluaran || [], storeState.subKegiatan || [])
+  const auditSummaryReal = auditKodeRekening(ctx.pengeluaran, ctx.subKegiatan)
   const auditRealText = auditSummaryReal.length > 0
     ? `Ditemukan ${auditSummaryReal.length} potensi kesalahan kode rekening riil di sistem: ${JSON.stringify(auditSummaryReal.slice(0, 5))}`
     : 'Seluruh pengalokasian kode rekening transaksi saat ini 100% tepat dan sesuai spesifikasi DPA.'
 
   const systemMessage = {
     role: 'system',
-    content: `Anda adalah Asisten AI Bendahara (Financial AI Co-Pilot, Audit Specialist, & LangChain/LangGraph Smart Agent) untuk unit kerja ${ctx.unitKerja} (${ctx.unitKerjaKode}).
+    content: `Anda adalah Asisten AI Bendahara (Financial AI Co-Pilot, Audit Specialist, & LangChain/LangGraph Smart Agent) untuk unit kerja ${ctx.unitKerja} (${ctx.unitKerjaKode}) Tahun Anggaran ${ctx.tahunAnggaran}.
 Tugas Anda adalah membantu Bendahara dan Pimpinan menganalisis data keuangan, mengaudit kesalahan kode rekening, dan mengekstrak rincian item transaksi secara akurat 100% dalam Bahasa Indonesia.${customRulesPrompt}
 
 BLUEPRINT SISTEM APLIKASI BENDAHARAAPP & DATABASE SCHEMA (MASTER KNOWLEDGE):
@@ -590,7 +593,8 @@ PERINGATAN STRICT ACCESS DATA REAL-TIME (JANGAN DIABAIKAN):
 4. Seluruh angka nominal, transaksi, BKU, DPA, RAK, dan daftar temuan audit di bawah ini adalah DATA RIIL 100% DARI DATABASE APLIKASI BENDAHARAAPP.
 5. Jika pengguna bertanya dari mana Anda melihat/mendapatkan data, tegaskan dengan percaya diri: "Saya membaca dan mengolah data transaksi riil secara real-time langsung dari database aplikasi BendaharaApp Anda."
 
-FAKTA DATA KEUANGAN SAAT INI (SINKRON 100% DENGAN DASHBOARD & BKU):
+FAKTA DATA KEUANGAN TAHUN ANGGARAN ${ctx.tahunAnggaran} (SINKRON 100% DENGAN DASHBOARD & BKU):
+- Tahun Anggaran: ${ctx.tahunAnggaran}
 - Unit Kerja: ${ctx.unitKerja} (${ctx.unitKerjaKode})
 - Saldo Kas Bendahara (Dashboard): ${formatRupiah(ctx.saldoKasBku)} (Penerimaan UP/GU ${formatRupiah(ctx.penerimaanUPGU)} - Pengeluaran GU ${formatRupiah(ctx.pengeluaranGU)})
 - Total Pagu DPA Tahunan: ${formatRupiah(ctx.totalPagu)}

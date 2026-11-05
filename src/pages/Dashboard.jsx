@@ -81,6 +81,7 @@ export default function Dashboard() {
   const subKegiatan = useStore(s => s.subKegiatan)
   const pengeluaran = useStore(s => s.pengeluaran)
   const penerimaan = useStore(s => s.penerimaan)
+  const tahunAnggaran = useStore(s => s.tahunAnggaran)
   const isLoading = useStore(s => s.isLoading)
   const fetchSubKegiatan = useStore(s => s.fetchSubKegiatan)
   const fetchPengeluaran = useStore(s => s.fetchPengeluaran)
@@ -112,21 +113,42 @@ export default function Dashboard() {
     fetchPenerimaan()
   }, [])
 
+  // Fiscal Year Filtered Data
+  const currentSubKegiatan = useMemo(() => {
+    return (subKegiatan || []).filter(sk => (sk.tahun_anggaran || 2026) === tahunAnggaran)
+  }, [subKegiatan, tahunAnggaran])
+
+  const currentPengeluaran = useMemo(() => {
+    return (pengeluaran || []).filter(p => {
+      if (!p.tanggal) return false
+      const d = new Date(p.tanggal)
+      return !isNaN(d.getTime()) && d.getFullYear() === tahunAnggaran
+    })
+  }, [pengeluaran, tahunAnggaran])
+
+  const currentPenerimaan = useMemo(() => {
+    return (penerimaan || []).filter(p => {
+      if (!p.tanggal) return false
+      const d = new Date(p.tanggal)
+      return !isNaN(d.getTime()) && d.getFullYear() === tahunAnggaran
+    })
+  }, [penerimaan, tahunAnggaran])
+
   // Hierarchical Data Transformation
   const hierarchicalData = useMemo(() => {
     const programsMap = {}
-    subKegiatan.forEach(sk => {
+    currentSubKegiatan.forEach(sk => {
       const keg = sk.kegiatan
       const prog = keg?.program
       if (!prog) return
       if (!programsMap[prog.id]) programsMap[prog.id] = { ...prog, kegiatan: {}, total_pagu: 0, realisasi: 0 }
       if (!programsMap[prog.id].kegiatan[keg.id]) programsMap[prog.id].kegiatan[keg.id] = { ...keg, sub_kegiatan: {}, total_pagu: 0, realisasi: 0 }
       const skPagu = (sk.kode_rekening ?? []).reduce((s, r) => s + (r.pagu_anggaran ?? 0), 0)
-      const skReal = pengeluaran.filter(p => p.sub_kegiatan_id === sk.id && p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS').reduce((sum, p) => sum + (p.jumlah ?? 0), 0)
+      const skReal = currentPengeluaran.filter(p => p.sub_kegiatan_id === sk.id && p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS').reduce((sum, p) => sum + (p.jumlah ?? 0), 0)
       const skData = {
         ...sk, total_pagu: skPagu, realisasi: skReal, persen: persen(skReal, skPagu),
         kode_rekening: (sk.kode_rekening ?? []).map(rek => {
-          const rekTx = pengeluaran
+          const rekTx = currentPengeluaran
             .filter(p => p.kode_rekening_id === rek.id && p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS')
             .sort((a, b) => (a.tanggal || '').localeCompare(b.tanggal || ''))
           const rekReal = rekTx.reduce((sum, p) => sum + (p.jumlah ?? 0), 0)
@@ -146,28 +168,29 @@ export default function Dashboard() {
         sub_kegiatan: Object.values(k.sub_kegiatan)
       }))
     }))
-  }, [subKegiatan, pengeluaran])
+  }, [currentSubKegiatan, currentPengeluaran])
 
   const totalPagu = useMemo(() => hierarchicalData.reduce((sum, p) => sum + p.total_pagu, 0), [hierarchicalData])
-  const totalPenerimaan = useMemo(() => penerimaan.filter(p => p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS').reduce((sum, p) => sum + (p.jumlah ?? 0), 0), [penerimaan])
-  const totalPengeluaran = useMemo(() => pengeluaran.filter(p => p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS').reduce((sum, p) => sum + (p.jumlah ?? 0), 0), [pengeluaran])
+  const totalPenerimaan = useMemo(() => currentPenerimaan.filter(p => p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS').reduce((sum, p) => sum + (p.jumlah ?? 0), 0), [currentPenerimaan])
+  const totalPengeluaran = useMemo(() => currentPengeluaran.filter(p => p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS').reduce((sum, p) => sum + (p.jumlah ?? 0), 0), [currentPengeluaran])
 
   // Breakdown Penerimaan
-  const penerimaanLS = useMemo(() => penerimaan.filter(p => p.jenis === 'LS').reduce((s, p) => s + p.jumlah, 0), [penerimaan])
-  const penerimaanUPGU = useMemo(() => penerimaan.filter(p => p.jenis === 'UP' || p.jenis === 'GU').reduce((s, p) => s + p.jumlah, 0), [penerimaan])
-  const penerimaanPajak = useMemo(() => penerimaan.filter(p => p.jenis === 'Pajak').reduce((s, p) => s + p.jumlah, 0), [penerimaan])
+  const penerimaanLS = useMemo(() => currentPenerimaan.filter(p => p.jenis === 'LS').reduce((s, p) => s + p.jumlah, 0), [currentPenerimaan])
+  const penerimaanUPGU = useMemo(() => currentPenerimaan.filter(p => p.jenis === 'UP' || p.jenis === 'GU').reduce((s, p) => s + p.jumlah, 0), [currentPenerimaan])
+  const penerimaanPajak = useMemo(() => currentPenerimaan.filter(p => p.jenis === 'Pajak' || p.jenis === 'Pajak LS').reduce((s, p) => s + p.jumlah, 0), [currentPenerimaan])
 
   // Breakdown Pengeluaran
-  const pengeluaranLS = useMemo(() => pengeluaran.filter(p => p.jenis === 'LS').reduce((s, p) => s + p.jumlah, 0), [pengeluaran])
-  const pengeluaranGU = useMemo(() => pengeluaran.filter(p => ['GU', 'UP', 'TU', 'KKPD'].includes(p.jenis)).reduce((s, p) => s + p.jumlah, 0), [pengeluaran])
+  const pengeluaranLS = useMemo(() => currentPengeluaran.filter(p => p.jenis === 'LS').reduce((s, p) => s + p.jumlah, 0), [currentPengeluaran])
+  const pengeluaranGU = useMemo(() => currentPengeluaran.filter(p => ['GU', 'UP', 'TU', 'KKPD'].includes(p.jenis)).reduce((s, p) => s + p.jumlah, 0), [currentPengeluaran])
   const pengeluaranPajak = useMemo(() => {
-    return pengeluaran.filter(p => {
+    return currentPengeluaran.filter(p => {
       const rincianText = p.pengeluaran_rincian?.length > 0
         ? p.pengeluaran_rincian.map(r => r.uraian).join(', ')
         : p.keterangan || ''
-      return rincianText.startsWith('Setoran PP')
+      const lower = rincianText.toLowerCase()
+      return p.jenis === 'Pajak' || p.jenis === 'Pajak LS' || rincianText.startsWith('Setoran PP') || lower.startsWith('disetor pp') || lower.includes('dibayar pp')
     }).reduce((s, p) => s + p.jumlah, 0)
-  }, [pengeluaran])
+  }, [currentPengeluaran])
 
   const sisaSaldoKas = penerimaanUPGU - pengeluaranGU
   const sisaQuotaAnggaran = totalPagu - totalPengeluaran
@@ -184,16 +207,18 @@ export default function Dashboard() {
     ]
 
     const result = types.map(t => {
-      const dipungut = penerimaan
-        .filter(p => p.jenis === 'Pajak' && t.regex.test(p.keterangan || ''))
+      const dipungut = currentPenerimaan
+        .filter(p => (p.jenis === 'Pajak' || p.jenis === 'Pajak LS') && t.regex.test(p.keterangan || ''))
         .reduce((s, p) => s + p.jumlah, 0)
       
-      const disetor = pengeluaran
+      const disetor = currentPengeluaran
         .filter(p => {
           const u = p.pengeluaran_rincian?.length > 0
             ? p.pengeluaran_rincian.map(r => r.uraian).join(', ')
             : p.keterangan || ''
-          return u.startsWith('Setoran PP') && t.regex.test(u)
+          const lower = u.toLowerCase()
+          const isTaxTx = p.jenis === 'Pajak' || p.jenis === 'Pajak LS' || u.startsWith('Setoran PP') || lower.startsWith('disetor pp') || lower.includes('dibayar pp')
+          return isTaxTx && t.regex.test(u)
         })
         .reduce((s, p) => s + p.jumlah, 0)
 
@@ -201,7 +226,7 @@ export default function Dashboard() {
     })
 
     return result
-  }, [penerimaan, pengeluaran])
+  }, [currentPenerimaan, currentPengeluaran])
 
   const totalPajakDipungut = useMemo(() => pajakDetails.reduce((s, p) => s + p.dipungut, 0), [pajakDetails])
   const totalPajakDisetor = useMemo(() => pajakDetails.reduce((s, p) => s + p.disetor, 0), [pajakDetails])
@@ -212,7 +237,7 @@ export default function Dashboard() {
   ], [])
 
   const bkuIndexMap = useMemo(() => {
-    const allBku = getBkuRows(penerimaan, pengeluaran)
+    const allBku = getBkuRows(currentPenerimaan, currentPengeluaran)
     
     // Kelompokkan item BKU per bulan (tahun-bulan)
     const monthGroups = {}
@@ -253,15 +278,10 @@ export default function Dashboard() {
       }
     })
     return map
-  }, [penerimaan, pengeluaran, INDO_MONTHS])
+  }, [currentPenerimaan, currentPengeluaran, INDO_MONTHS])
 
   const monthlyRecap = useMemo(() => {
-    let year = new Date().getFullYear()
-    const firstWithDate = pengeluaran.find(p => p.tanggal)
-    if (firstWithDate) {
-      const pYear = parseInt(firstWithDate.tanggal.split('-')[0], 10)
-      if (!isNaN(pYear)) year = pYear
-    }
+    const year = tahunAnggaran
 
     const list = INDO_MONTHS.map((monthName, monthIdx) => ({
       key: `${year}-${String(monthIdx + 1).padStart(2, '0')}`,
@@ -272,7 +292,7 @@ export default function Dashboard() {
       totalAll: 0
     }))
     
-    pengeluaran.forEach(p => {
+    currentPengeluaran.forEach(p => {
       if (!p.tanggal) return
       const parts = p.tanggal.split('-')
       if (parts.length < 2) return
@@ -282,14 +302,14 @@ export default function Dashboard() {
       const jumlah = p.jumlah ?? 0
       if (p.jenis === 'LS') {
         list[monthIdx].totalLS += jumlah
-      } else if (p.jenis === 'GU') {
+      } else if (['GU', 'UP', 'TU', 'KKPD'].includes(p.jenis)) {
         list[monthIdx].totalGU += jumlah
       }
-      list[monthIdx].totalAll += jumlah
+      if (p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS') list[monthIdx].totalAll += jumlah
     })
     
     return list
-  }, [pengeluaran, INDO_MONTHS])
+  }, [currentPengeluaran, INDO_MONTHS, tahunAnggaran])
 
   const RAK_KEYS = useMemo(() => [
     'rak_jan', 'rak_feb', 'rak_mar', 'rak_apr', 'rak_mei', 'rak_jun',
@@ -297,16 +317,17 @@ export default function Dashboard() {
   ], [])
 
   const rakMonitoringData = useMemo(() => {
-    return subKegiatan.map(sk => {
+    return currentSubKegiatan.map(sk => {
       const keysToSum = RAK_KEYS.slice(0, selectedMonth)
       const targetRak = (sk.kode_rekening ?? []).reduce((sumRek, rek) => {
         const rekSum = keysToSum.reduce((sumBulan, key) => sumBulan + (rek[key] ?? 0), 0)
         return sumRek + rekSum
       }, 0)
 
-      const realisasi = pengeluaran
+      const realisasi = currentPengeluaran
         .filter(p => {
           if (p.sub_kegiatan_id !== sk.id || !p.tanggal) return false
+          if (p.jenis === 'Pajak' || p.jenis === 'Pajak LS') return false
           const parts = p.tanggal.split('-')
           if (parts.length < 2) return false
           const pMonth = parseInt(parts[1], 10)
@@ -319,8 +340,8 @@ export default function Dashboard() {
 
       const rekeningDetails = (sk.kode_rekening ?? []).map(rek => {
         const rekTargetRak = keysToSum.reduce((sumBulan, key) => sumBulan + (rek[key] ?? 0), 0)
-        const rekRealisasi = pengeluaran
-          .filter(p => p.kode_rekening_id === rek.id && p.tanggal)
+        const rekRealisasi = currentPengeluaran
+          .filter(p => p.kode_rekening_id === rek.id && p.tanggal && p.jenis !== 'Pajak' && p.jenis !== 'Pajak LS')
           .filter(p => {
             const parts = p.tanggal.split('-')
             const pMonth = parseInt(parts[1], 10)
@@ -353,7 +374,7 @@ export default function Dashboard() {
         rekening: rekeningDetails
       }
     }).sort((a, b) => a.kode.localeCompare(b.kode))
-  }, [subKegiatan, pengeluaran, selectedMonth, RAK_KEYS])
+  }, [currentSubKegiatan, currentPengeluaran, selectedMonth, RAK_KEYS])
 
   if (isLoading && subKegiatan.length === 0) {
     return <div className="flex items-center justify-center h-64"><Spinner size={28} /></div>
@@ -361,6 +382,19 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-12">
+      {/* Fiscal Year Indicator Banner */}
+      <div className="flex items-center justify-between bg-white px-5 py-3 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
+          <p className="text-xs font-bold text-slate-700">
+            Overview Realisasi & Posisi Kas <span className="font-extrabold text-indigo-600">Tahun Anggaran {tahunAnggaran}</span>
+          </p>
+        </div>
+        <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-black">
+          TA {tahunAnggaran}
+        </Badge>
+      </div>
+
       {/* KPI Cards Interaktif */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6">
         <InteractiveKPICard 

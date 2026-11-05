@@ -34,7 +34,7 @@ export const getBkuRows = (penerimaan, pengeluaran) => {
         ? p.pengeluaran_rincian.map(r => `${r.uraian}${r.volume ? ` (${r.volume})` : ''}`).join(', ')
         : p.keterangan || 'Belanja'
       
-      const isSetoranPajak = rincianText.startsWith('Setoran PP') || p.jenis === 'Pajak' || p.jenis === 'Pajak LS' || rincianText.toLowerCase().includes('dibayar pp')
+      const isSetoranPajak = rincianText.startsWith('Setoran PP') || p.jenis === 'Pajak' || p.jenis === 'Pajak LS' || rincianText.toLowerCase().includes('dibayar pp') || rincianText.toLowerCase().startsWith('disetor pp')
 
       if (isSetoranPajak) {
         fullCode = 'Pajak'

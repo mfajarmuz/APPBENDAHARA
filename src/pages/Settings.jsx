@@ -1,7 +1,8 @@
 // src/pages/Settings.jsx
 import { useState, useEffect } from 'react'
 import { useStore } from '@/store/useStore'
-import { Save, Building2, UserCheck, RefreshCcw, AlertCircle, Laptop, Download, Power, Cloud, CheckCircle2, XCircle, Bot, Sparkles, Sliders, ShieldCheck } from 'lucide-react'
+import { Save, Building2, UserCheck, RefreshCcw, AlertCircle, Laptop, Download, Power, Cloud, CheckCircle2, XCircle, Bot, Sparkles, Sliders, ShieldCheck, CalendarDays, Plus, Check, Database, Upload, FileSpreadsheet, FileJson } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -18,6 +19,14 @@ export default function Settings() {
   const updateSettings = useStore(s => s.updateSettings)
   const resetSettings = useStore(s => s.resetSettings)
   const user = useStore(s => s.user)
+
+  // Fiscal Year Store
+  const tahunAnggaran = useStore(s => s.tahunAnggaran)
+  const daftarTahunAnggaran = useStore(s => s.daftarTahunAnggaran)
+  const setTahunAnggaran = useStore(s => s.setTahunAnggaran)
+  const addTahunAnggaran = useStore(s => s.addTahunAnggaran)
+  const backupDatabase = useStore(s => s.backupDatabase)
+  const restoreDatabase = useStore(s => s.restoreDatabase)
 
   const [activeTab, setActiveTab] = useState('skpd') // 'skpd' | 'pejabat' | 'ai' | 'system'
   const [form, setForm] = useState({ ...settings })
@@ -41,6 +50,143 @@ export default function Settings() {
 
   // Google Drive connection states
   const [driveStatus, setDriveStatus] = useState({ loading: false, result: null })
+
+  // Database Backup & Restore states
+  const [backupState, setBackupState] = useState({ loading: false, result: null, error: '' })
+  const [restorePreview, setRestorePreview] = useState(null)
+  const [restoreState, setRestoreState] = useState({ loading: false, result: null, error: '' })
+
+  const handleRunBackup = async (downloadMode = 'all') => {
+    setBackupState({ loading: true, result: null, error: '' })
+    try {
+      const res = await backupDatabase({ format: downloadMode })
+      if (!res || !res.success) {
+        throw new Error(res?.error || 'Gagal menjalankan backup database.')
+      }
+      const data = res.data
+      const payload = data?.payload
+
+      // Jika di browser atau pengguna meminta unduh langsung JSON / Excel
+      if (payload && (!isElectron || downloadMode === 'json' || downloadMode === 'xlsx')) {
+        const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')
+        if (downloadMode === 'json' || (!isElectron && downloadMode === 'all')) {
+          const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `backup_bendahara_${stamp}.json`
+          a.click()
+          URL.revokeObjectURL(url)
+        }
+        if (downloadMode === 'xlsx' || (!isElectron && downloadMode === 'all')) {
+          const wb = XLSX.utils.book_new()
+          Object.entries(payload.tables || {}).forEach(([tbl, rows]) => {
+            const sheetRows = Array.isArray(rows) && rows.length > 0 ? rows : [{ info: '0 baris' }]
+            const ws = XLSX.utils.json_to_sheet(sheetRows)
+            XLSX.utils.book_append_sheet(wb, ws, tbl.slice(0, 31))
+          })
+          XLSX.writeFile(wb, `backup_bendahara_${stamp}.xlsx`)
+        }
+      }
+
+      setBackupState({ loading: false, result: data, error: '' })
+    } catch (err) {
+      setBackupState({ loading: false, result: null, error: err.message })
+    }
+  }
+
+  const handleSelectRestoreFile = (e) => {
+    const file = e.target.files?.[0]
+    setRestoreState({ loading: false, result: null, error: '' })
+    if (!file) {
+      setRestorePreview(null)
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result)
+        if (!parsed || !parsed.tables || typeof parsed.tables !== 'object') {
+          throw new Error('File JSON bukan format backup BendaharaApp yang valid.')
+        }
+        const counts = {}
+        let total = 0
+        Object.entries(parsed.tables).forEach(([k, arr]) => {
+          const c = Array.isArray(arr) ? arr.length : 0
+          counts[k] = c
+          total += c
+        })
+        setRestorePreview({
+          fileName: file.name,
+          backupAt: parsed.metadata?.backup_at || '-',
+          version: parsed.metadata?.version || '-',
+          counts,
+          total,
+          payload: parsed
+        })
+      } catch (err) {
+        setRestorePreview(null)
+        setRestoreState({ loading: false, result: null, error: err.message })
+      }
+    }
+    reader.readAsText(file)
+  }
+
+  const handleConfirmRestore = async () => {
+    if (!restorePreview?.payload) return
+    if (!window.confirm(`Apakah Anda yakin ingin memulihkan (restore) ${restorePreview.total} baris data dari file "${restorePreview.fileName}" ke database?`)) {
+      return
+    }
+    setRestoreState({ loading: true, result: null, error: '' })
+    try {
+      const res = await restoreDatabase(restorePreview.payload)
+      if (!res || !res.success) {
+        throw new Error(res?.error || 'Gagal memulihkan database.')
+      }
+      setRestoreState({ loading: false, result: res.data, error: '' })
+      setRestorePreview(null)
+    } catch (err) {
+      setRestoreState({ loading: false, result: null, error: err.message })
+    }
+  }
+
+  // Fiscal Year Management states
+  const [newYearVal, setNewYearVal] = useState('')
+  const [copyDpaFromCurrent, setCopyDpaFromCurrent] = useState(true)
+  const [isAddingYearSettings, setIsAddingYearSettings] = useState(false)
+  const [yearSuccessMsg, setYearSuccessMsg] = useState('')
+  const [yearErrorMsg, setYearErrorMsg] = useState('')
+
+  const handleAddYearFromSettings = async () => {
+    setYearErrorMsg('')
+    setYearSuccessMsg('')
+    const val = parseInt(newYearVal.trim(), 10)
+    if (!val || isNaN(val) || val < 2000 || val > 2100) {
+      setYearErrorMsg('Tahun anggaran harus berupa 4 digit angka valid (antara 2000 - 2100).')
+      return
+    }
+    if ((daftarTahunAnggaran || []).includes(val)) {
+      setYearErrorMsg(`Tahun Anggaran ${val} sudah terdaftar.`)
+      return
+    }
+
+    setIsAddingYearSettings(true)
+    try {
+      const res = await addTahunAnggaran(val, {
+        copyFromYear: copyDpaFromCurrent ? tahunAnggaran : null
+      })
+      if (res && !res.success) {
+        setYearErrorMsg(res.error || 'Gagal menambahkan tahun anggaran.')
+      } else {
+        setYearSuccessMsg(res?.message || `Tahun Anggaran ${val} berhasil ditambahkan dan diaktifkan!`)
+        setNewYearVal('')
+      }
+    } catch (err) {
+      setYearErrorMsg(err.message || 'Terjadi kesalahan sistem.')
+    } finally {
+      setIsAddingYearSettings(false)
+    }
+  }
 
   // Sync form when settings change (e.g. after reset)
   useEffect(() => {
@@ -820,6 +966,280 @@ export default function Settings() {
                       </Button>
                     )}
                   </div>
+                </div>
+              </Card>
+
+
+              {/* Backup & Restore Database Lokal */}
+              <Card className="p-6 border-t-4 border-t-teal-600 shadow-md">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
+                      <Database size={22} />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm text-slate-800">Backup & Restore Database Lokal (Full Snapshot)</h3>
+                      <p className="text-xs text-slate-500">Cadangkan seluruh 9 tabel database ke folder lokal (JSON, Excel, & SQL) atau pulihkan data dari file backup.</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-teal-50 text-teal-700 border border-teal-200 uppercase text-[9px] font-black px-3 py-1 w-fit">
+                    9 TABEL UTAMA
+                  </Badge>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Bagian 1: Backup 1-Klik */}
+                  <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                          <Download size={14} className="text-teal-600" /> 1. Cadangkan (Backup) Seluruh Data Sekarang
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Menyimpan salinan utuh Program, Kegiatan, Sub Kegiatan, Kode Rekening, Komponen Belanja, Penerimaan, Pengeluaran, Rincian, & Periode Kunci.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        <Button
+                          type="button"
+                          onClick={() => handleRunBackup('all')}
+                          disabled={backupState.loading}
+                          className="text-xs font-bold h-9 px-4 bg-teal-600 hover:bg-teal-700 text-white shadow-sm"
+                        >
+                          {backupState.loading ? (
+                            <span className="flex items-center gap-1.5"><RefreshCcw size={13} className="animate-spin" /> Memproses Backup...</span>
+                          ) : (
+                            <span className="flex items-center gap-1.5"><Database size={13} /> Backup Lengkap (JSON + Excel + SQL)</span>
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => handleRunBackup('xlsx')}
+                          disabled={backupState.loading}
+                          className="text-xs font-bold h-9 px-3 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                        >
+                          <FileSpreadsheet size={13} /> Unduh Excel
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => handleRunBackup('json')}
+                          disabled={backupState.loading}
+                          className="text-xs font-bold h-9 px-3 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                        >
+                          <FileJson size={13} /> Unduh JSON
+                        </Button>
+                      </div>
+                    </div>
+
+                    {backupState.error && (
+                      <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2">
+                        <XCircle size={15} className="shrink-0" />
+                        <span>{backupState.error}</span>
+                      </div>
+                    )}
+
+                    {backupState.result && (
+                      <div className="p-4 bg-emerald-50/80 border border-emerald-200 text-emerald-900 rounded-xl text-xs space-y-2.5 animate-in fade-in">
+                        <div className="flex items-center justify-between">
+                          <span className="font-black uppercase tracking-wider text-[10px] text-emerald-700 flex items-center gap-1.5">
+                            <CheckCircle2 size={15} className="text-emerald-600" /> Backup Database Berhasil Disimpan!
+                          </span>
+                          <span className="text-[10px] font-mono text-emerald-700">{new Date(backupState.result.metadata?.backup_at).toLocaleString('id-ID')}</span>
+                        </div>
+                        {backupState.result.backupDir && (
+                          <p className="text-[11px] font-mono bg-white/80 px-2.5 py-1.5 rounded-lg border border-emerald-100 break-all">
+                            📁 Lokasi Folder: <strong>{backupState.result.backupDir}</strong>
+                          </p>
+                        )}
+                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 pt-1">
+                          {Object.entries(backupState.result.metadata?.table_counts || {}).map(([tbl, cnt]) => (
+                            <div key={tbl} className="bg-white/90 px-2.5 py-1.5 rounded-lg border border-emerald-100 text-center">
+                              <span className="block text-[9px] font-bold text-slate-400 uppercase truncate">{tbl}</span>
+                              <span className="text-xs font-black text-emerald-700">{cnt} baris</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bagian 2: Restore Database dari File JSON */}
+                  {user?.role !== 'viewer' && (
+                    <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-4">
+                      <div>
+                        <h4 className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                          <Upload size={14} className="text-indigo-600" /> 2. Pulihkan (Restore) Database dari File Backup (.json)
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Pilih file <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 font-mono text-[10px]">backup_bendahara_*.json</code> untuk memulihkan data secara berurutan (Upsert aman tanpa menghapus data lain).
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                        <input
+                          type="file"
+                          accept=".json,application/json"
+                          onChange={handleSelectRestoreFile}
+                          disabled={restoreState.loading}
+                          className="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-xl bg-white p-1"
+                        />
+                        {restorePreview && (
+                          <Button
+                            type="button"
+                            onClick={handleConfirmRestore}
+                            disabled={restoreState.loading}
+                            className="text-xs font-bold h-9 px-5 bg-indigo-600 hover:bg-indigo-700 text-white shrink-0"
+                          >
+                            {restoreState.loading ? 'Memulihkan...' : `Pulihkan (${restorePreview.total} Baris)`}
+                          </Button>
+                        )}
+                      </div>
+
+                      {restorePreview && (
+                        <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-extrabold text-indigo-900">Pratinjau File: {restorePreview.fileName}</span>
+                            <span className="text-[10px] font-bold text-indigo-700">Total: {restorePreview.total} Baris Data</span>
+                          </div>
+                          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                            {Object.entries(restorePreview.counts).map(([tbl, cnt]) => (
+                              <div key={tbl} className="bg-white px-2 py-1 rounded border border-indigo-100 text-center">
+                                <span className="block text-[9px] text-slate-400 font-bold uppercase truncate">{tbl}</span>
+                                <span className="text-xs font-black text-indigo-700">{cnt}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {restoreState.error && (
+                        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2">
+                          <XCircle size={15} className="shrink-0" />
+                          <span>{restoreState.error}</span>
+                        </div>
+                      )}
+
+                      {restoreState.result && (
+                        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-center gap-2">
+                          <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                          <span>
+                            Berhasil memulihkan <strong>{restoreState.result.totalRestored} baris data</strong> ke database dan menyinkronkan seluruh halaman!
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              {/* Manajemen Tahun Anggaran */}
+              <Card className="p-6 border-t-4 border-t-indigo-500 shadow-md">
+                <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                      <CalendarDays size={22} />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm text-slate-800">Manajemen Tahun Anggaran (Fiscal Years)</h3>
+                      <p className="text-xs text-slate-500">Kelola tahun anggaran aktif dan daftarkan tahun anggaran baru untuk perencanaan dan pelaporan.</p>
+                    </div>
+                  </div>
+
+                  <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase text-[9px] font-black px-3 py-1">
+                    TA AKTIF: {tahunAnggaran}
+                  </Badge>
+                </div>
+
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">
+                      Daftar Tahun Anggaran Terdaftar (Klik untuk mengaktifkan):
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {(daftarTahunAnggaran || [2026]).map(year => {
+                        const isActive = year === tahunAnggaran
+                        return (
+                          <div
+                            key={year}
+                            onClick={() => setTahunAnggaran(year)}
+                            className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+                              isActive
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-600/20 ring-2 ring-indigo-300'
+                                : 'bg-slate-50 hover:bg-slate-100/80 text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            <div>
+                              <span className={`text-[10px] font-bold block ${isActive ? 'text-indigo-200' : 'text-slate-400'}`}>Tahun Anggaran</span>
+                              <span className="text-base font-black">{year}</span>
+                            </div>
+                            {isActive ? (
+                              <span className="p-1 rounded-full bg-white/20 text-white">
+                                <Check size={14} />
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-slate-400">Pilih</span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Tambah Tahun Form */}
+                  {user?.role !== 'viewer' && (
+                    <div className="pt-4 border-t border-slate-100">
+                      <h4 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-1.5">
+                        <Plus size={14} className="text-indigo-600" /> Tambah Tahun Anggaran Baru
+                      </h4>
+
+                      {yearErrorMsg && (
+                        <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs flex items-center gap-2">
+                          <AlertCircle size={15} className="shrink-0" />
+                          <span>{yearErrorMsg}</span>
+                        </div>
+                      )}
+
+                      {yearSuccessMsg && (
+                        <div className="mb-3 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs flex items-center gap-2">
+                          <Check size={15} className="shrink-0" />
+                          <span>{yearSuccessMsg}</span>
+                        </div>
+                      )}
+
+                      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                        <Input
+                          type="number"
+                          min="2000"
+                          max="2100"
+                          value={newYearVal}
+                          onChange={e => setNewYearVal(e.target.value)}
+                          placeholder="Contoh: 2027"
+                          className="w-full sm:w-44 text-xs font-bold"
+                          disabled={isAddingYearSettings}
+                        />
+                        <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={copyDpaFromCurrent}
+                            onChange={e => setCopyDpaFromCurrent(e.target.checked)}
+                            disabled={isAddingYearSettings}
+                            className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+                          />
+                          <span>Salin Struktur DPA dari TA {tahunAnggaran} (Pagu Rp 0)</span>
+                        </label>
+                        <Button
+                          type="button"
+                          onClick={handleAddYearFromSettings}
+                          disabled={isAddingYearSettings || !newYearVal}
+                          className="text-xs font-bold h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 sm:ml-auto"
+                        >
+                          {isAddingYearSettings ? 'Memproses...' : 'Tambah & Aktifkan'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </Card>
 
